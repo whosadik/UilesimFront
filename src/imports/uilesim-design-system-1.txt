@@ -1,0 +1,253 @@
+Сделай полный “каркас фронта” (Figma design system + экраны) для Uilesim так, чтобы после дизайна оставалась только интеграция с Django DRF API. Работай внутри текущего Figma файла, не ломай уже готовые Header/Navbar + Home (Hero) и выбранную палитру: primary CTA/кнопки Ink (тёмные), розовый — только акцент. Стиль: premium minimal, светлые перламутровые фоны, мягкие тени, много воздуха. Никакого фиолетового.
+
+────────────────────────────────────────
+0) Структура файла и порядок
+Создай Figma Pages:
+1) “App / Customer” (все страницы)
+2) “Components / UI Kit” (все компоненты + варианты)
+3) “Flows / Prototype” (копии ключевых экранов для кликабельного прототипа)
+4) “Dev notes” (если нужно, можно внутри каждого фрейма группой)
+
+Для каждого экрана сделай 3 фрейма: Desktop 1440, Tablet 834, Mobile 390.
+Сетка: как на Home. Auto Layout везде.
+
+Обязательное правило: один и тот же Header/Navbar компонент используется на всех страницах как instance.
+
+────────────────────────────────────────
+1) UI Kit — доведи до production-ready (Variants must)
+Собери и используй компоненты:
+
+A) Buttons
+- Primary (Ink), Secondary (border), Ghost, Destructive
+- states: default/hover/pressed/disabled/loading
+
+B) Inputs / Form system
+- Text input, Search, Password, Textarea
+- Select/Dropdown, Checkbox, Radio, Toggle, Slider (budget)
+- helper/error/success/disabled/loading
+
+C) Navigation
+- NavLink (default/active/hover)
+- Breadcrumbs
+- Tabs (for product details and brand pages)
+- Pagination + Load more + Infinite loader
+
+D) Cards
+- ProductCard: grid + carousel + list-row + skeleton + out_of_stock + in_cart stepper
+- BrandCard
+- PromoCard (для акций)
+- OfferCard (active/none/expired)
+- ProfileSummaryCard (progress)
+- RoadmapStepCard
+- TransactionRow card
+
+E) Feedback
+- Toast/Snackbar (success/error/warn)
+- Alert banner (inline)
+- Empty state blocks (no results, no offers, no transactions)
+- Error state blocks (network, rate limit, csrf/session expired)
+- Skeleton library (product grid, profile, offer, list)
+
+F) Overlays
+- Modal, Drawer, Bottom sheet (mobile)
+- Quick view overlay (desktop) for product
+
+Все компоненты: Auto Layout, constraints, min hit area 40×40, аккуратные layer names.
+
+────────────────────────────────────────
+2) Полный набор страниц (App / Customer)
+Нарисуй страницы, каждая в Desktop/Tablet/Mobile, с состояниями Loading/Empty/Error там, где важно.
+
+1) Home (уже есть) — ДОПОЛНИ
+- секции-карусели товаров, акции, бренд недели, “все товары” feed
+- infinite loader + fallback “Показать ещё”
+
+2) Catalog listing
+- /catalog
+- filters sidebar (desktop) + chips (mobile)
+- sort dropdown
+- product grid + pagination/load more
+Dev notes: GET /api/products/?category=&product_type=&brand=&in_stock=
+
+3) Search results
+- /search?q=
+- search bar, suggested queries, results grid
+- empty state “Ничего не найдено”
+Dev notes: GET /api/products/?brand=... (mock) + client filtering until search endpoint exists
+
+4) Brands directory
+- /brands
+- search brand, A–Z index, popular chips
+- grid BrandCard
+Dev notes: mock (или derive from products brand list)
+
+5) Brand page
+- /brands/{brand}
+- brand hero + tabs: Hits/New/All
+- product grid
+Dev notes: GET /api/products/?brand=
+
+6) New arrivals
+- /new
+- category chips + in_stock toggle
+- grid
+Dev notes: mock sorting until backend field exists
+
+7) Promotions
+- /promotions
+- promo grid + filters (discount/2x points/gift/personal)
+- promo details (simple landing screen)
+Dev notes: personal offer: GET /api/me/next-offer + static promos
+
+8) For You (Personal hub)
+- /for-you
+Секции:
+- Profile status + progress + CTA complete
+- Recommendations (sections) carousel/grid
+- Active offer card + CTA apply
+- Loyalty widget (tier/points) + redeem entry
+- Routine shortcut + Roadmap shortcut
+Dev notes:
+GET /api/me/profile
+GET /api/me/recommendations/home
+GET /api/me/next-offer
+GET /api/me/loyalty
+POST /api/offers/click
+POST /api/me/recommendations/event
+
+9) Stores
+- /stores
+- list + map placeholder + filters by city
+(mock)
+
+10) Gift cards
+- /gift-cards
+- choose amount, recipient, message, buy CTA
+(mock)
+
+11) Sale
+- /sale
+- grid with discount badges
+(mock filter: has_discount)
+
+────────────────────────────────────────
+3) E-commerce flow (обязательный)
+Сделай полностью связанный набор экранов:
+
+A) Product details
+- /product/{id}
+- gallery thumbnails, title, rating, price, old price, discount
+- options: volume/shade dropdown (если применимо)
+- CTA: add to cart (Ink)
+- delivery/store availability block
+- tabs: Description / Application / Ingredients / Brand / Additional info
+- “You may also like” (bundle)
+- Reviews summary section (rating, distribution, list)
+Dev notes:
+GET /api/products/{id}/
+GET /api/me/recommendations/bundle?product_id=
+POST /api/me/recommendations/event (click/add_to_cart)
+
+B) Cart
+- /cart
+- items list + qty
+- apply offer block (assignment_id)
+- redeem points input
+- preview button
+Dev notes: POST /api/checkout/preview
+
+C) Checkout result
+- /checkout
+- success state (transaction_id, new_balance, tier, next_offer)
+- fail state (validation/offer expired) + retry
+Dev notes: POST /api/checkout (idempotency_key)
+
+D) Wishlist
+- /wishlist
+- grid ProductCard with remove
+(mock)
+
+────────────────────────────────────────
+4) Account / Profile flow (обязательный для SessionAuth)
+A) Login screen
+- /login
+- username/password, remember me, errors
+Dev notes: /api-auth/login/ (SessionAuth + CSRF)
+
+B) Profile page
+- /me
+- summary + edit
+- favorite category card
+- offers list
+- loyalty + transactions preview
+Dev notes:
+GET/PUT /api/me/profile
+GET /api/me/favorite-category
+GET /api/me/offers
+GET /api/me/loyalty
+GET /api/transactions/
+
+C) Profile wizard (onboarding)
+- 5–7 steps: skin_type, goals, avoid_flags, budget, hair/makeup/fragrance optional
+- final success toast: “+50 баллов” если awarded
+Dev notes: PUT /api/me/profile
+
+D) Transactions
+- /me/transactions
+- list + details view
+Dev notes: GET /api/transactions/
+
+E) Owned products
+- /me/owned
+- list owned products + activate/deactivate + patch fields
+Dev notes:
+GET /api/me/owned-products/
+PATCH /api/me/owned-products/{id}/
+POST /api/me/owned-products/{id}/activate/
+POST /api/me/owned-products/{id}/deactivate/
+
+F) Roadmap
+- /me/roadmap
+- category selector + steps + refresh
+Dev notes:
+GET /api/me/roadmap?category=
+POST /api/me/roadmap/refresh
+PATCH /api/me/roadmap/steps/{step_id}
+POST /api/me/roadmap/steps/{step_id}/click
+
+G) Routine
+- /me/routine
+- generate + validate placeholder
+Dev notes:
+POST /api/routine/generate
+POST /api/routine/validate
+
+────────────────────────────────────────
+5) Системные состояния (обязательно)
+Сделай отдельные экраны/варианты:
+- 404
+- 500
+- Rate limit (429) friendly screen/banner
+- Session expired / CSRF required (просит перезайти)
+- Offline / Network error
+
+Учитывай: ошибки бывают 2 форматов:
+{ok:false, code, message, details} и {ok:false, message}
+
+────────────────────────────────────────
+6) Dev notes (коротко и полезно)
+На каждом экране добавь скрываемую группу “Dev notes”:
+- endpoint + params
+- события (X-Request-ID на мутациях/кликах)
+- idempotency_key для checkout
+- rate limit важные (особенно /me/next-offer и /checkout/preview)
+
+────────────────────────────────────────
+7) Prototype
+На странице “Flows / Prototype” свяжи кликами:
+Home → Catalog → Product → Cart → Checkout (success/fail)
+Home → For You → Offer → Cart
+Brands → Brand → Product
+Login → Profile wizard → Saved → For You
+
+Результат: единый дизайн-кит + полный набор экранов/состояний, готовый к разработке и интеграции с API без допридумывания логики.

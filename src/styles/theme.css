@@ -1,0 +1,163 @@
+@custom-variant dark (&:is(.dark *));
+
+/* Uilesim Design Tokens - Premium Minimal с тёмными Primary кнопками */
+:root {
+  /* Brand Colors - Pink Accent Only */
+  --brand-pink-500: #FF4DB8;
+  --brand-pink-600: #FF2AA8;
+  --brand-pink-100: #FFE1F2;
+  
+  /* Ink - Primary Buttons */
+  --ink-900: #111827;
+  --ink-800: #0B1220;
+  
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  
+  /* Borders */
+  --border-light: #EAE6EF;
+  
+  /* Surfaces */
+  --surface: #FFFFFF;
+  --surface-hover: #F9FAFB;
+  
+  /* Page Background - soft pearlescent gradient */
+  --page-bg: linear-gradient(180deg, #FDFCFC 0%, #FFF8F5 50%, #FFFBF8 100%);
+
+  /* Legacy compatibility */
+  --font-size: 16px;
+  --background: #FDFCFC;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #111827;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F9FAFB;
+  --secondary-foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #FFE1F2;
+  --accent-foreground: #111827;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #EAE6EF;
+  --input: transparent;
+  --input-background: #F9FAFB;
+  --switch-background: #D1D5DB;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #FF4DB8;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #111827;
+  --foreground: #F9FAFB;
+  --card: #1F2937;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #F9FAFB;
+  --primary-foreground: #111827;
+  --secondary: #374151;
+  --secondary-foreground: #F9FAFB;
+  --muted: #374151;
+  --muted-foreground: #9CA3AF;
+  --accent: #374151;
+  --accent-foreground: #F9FAFB;
+  --destructive: #EF4444;
+  --destructive-foreground: #F9FAFB;
+  --border: #374151;
+  --input: #374151;
+  --ring: #FF4DB8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  
+  /* Brand colors */
+  --color-brand-pink-500: var(--brand-pink-500);
+  --color-brand-pink-600: var(--brand-pink-600);
+  --color-brand-pink-100: var(--brand-pink-100);
+  --color-ink-900: var(--ink-900);
+  --color-ink-800: var(--ink-800);
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply text-foreground;
+    background: linear-gradient(180deg, #FDFCFC 0%, #FFF8F5 50%, #FFFBF8 100%);
+    background-attachment: fixed;
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  label {
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
