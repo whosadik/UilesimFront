@@ -9,7 +9,7 @@ import { useAuth } from '../../shared/auth/AuthContext';
 
 export function Navbar() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [megaMenuOpen, setMegaMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -203,14 +203,18 @@ export function Navbar() {
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       {item.icon}
-                      <span>{item.label}</span>
+                      <span>{item.href === '/me' && user ? user.username : item.label}</span>
                     </Link>
                   ))}
                   <div className="border-t border-gray-100 my-2" />
                   <button
                     onClick={async () => {
-                      await logout();
-                      navigate('/login', { replace: true });
+                      try {
+                        await logout();
+                      } finally {
+                        setProfileMenuOpen(false);
+                        navigate('/login', { replace: true });
+                      }
                     }}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
                   >
