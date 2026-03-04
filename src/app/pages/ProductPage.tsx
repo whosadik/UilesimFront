@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { ProductCarousel } from '../components/ProductCarousel';
-import { Heart, ShoppingCart, Star, Check } from 'lucide-react';
+import { Heart, ShoppingCart, Star } from 'lucide-react';
+import { getProduct } from '../../shared/api/catalog';
+import { ApiError } from '../../shared/api/ApiError';
 
 const mockProduct = {
   id: '1',
@@ -36,11 +38,88 @@ const recommendations = [
   },
 ];
 
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [product, setProduct] = useState(mockProduct);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProduct = async () => {
+      try {
+        const response = await getProduct(id);
+
+        const price = toNumber(response.price) ?? mockProduct.price;
+        const originalPrice = toNumber(response.original_price);
+        const discount =
+          toNumber(response.discount) ??
+          (originalPrice && originalPrice > price
+            ? Math.round(((originalPrice - price) / originalPrice) * 100)
+            : undefined);
+
+        const images = Array.isArray(response.images)
+          ? response.images.filter((img: unknown): img is string => typeof img === 'string' && img.length > 0)
+          : [];
+
+        if (!cancelled) {
+          setProduct({
+            id: String(response.id ?? id),
+            name: typeof response.name === 'string' ? response.name : mockProduct.name,
+            brand: typeof response.brand === 'string' ? response.brand : mockProduct.brand,
+            price,
+            originalPrice,
+            discount,
+            rating: toNumber(response.rating) ?? mockProduct.rating,
+            reviews: toNumber(response.reviews) ?? toNumber(response.reviews_count) ?? mockProduct.reviews,
+            inStock: response.in_stock === undefined ? mockProduct.inStock : Boolean(response.in_stock),
+            images: images.length > 0 ? images : mockProduct.images,
+            description:
+              typeof response.description === 'string' ? response.description : mockProduct.description,
+            ingredients:
+              typeof response.ingredients === 'string' ? response.ingredients : mockProduct.ingredients,
+            howToUse:
+              typeof response.how_to_use === 'string'
+                ? response.how_to_use
+                : typeof response.howToUse === 'string'
+                  ? response.howToUse
+                  : mockProduct.howToUse,
+          });
+        }
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true });
+        }
+      }
+    };
+
+    loadProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, navigate]);
 
   const handleAddToCart = () => {
     // Mock add to cart
@@ -56,8 +135,8 @@ export default function ProductPage() {
             items={[
               { label: 'Главная', href: '/' },
               { label: 'Каталог', href: '/catalog' },
-              { label: mockProduct.brand, href: `/brands/${mockProduct.brand.toLowerCase().replace(/\s+/g, '-')}` },
-              { label: mockProduct.name },
+              { label: product.brand, href: `/brands/${product.brand.toLowerCase().replace(/\s+/g, '-')}` },
+              { label: product.name },
             ]}
           />
         </div>
@@ -68,13 +147,13 @@ export default function ProductPage() {
           <div className="space-y-4">
             <div className="aspect-square rounded-2xl bg-white border border-[#EAE6EF] overflow-hidden">
               <img
-                src={mockProduct.images[selectedImage]}
-                alt={mockProduct.name}
+                src={product.images[selectedImage]}
+                alt={product.name}
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="grid grid-cols-4 gap-3">
-              {mockProduct.images.map((img, idx) => (
+              {product.images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
@@ -91,8 +170,8 @@ export default function ProductPage() {
           {/* Info */}
           <div className="space-y-6">
             <div>
-              <p className="text-sm text-[#6B7280] mb-2">{mockProduct.brand}</p>
-              <h1 className="text-3xl font-bold text-[#111827] mb-3">{mockProduct.name}</h1>
+              <p className="text-sm text-[#6B7280] mb-2">{product.brand}</p>
+              <h1 className="text-3xl font-bold text-[#111827] mb-3">{product.name}</h1>
               
               {/* Rating */}
               <div className="flex items-center gap-2 mb-4">
@@ -100,32 +179,32 @@ export default function ProductPage() {
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-4 h-4 ${i < Math.floor(mockProduct.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                      className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
                     />
                   ))}
                 </div>
                 <span className="text-sm text-[#6B7280]">
-                  {mockProduct.rating} ({mockProduct.reviews} отзывов)
+                  {product.rating} ({product.reviews} отзывов)
                 </span>
               </div>
 
               {/* Badges */}
               <div className="flex items-center gap-2">
-                {mockProduct.discount && <Badge>−{mockProduct.discount}%</Badge>}
-                {mockProduct.inStock && <Badge>В наличии</Badge>}
+                {product.discount && <Badge>−{product.discount}%</Badge>}
+                {product.inStock && <Badge>В наличии</Badge>}
               </div>
             </div>
 
             {/* Price */}
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-[#111827]">{mockProduct.price} ₽</span>
-              {mockProduct.originalPrice && (
-                <span className="text-lg text-[#6B7280] line-through">{mockProduct.originalPrice} ₽</span>
+              <span className="text-3xl font-bold text-[#111827]">{product.price} ₽</span>
+              {product.originalPrice && (
+                <span className="text-lg text-[#6B7280] line-through">{product.originalPrice} ₽</span>
               )}
             </div>
 
             {/* Description */}
-            <p className="text-base text-[#6B7280] leading-relaxed">{mockProduct.description}</p>
+            <p className="text-base text-[#6B7280] leading-relaxed">{product.description}</p>
 
             {/* Quantity & CTA */}
             <div className="flex items-center gap-4">
@@ -162,7 +241,7 @@ export default function ProductPage() {
                   Состав
                   <span className="text-[#6B7280] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="text-sm text-[#6B7280] mt-2">{mockProduct.ingredients}</p>
+                <p className="text-sm text-[#6B7280] mt-2">{product.ingredients}</p>
               </details>
 
               <details className="group">
@@ -170,7 +249,7 @@ export default function ProductPage() {
                   Как использовать
                   <span className="text-[#6B7280] group-open:rotate-180 transition-transform">▼</span>
                 </summary>
-                <p className="text-sm text-[#6B7280] mt-2">{mockProduct.howToUse}</p>
+                <p className="text-sm text-[#6B7280] mt-2">{product.howToUse}</p>
               </details>
             </div>
           </div>

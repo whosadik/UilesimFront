@@ -4,6 +4,7 @@ import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { Button } from "../components/Button";
 import { AlertBanner } from "../components/AlertBanner";
 import { toast } from "sonner";
+import { useAuth } from "../../shared/auth/AuthContext";
 
 /**
  * DEV NOTES:
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -39,31 +41,19 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    // TODO: Replace with actual API call
-    // const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1];
-    // const response = await fetch('/api-auth/login/', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'X-CSRFToken': csrfToken || '',
-    //   },
-    //   credentials: 'include',
-    //   body: JSON.stringify({ username, password }),
-    // });
-
-    // Mock login
-    setTimeout(() => {
-      setIsLoading(false);
-
-      if (username === "demo" && password === "demo") {
-        toast.success("Добро пожаловать!");
-        // Store session info
-        localStorage.setItem("isAuthenticated", "true");
-        navigate("/for-you");
+    try {
+      await login(username, password);
+      toast.success("Добро пожаловать!");
+      navigate("/for-you");
+    } catch (requestError) {
+      if (requestError instanceof Error) {
+        setError(requestError.message);
       } else {
         setError("Неверное имя пользователя или пароль");
       }
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

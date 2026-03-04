@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FilterSidebar } from '../components/FilterSidebar';
 import { ProductGrid, Product } from '../components/ProductGrid';
 import { Button } from '../components/Button';
 import { SortSelect, SortOption } from '../components/SortSelect';
 import { SlidersHorizontal } from 'lucide-react';
+import { listProducts } from '../../shared/api/catalog';
+import { ApiError } from '../../shared/api/ApiError';
 
 // Mock data
 const mockProducts: Product[] = [
@@ -90,9 +93,82 @@ const filters = [
   },
 ];
 
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
 export default function CatalogPage() {
+  const navigate = useNavigate();
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProducts = async () => {
+      try {
+        const response = await listProducts();
+        const items = Array.isArray(response) ? response : response.results;
+        const mapped: Product[] = items.map((item: any) => {
+          const price = toNumber(item.price) ?? 0;
+          const originalPrice = toNumber(item.original_price);
+          return {
+            id: String(item.id),
+            name: item.name ?? `Product ${item.id}`,
+            brand: typeof item.brand === 'string' ? item.brand : 'Uilesim',
+            price,
+            originalPrice,
+            image:
+              typeof item.image_url === 'string' && item.image_url
+                ? item.image_url
+                : typeof item.image === 'string' && item.image
+                  ? item.image
+                  : mockProducts[0].image,
+            category:
+              typeof item.category === 'string'
+                ? item.category
+                : typeof item.product_type === 'string'
+                  ? item.product_type
+                  : 'skincare',
+            isNew: Boolean(item.is_new),
+            discount:
+              toNumber(item.discount) ??
+              (originalPrice && originalPrice > price
+                ? Math.round(((originalPrice - price) / originalPrice) * 100)
+                : undefined),
+            inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
+            pointsEarned: toNumber(item.points_earned),
+          };
+        });
+
+        if (!cancelled && mapped.length > 0) {
+          setProducts(mapped);
+        }
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true });
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen">
@@ -150,7 +226,7 @@ export default function CatalogPage() {
             </div>
 
             {/* Products Grid */}
-            <ProductGrid products={mockProducts} columns={3} />
+            <ProductGrid products={products} columns={3} />
 
             {/* Load More */}
             <div className="flex justify-center pt-8">
