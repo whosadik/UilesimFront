@@ -236,3 +236,70 @@ Backend notes (только заметки, без правок)
 API не отдаёт конфигурацию меню/быстрых ссылок/категорий для mega/mobile меню;
 API не отдаёт справочники опций для ProfileWizard (типы/цели/ноты и т.д.);
 SearchBar остаётся универсальным компонентом (готов под API, но сам по себе эндпойнт не вызывает).
+
+
+Не сделано / Заблокировано
+
+ Что не получилось подключить и почему (нет в API / другой формат / нет поля):
+для NewArrivalsPage нет отдельного backend-эндпойнта “новинки”/facet-counts, поэтому “новизна” вычисляется на фронте по is_new или created_at;
+для PromotionsPage в OpenAPI у /api/me/offers не описана схема ответа, а UI-поля (badge, маркетинговый description, image, cta) напрямую не отдаются
+ Какие компоненты/поля оставлены как есть (fallback):
+в PromotionsPage сохранён fallback-набор карточек при пустом /api/me/offers + пустом /api/me/next-offer;
+в NewArrivalsPage сохранены текущие визуальные фильтры категорий (без серверных facet-counts)
+Backend notes (только заметки, без правок)
+
+ Какие поля/эндпойнты нужны, чтобы UI стал “полным”:
+отдельный read-only эндпойнт новинок (например, /api/products/new с серверной сортировкой/пагинацией и count), и для акций — UI-ready поля (title, description, badge, image_url, cta_label) в /api/me/offers
+ Какие несостыковки контракта мешают:
+/api/me/offers в OpenAPI без формальной схемы ответа; offer.type ограничен discount|points_multiplier|gift (нет явного personal), поэтому часть UI-семантики приходится строить эвристикой
+ Где это видно (файлы/места в backend-коде или в схемах):
+Loyalty Platform API.yaml:384, Loyalty Platform API.yaml:430, Loyalty Platform API.yaml:1043, offers/views.py:183, offers/views.py:333, offers/models.py:6, catalog/serializers.py:8
+
+Не сделано / Заблокировано
+
+ Что не получилось подключить и почему (нет в API / другой формат / нет поля):
+для SalePage в контракте продукта нет гарантированных original_price/discount/has_discount полей, поэтому невозможно полностью отказаться от fallback
+для RoutinePage в generate нет длительности шага, step-level notes и изображения продукта; в validate альтернативы приходят ID-шниками
+для RoadmapPage в recommended_product нет image_url
+ Какие компоненты/поля оставлены как есть (fallback):
+SalePage: fallback-список скидок при отсутствии discount-данных в API
+RoutinePage: duration, часть notes, product_image, fallback-советы
+RoadmapPage: product_image placeholder + статические текстовые метаданные шага
+Backend notes (только заметки, без правок)
+
+ Какие поля/эндпойнты нужны, чтобы UI стал “полным”:
+GET /api/products/ с явными полями скидки (original_price, discount или has_discount) / отдельный фильтр скидок
+POST /api/routine/generate с duration, step-level note/instruction, image_url
+POST /api/routine/validate с развёрнутыми альтернативами (не только ID)
+GET /api/me/roadmap с recommended_product.image_url
+ Какие несостыковки контракта мешают:
+UI Sale ожидает признаки скидки, а контракт продукта их не гарантирует
+UI Routine и Roadmap ожидают richer step/product данные, а backend отдаёт минимальный набор
+ Где это видно (файлы/места в backend-коде или в схемах):
+Loyalty Platform API.yaml:706, Loyalty Platform API.yaml:1043, Loyalty Platform API.yaml:1184
+catalog/serializers.py:8
+routines/views.py:42, routines/views.py:108
+roadmap_app/serializers.py:45
+
+
+Не сделано / Заблокировано
+
+ Что не получилось подключить и почему (нет в API / другой формат / нет поля): server-side поиск ?search= не подключён, потому что в текущем backend-контракте нет параметра search для /api/products/.
+ Какие компоненты/поля оставлены как есть (fallback): SUGGESTED_QUERIES (популярные запросы) и recentSearches (localStorage) оставлены локальными; FilterBar на странице оставлен визуальным (как было), без server-side фильтрации по query.
+Backend notes (только заметки, без правок)
+
+ Какие поля/эндпойнты нужны, чтобы UI стал “полным”: для полноценного API-поиска нужен параметр search (или отдельный search endpoint) для /api/products/.
+ Какие несостыковки контракта мешают: UI страницы поиска предполагает текстовый поиск; backend /api/products/ сейчас фильтрует по category/product_type/brand/in_stock, но не по свободному тексту.
+ Где это видно (файлы/места в backend-коде или в схемах): views.py, serializers.py, .tmp_backend_openapi.yaml, schema-map.md.
+
+ Не сделано / Заблокировано
+
+ Что не получилось подключить и почему (нет в API / другой формат / нет поля): для AdminMetricsPage в контракте нет временных рядов и channel breakdown в формате графиков; для AdminOverviewPage нет top_offers/top_categories/alerts/recommended_actions в ожидаемом UI-формате; для AdminCampaignDetailPage нет endpoint публикации кампании.
+ Какие компоненты/поля оставлены как есть (fallback): часть таблиц/блоков в Overview (offers/categories/alerts/actions), графики Metrics при пустом series/channels, кнопка Publish в CampaignDetail (с явным сообщением, без фейкового успеха), creative banner-заглушка.
+Backend notes (только заметки, без правок)
+
+ Какие поля/эндпойнты нужны, чтобы UI стал “полным”: GET /api/admin/metrics с series[] и channels[] для графиков; GET /api/admin/overview с kpis, trend, top_offers, top_categories, alerts, recommended_actions; POST /api/admin/campaigns/{id}/publish; расширение campaign-полей (end date, tiers, promo_text, banner_url).
+ Какие несостыковки контракта мешают: Audit фильтруется по user_id, а UI раньше работал как по actor-строке; Cache invalidate принимает запрос, но фактически инвалидирует фиксированный набор recs-ключей; Campaign API отдаёт бюджетную модель, а UI формы ожидают более “маркетинговый” объект.
+ Где это видно (файлы/места в backend-коде или в схемах): views_admin.py, views_admin.py, views.py, views.py, views_admin_campaigns.py, schema-map.md, .tmp_backend_openapi.yaml.
+
+ 

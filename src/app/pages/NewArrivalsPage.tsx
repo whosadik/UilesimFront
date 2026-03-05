@@ -1,33 +1,188 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { ProductGrid, Product } from '../components/ProductGrid';
+import { ProductGrid, type Product } from '../components/ProductGrid';
 import { Badge } from '../components/Badge';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorState } from '../components/ErrorState';
+import { listProducts } from '../../shared/api/catalog';
+import { ApiError } from '../../shared/api/ApiError';
 
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Vitamin C Serum',
-    brand: 'The Ordinary',
-    price: 1299,
-    image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&q=80',
-    category: 'skincare',
-    isNew: true,
-  },
-  {
-    id: '2',
-    name: 'Hyaluronic Acid',
-    brand: 'CeraVe',
-    price: 899,
-    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80',
-    category: 'skincare',
-    isNew: true,
-  },
-];
+type ApiProduct = Record<string, unknown>;
+
+const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+const NEW_PRODUCT_WINDOW_DAYS = 60;
+const CATEGORY_FILTERS = [
+  { id: 'all', label: 'Все категории' },
+  { id: 'skincare', label: 'Skincare' },
+  { id: 'makeup', label: 'Makeup' },
+  { id: 'haircare', label: 'Haircare' },
+] as const;
+
+type CategoryFilterId = (typeof CATEGORY_FILTERS)[number]['id'];
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const toRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const toStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+
+const extractProducts = (payload: unknown): ApiProduct[] => {
+  if (Array.isArray(payload)) {
+    return payload.filter((item): item is ApiProduct => Boolean(toRecord(item)));
+  }
+
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    Array.isArray((payload as { results?: unknown[] }).results)
+  ) {
+    return (payload as { results: unknown[] }).results.filter(
+      (item): item is ApiProduct => Boolean(toRecord(item)),
+    );
+  }
+
+  return [];
+};
+
+const isNewByCreatedAt = (value: unknown): boolean => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return false;
+  }
+
+  const createdAt = new Date(value);
+  if (Number.isNaN(createdAt.getTime())) {
+    return false;
+  }
+
+  const diffMs = Date.now() - createdAt.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return diffDays <= NEW_PRODUCT_WINDOW_DAYS;
+};
+
+const mapApiProductToGrid = (item: ApiProduct, index: number): Product => {
+  const id = item.id !== undefined && item.id !== null ? String(item.id) : `new-product-${index}`;
+  const price = toNumber(item.price) ?? 0;
+  const originalPrice = toNumber(item.original_price);
+  const imageUrls = toStringArray(item.image_urls);
+  const image =
+    (typeof item.image_url === 'string' && item.image_url) ||
+    (typeof item.image === 'string' && item.image) ||
+    imageUrls[0] ||
+    FALLBACK_IMAGE_URL;
+
+  let discount = toNumber(item.discount);
+  if (discount === undefined && originalPrice && originalPrice > price) {
+    discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+  }
+
+  const isNew =
+    typeof item.is_new === 'boolean'
+      ? item.is_new
+      : isNewByCreatedAt(item.created_at);
+
+  return {
+    id,
+    name: (typeof item.name === 'string' && item.name.trim()) || `Товар #${id}`,
+    brand: (typeof item.brand === 'string' && item.brand.trim()) || 'Uilesim',
+    price: Math.max(0, Math.round(price)),
+    originalPrice: originalPrice !== undefined ? Math.max(0, Math.round(originalPrice)) : undefined,
+    image,
+    category:
+      (typeof item.category === 'string' && item.category) ||
+      (typeof item.product_type === 'string' && item.product_type) ||
+      'skincare',
+    isNew,
+    discount: discount !== undefined ? Math.max(0, Math.round(discount)) : undefined,
+    inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
+  };
+};
 
 export default function NewArrivalsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilterId>('all');
+  const [onlyInStock, setOnlyInStock] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProducts = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await listProducts();
+        const mapped = extractProducts(response).map(mapApiProductToGrid);
+
+        if (!cancelled) {
+          setProducts(mapped);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        setProducts([]);
+        setLoadError('Не удалось загрузить новинки из API. Попробуйте ещё раз.');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, navigate, reloadKey]);
+
+  const newProducts = useMemo(() => products.filter((product) => product.isNew), [products]);
+  const visibleProducts = useMemo(
+    () =>
+      newProducts.filter((product) => {
+        const categoryMatched =
+          selectedCategory === 'all' || product.category.toLowerCase() === selectedCategory;
+        const stockMatched = !onlyInStock || product.inStock !== false;
+        return categoryMatched && stockMatched;
+      }),
+    [newProducts, onlyInStock, selectedCategory],
+  );
+
   return (
     <div className="pt-20 lg:pt-28 min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
-        {/* Breadcrumbs */}
         <div className="mb-6">
           <Breadcrumbs
             items={[
@@ -37,46 +192,62 @@ export default function NewArrivalsPage() {
           />
         </div>
 
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
             <h1 className="text-3xl lg:text-4xl font-bold text-[#111827]">
               Новинки
             </h1>
-            <Badge>56 товаров</Badge>
+            <Badge>{newProducts.length} товаров</Badge>
           </div>
           <p className="text-base text-[#6B7280]">
             Свежие релизы последних недель
           </p>
         </div>
 
-        {/* Filters */}
         <div className="flex items-center gap-3 mb-8 pb-6 border-b border-[#EAE6EF]">
-          <button className="px-4 py-2 rounded-xl bg-[#111827] text-white text-sm font-medium">
-            Все категории
-          </button>
-          <button className="px-4 py-2 rounded-xl bg-gray-50 text-[#6B7280] text-sm font-medium hover:bg-gray-100 transition-colors">
-            Skincare
-          </button>
-          <button className="px-4 py-2 rounded-xl bg-gray-50 text-[#6B7280] text-sm font-medium hover:bg-gray-100 transition-colors">
-            Makeup
-          </button>
-          <button className="px-4 py-2 rounded-xl bg-gray-50 text-[#6B7280] text-sm font-medium hover:bg-gray-100 transition-colors">
-            Haircare
-          </button>
+          {CATEGORY_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setSelectedCategory(filter.id)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedCategory === filter.id
+                  ? 'bg-[#111827] text-white'
+                  : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
           <label className="flex items-center gap-2 ml-auto">
-            <input type="checkbox" className="rounded" />
+            <input
+              type="checkbox"
+              className="rounded"
+              checked={onlyInStock}
+              onChange={(event) => setOnlyInStock(event.target.checked)}
+            />
             <span className="text-sm text-[#6B7280]">В наличии</span>
           </label>
         </div>
 
-        {/* Products */}
-        <ProductGrid products={mockProducts} columns={4} />
+        {isLoading ? (
+          <LoadingSpinner size="md" text="Загружаем новинки..." />
+        ) : loadError ? (
+          <ErrorState
+            title="Не удалось загрузить новинки"
+            description={loadError}
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : visibleProducts.length > 0 ? (
+          <ProductGrid products={visibleProducts} columns={4} />
+        ) : (
+          <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
+            Новинки по выбранным фильтрам пока не найдены.
+          </div>
+        )}
       </div>
 
-      {/* Dev Note */}
       <div className="hidden">
-        {/* Temporarily mock "new" sort, later will be backend field; currently using frontend sort */}
+        {/* Source: GET /api/products/, "new" is derived from created_at/is_new */}
       </div>
     </div>
   );

@@ -19,6 +19,13 @@ export function redeemOffer(payload: RedeemOfferPayload): Promise<Record<string,
   });
 }
 
+export function listMyOffers(): Promise<Record<string, unknown>[]> {
+  return apiFetch<Record<string, unknown>[]>('/api/me/offers', {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}
+
 // GET /api/me/next-offer :contentReference[oaicite:28]{index=28}
 export function getNextOffer() {
   return apiFetch<any>('/api/me/next-offer');

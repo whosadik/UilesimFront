@@ -30,12 +30,10 @@ const sparkData = [
   [60, 65, 62, 70, 68, 75, 72, 78],
 ];
 
-const trendData = Array.from({ length: 14 }, (_, i) => ({
-  day: `${i + 1}`,
-  ctr: +(Math.random() * 5 + 3).toFixed(2),
-  cr: +(Math.random() * 2 + 1).toFixed(2),
-  users: Math.floor(Math.random() * 300 + 700),
-}));
+const trendData = [
+  { day: '7d', ctr: 0, cr: 0, users: 0 },
+  { day: '30d', ctr: 0, cr: 0, users: 0 },
+];
 
 const topOffers = [
   { id: 1, name: 'Welcome Bonus', type: 'Loyalty', cr: '4.2%' },
@@ -357,13 +355,8 @@ export default function AdminOverviewPage() {
           );
         }
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
-          return;
-        }
-
-        if (error instanceof ApiError && error.status === 403) {
-          toast.error('Нет доступа');
           return;
         }
 
@@ -387,7 +380,7 @@ export default function AdminOverviewPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-semibold text-gray-900 text-xl">Overview</h1>
-          <p className="text-sm text-gray-500 mt-0.5">KPI dashboard · mock data</p>
+          <p className="text-sm text-gray-500 mt-0.5">KPI dashboard</p>
         </div>
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
           {(['7d', '30d', '90d'] as const).map((p) => (
@@ -459,7 +452,7 @@ export default function AdminOverviewPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">CTR & CR — тренд</h2>
-          <span className="text-xs text-gray-400">mock data</span>
+          <span className="text-xs text-gray-400">данные API</span>
         </div>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={trendSeries}>

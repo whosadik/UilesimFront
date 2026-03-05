@@ -1,18 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, ChevronRight, FlaskConical } from 'lucide-react';
-import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { getAdminRecsMetrics } from '../../../shared/api/adminMetrics';
-
-/**
- * DEV NOTES:
- * Endpoint: GET /api/admin/recs/experiments
- * Permission: view_metrics
- * Response: { experiments: [{ id, name, status, traffic_pct, started_at, variants: [...] }] }
- * Errors: 401, 403, 500
- */
+import { ErrorState } from '../../components/ErrorState';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 
 interface Experiment {
   id: number;
@@ -25,61 +18,6 @@ interface Experiment {
   guardrails: string[];
 }
 
-const experiments: Experiment[] = [
-  {
-    id: 1,
-    name: 'Personalized Recs v2',
-    status: 'running',
-    traffic_pct: 50,
-    started_at: '2026-02-15',
-    description: 'Тест новой модели персонализированных рекомендаций',
-    variants: [
-      { name: 'Control', traffic: 50, ctr: '3.8%', cr: '1.9%' },
-      { name: 'Treatment (v2)', traffic: 50, ctr: '4.6%', cr: '2.4%' },
-    ],
-    guardrails: ['Session length ≥ baseline', 'Bounce rate ≤ +5%', 'Revenue per user ≥ baseline'],
-  },
-  {
-    id: 2,
-    name: 'Loyalty Points Display',
-    status: 'running',
-    traffic_pct: 30,
-    started_at: '2026-02-20',
-    description: 'Показ начисляемых баллов на карточке товара',
-    variants: [
-      { name: 'Control (no badge)', traffic: 70, ctr: '4.1%', cr: '2.0%' },
-      { name: 'Treatment (badge)', traffic: 30, ctr: '4.9%', cr: '2.5%' },
-    ],
-    guardrails: ['CTR ≥ baseline', 'No increase in returns'],
-  },
-  {
-    id: 3,
-    name: 'Offer Countdown Timer',
-    status: 'completed',
-    traffic_pct: 100,
-    started_at: '2026-01-10',
-    description: 'Таймер обратного отсчёта на странице оффера',
-    variants: [
-      { name: 'Control', traffic: 50, ctr: '3.5%', cr: '1.7%' },
-      { name: 'Treatment (timer)', traffic: 50, ctr: '5.2%', cr: '2.8%' },
-    ],
-    guardrails: ['CTR ≥ baseline'],
-  },
-  {
-    id: 4,
-    name: 'Category Filter UX',
-    status: 'draft',
-    traffic_pct: 0,
-    started_at: '—',
-    description: 'Тест нового дизайна фильтров в каталоге',
-    variants: [
-      { name: 'Control', traffic: 50, ctr: '—', cr: '—' },
-      { name: 'Treatment', traffic: 50, ctr: '—', cr: '—' },
-    ],
-    guardrails: ['Conversion ≥ baseline'],
-  },
-];
-
 const statusColors: Record<string, string> = {
   running: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   paused: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -90,12 +28,42 @@ const statusColors: Record<string, string> = {
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const toPercent = (value: unknown): string => {
+  const num = toNumber(value);
+  if (num === null) {
+    return '—';
+  }
+  return `${(num * 100).toFixed(2).replace(/\.00$/, '')}%`;
+};
+
+const formatTraffic = (impression: number, total: number): number =>
+  total > 0 ? Math.round((impression / total) * 100) : 0;
+
 export default function AdminExperimentsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [experimentList, setExperimentList] = useState(experiments);
+
+  const [experimentList, setExperimentList] = useState<Experiment[]>([]);
   const [selected, setSelected] = useState<Experiment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -110,6 +78,9 @@ export default function AdminExperimentsPage() {
     let cancelled = false;
 
     const loadExperiments = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+
       try {
         const response = await getAdminRecsMetrics();
         if (cancelled) {
@@ -117,68 +88,62 @@ export default function AdminExperimentsPage() {
         }
 
         const payload = asRecord(response) ?? {};
-        const rawExperiments =
-          (Array.isArray(payload.experiments) && payload.experiments) ||
-          (Array.isArray(payload.results) && payload.results) ||
-          [];
+        const experimentsMap = asRecord(payload.experiments) ?? {};
 
-        if (rawExperiments.length > 0) {
-          const mapped = rawExperiments.map((item, idx) => {
-            const row = asRecord(item) ?? {};
-            const statusRaw = String(row.status ?? row.state ?? 'draft');
-            const status =
-              statusRaw === 'running' || statusRaw === 'paused' || statusRaw === 'completed' || statusRaw === 'draft'
-                ? statusRaw
-                : 'draft';
-            const variantsRaw = Array.isArray(row.variants) ? row.variants : [];
+        const mapped = Object.entries(experimentsMap).map(([experimentId, raw], index) => {
+          const row = asRecord(raw) ?? {};
+          const totals = asRecord(row.totals) ?? {};
+          const variantsMap = asRecord(row.variants) ?? {};
+          const totalImpressions = toNumber(totals.impression) ?? 0;
 
+          const variants = Object.entries(variantsMap).map(([variantName, variantRaw]) => {
+            const variant = asRecord(variantRaw) ?? {};
+            const impressions = toNumber(variant.impression) ?? 0;
             return {
-              id: Number(row.id ?? idx + 1),
-              name: String(row.name ?? experiments[idx % experiments.length].name),
-              status,
-              traffic_pct: Number(row.traffic_pct ?? row.traffic ?? 0) || 0,
-              started_at: String(row.started_at ?? row.start_date ?? '—'),
-              description: String(row.description ?? experiments[idx % experiments.length].description),
-              variants:
-                variantsRaw.length > 0
-                  ? variantsRaw.map((variant, variantIdx) => {
-                      const v = asRecord(variant) ?? {};
-                      return {
-                        name: String(v.name ?? `Variant ${variantIdx + 1}`),
-                        traffic: Number(v.traffic ?? v.traffic_pct ?? 0) || 0,
-                        ctr: `${Number(v.ctr ?? v.ctr_pct ?? 0) || 0}%`,
-                        cr: `${Number(v.cr ?? v.conversion_rate ?? 0) || 0}%`,
-                      };
-                    })
-                  : experiments[idx % experiments.length].variants,
-              guardrails: Array.isArray(row.guardrails)
-                ? row.guardrails.map((guardrail) => String(guardrail))
-                : experiments[idx % experiments.length].guardrails,
-            } as Experiment;
+              name: variantName,
+              traffic: formatTraffic(impressions, totalImpressions),
+              ctr: toPercent(variant.ctr),
+              cr: toPercent(variant.conversion),
+            };
           });
 
-          setExperimentList(mapped);
-          setSelected((current) => {
-            if (!current) {
-              return null;
-            }
-            return mapped.find((item) => item.id === current.id) ?? null;
-          });
-        }
+          const trafficPct = formatTraffic(totalImpressions, totalImpressions);
+          const defaultName = `Эксперимент ${index + 1}`;
+
+          return {
+            id: index + 1,
+            name: String(row.experiment_id ?? experimentId ?? defaultName),
+            status: 'running',
+            traffic_pct: trafficPct,
+            started_at: '—',
+            description: 'Метрики эксперимента рекомендаций',
+            variants,
+            guardrails: ['CTR выше базовой версии', 'Конверсия не ниже контрольной группы'],
+          } as Experiment;
+        });
+
+        setExperimentList(mapped);
+        setSelected((current) => {
+          if (!current) {
+            return null;
+          }
+          return mapped.find((item) => item.id === current.id) ?? null;
+        });
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
           return;
         }
 
-        if (error instanceof ApiError && error.status === 403) {
-          toast.error('Нет доступа');
-          setExperimentList([]);
-          return;
-        }
-
-        if (error instanceof Error) {
-          toast.error(error.message);
+        setExperimentList([]);
+        setLoadError('Не удалось загрузить эксперименты рекомендаций. Попробуйте ещё раз.');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
         }
       }
     };
@@ -188,11 +153,12 @@ export default function AdminExperimentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, user]);
+  }, [isAuthLoading, location.pathname, navigate, reloadKey, user]);
+
+  const hasData = useMemo(() => experimentList.length > 0, [experimentList.length]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto flex gap-6">
-      {/* Table */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -201,53 +167,70 @@ export default function AdminExperimentsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Название</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Статус</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Трафик</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Запущен</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {experimentList.map((exp) => (
-                <tr
-                  key={exp.id}
-                  onClick={() => setSelected(exp)}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                    selected?.id === exp.id ? 'bg-gray-50' : ''
-                  }`}
-                >
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <FlaskConical className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span className="font-medium text-gray-900">{exp.name}</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5 ml-6">{exp.description}</p>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${statusColors[exp.status]}`}>
-                      {exp.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <span className="font-medium text-gray-700">{exp.traffic_pct}%</span>
-                  </td>
-                  <td className="px-4 py-4 text-gray-500">{exp.started_at}</td>
-                  <td className="px-4 py-4">
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  </td>
+        {isLoading ? (
+          <div className="rounded-xl border border-gray-200 bg-white py-16">
+            <LoadingSpinner text="Загружаем эксперименты..." />
+          </div>
+        ) : loadError ? (
+          <div className="rounded-xl border border-gray-200 bg-white">
+            <ErrorState
+              title="Не удалось загрузить эксперименты"
+              description={loadError}
+              onRetry={() => setReloadKey((value) => value + 1)}
+            />
+          </div>
+        ) : !hasData ? (
+          <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
+            Эксперименты пока не найдены.
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Название</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Статус</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Трафик</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Запущен</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {experimentList.map((exp) => (
+                  <tr
+                    key={exp.id}
+                    onClick={() => setSelected(exp)}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                      selected?.id === exp.id ? 'bg-gray-50' : ''
+                    }`}
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <FlaskConical className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="font-medium text-gray-900">{exp.name}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 ml-6">{exp.description}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${statusColors[exp.status]}`}>
+                        {exp.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span className="font-medium text-gray-700">{exp.traffic_pct}%</span>
+                    </td>
+                    <td className="px-4 py-4 text-gray-500">{exp.started_at}</td>
+                    <td className="px-4 py-4">
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Detail Drawer */}
       {selected && (
         <div className="w-80 flex-shrink-0 bg-white rounded-xl border border-gray-200 h-fit sticky top-6">
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -260,7 +243,6 @@ export default function AdminExperimentsPage() {
             </button>
           </div>
           <div className="p-4 flex flex-col gap-4">
-            {/* Status */}
             <div>
               <p className="text-xs text-gray-500 mb-1">Статус</p>
               <span className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${statusColors[selected.status]}`}>
@@ -268,31 +250,33 @@ export default function AdminExperimentsPage() {
               </span>
             </div>
 
-            {/* Variants */}
             <div>
               <p className="text-xs text-gray-500 mb-2">Варианты</p>
               <div className="flex flex-col gap-2">
-                {selected.variants.map((v) => (
-                  <div key={v.name} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                    <p className="text-xs font-medium text-gray-900 mb-1.5">{v.name}</p>
-                    <div className="flex items-center gap-4 text-xs text-gray-600">
-                      <span>Traffic: <strong>{v.traffic}%</strong></span>
-                      <span>CTR: <strong>{v.ctr}</strong></span>
-                      <span>CR: <strong>{v.cr}</strong></span>
+                {selected.variants.length > 0 ? (
+                  selected.variants.map((variant) => (
+                    <div key={variant.name} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
+                      <p className="text-xs font-medium text-gray-900 mb-1.5">{variant.name}</p>
+                      <div className="flex items-center gap-4 text-xs text-gray-600">
+                        <span>Traffic: <strong>{variant.traffic}%</strong></span>
+                        <span>CTR: <strong>{variant.ctr}</strong></span>
+                        <span>CR: <strong>{variant.cr}</strong></span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500">Данные по вариантам отсутствуют.</div>
+                )}
               </div>
             </div>
 
-            {/* Guardrails */}
             <div>
               <p className="text-xs text-gray-500 mb-2">Guardrails</p>
               <ul className="flex flex-col gap-1">
-                {selected.guardrails.map((g) => (
-                  <li key={g} className="flex items-start gap-2 text-xs text-gray-700">
+                {selected.guardrails.map((guardrail) => (
+                  <li key={guardrail} className="flex items-start gap-2 text-xs text-gray-700">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#FF4DB8] mt-1.5 flex-shrink-0" />
-                    {g}
+                    {guardrail}
                   </li>
                 ))}
               </ul>

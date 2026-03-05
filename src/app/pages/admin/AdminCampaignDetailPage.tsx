@@ -16,17 +16,17 @@ import { createCampaign, getCampaign, patchCampaign } from '../../../shared/api/
  * Errors: 401, 403, 404, 422 (validation), 500
  */
 
-const mockCampaign = {
-  id: 'cmp_001',
-  name: 'Spring Glow Launch',
-  status: 'active',
-  start: '2026-03-01',
-  end: '2026-03-31',
-  budget: '1500000',
-  categories: ['face'],
-  product_types: ['serum', 'moisturizer'],
-  tiers: ['Gold', 'Platinum'],
-  promo_text: 'Встречайте весну с сияющей кожей! Скидки до 40% на уходовые средства.',
+const DEFAULT_CAMPAIGN_FORM = {
+  id: 'new',
+  name: '',
+  status: 'draft',
+  start: '',
+  end: '',
+  budget: '0',
+  categories: [] as string[],
+  product_types: [] as string[],
+  tiers: [] as string[],
+  promo_text: '',
 };
 
 export default function AdminCampaignDetailPage() {
@@ -35,7 +35,7 @@ export default function AdminCampaignDetailPage() {
   const { id } = useParams();
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  const [form, setForm] = useState(mockCampaign);
+  const [form, setForm] = useState(DEFAULT_CAMPAIGN_FORM);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
 
@@ -52,19 +52,19 @@ export default function AdminCampaignDetailPage() {
     const steps = (source as Record<string, unknown>).allowed_steps;
 
     return {
-      id: String((source as Record<string, unknown>).id ?? id ?? mockCampaign.id),
-      name: String((source as Record<string, unknown>).name ?? mockCampaign.name),
+      id: String((source as Record<string, unknown>).id ?? id ?? DEFAULT_CAMPAIGN_FORM.id),
+      name: String((source as Record<string, unknown>).name ?? DEFAULT_CAMPAIGN_FORM.name),
       status: (source as Record<string, unknown>).is_active ? 'active' : 'draft',
-      start: String((source as Record<string, unknown>).week_start_date ?? mockCampaign.start),
-      end: mockCampaign.end,
+      start: String((source as Record<string, unknown>).week_start_date ?? DEFAULT_CAMPAIGN_FORM.start),
+      end: DEFAULT_CAMPAIGN_FORM.end,
       budget: String(Number.isFinite(budget) ? budget : 0),
-      categories: Array.isArray(categories) ? categories.map((item) => String(item)) : mockCampaign.categories,
-      product_types: Array.isArray(steps) ? steps.map((item) => String(item)) : mockCampaign.product_types,
-      tiers: mockCampaign.tiers,
+      categories: Array.isArray(categories) ? categories.map((item) => String(item)) : DEFAULT_CAMPAIGN_FORM.categories,
+      product_types: Array.isArray(steps) ? steps.map((item) => String(item)) : DEFAULT_CAMPAIGN_FORM.product_types,
+      tiers: DEFAULT_CAMPAIGN_FORM.tiers,
       promo_text:
         typeof (source as Record<string, unknown>).promo_text === 'string'
           ? ((source as Record<string, unknown>).promo_text as string)
-          : mockCampaign.promo_text,
+          : DEFAULT_CAMPAIGN_FORM.promo_text,
     };
   };
 
@@ -98,14 +98,8 @@ export default function AdminCampaignDetailPage() {
           return;
         }
 
-        if (error instanceof ApiError && error.status === 401) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
-          return;
-        }
-
-        if (error instanceof ApiError && error.status === 403) {
-          setValidationError('Нет доступа');
-          toast.error('Нет доступа');
           return;
         }
 
@@ -168,14 +162,8 @@ export default function AdminCampaignDetailPage() {
       }
       toast.success('Кампания сохранена');
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
-        return;
-      }
-
-      if (error instanceof ApiError && error.status === 403) {
-        setValidationError('Нет доступа');
-        toast.error('Нет доступа');
         return;
       }
 
@@ -189,12 +177,7 @@ export default function AdminCampaignDetailPage() {
   };
 
   const handlePublish = () => {
-    setSaving(true);
-    // TODO: POST /api/admin/campaigns/{id}/publish
-    setTimeout(() => {
-      setSaving(false);
-      toast.success('Кампания опубликована!');
-    }, 1200);
+    toast.error('Публикация пока не доступна в API.');
   };
 
   const update = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));

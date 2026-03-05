@@ -13,11 +13,11 @@ import {
   Search,
   Bell,
   LogOut,
-  User,
   Shield,
   ChevronDown,
 } from 'lucide-react';
 import logoImage from '@/assets/UylesimLogo.png';
+import { useAuth } from '../../../shared/auth/AuthContext';
 
 const navItems = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard, exact: true },
@@ -32,8 +32,10 @@ const navItems = [
 export default function AdminRoot() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userDisplayName = user?.username || 'admin';
 
   const isActive = (item: { href: string; exact?: boolean }) => {
     if (item.exact) return location.pathname === item.href;
@@ -154,17 +156,23 @@ export default function AdminRoot() {
                 <div className="w-7 h-7 rounded-full bg-gray-900 flex items-center justify-center">
                   <Shield className="w-3.5 h-3.5 text-white" />
                 </div>
-                <span className="text-sm font-medium hidden sm:block">admin@uilesim.kz</span>
+                <span className="text-sm font-medium hidden sm:block">{userDisplayName}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden sm:block" />
               </button>
 
               {userMenuOpen && (
                 <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
                   <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="text-xs font-medium text-gray-900">admin@uilesim.kz</p>
+                    <p className="text-xs font-medium text-gray-900">{userDisplayName}</p>
                     <p className="text-xs text-gray-500">Staff · All permissions</p>
                   </div>
-                  <button className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                  <button
+                    onClick={async () => {
+                      await logout();
+                      navigate('/login', { replace: true });
+                    }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
                     <LogOut className="w-3.5 h-3.5" />
                     Выйти
                   </button>

@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Database, AlertTriangle, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLocation, useNavigate } from 'react-router';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { invalidateAdminCache } from '../../../shared/api/adminTools';
 
 /**
  * DEV NOTES:
@@ -30,34 +34,72 @@ const scopeOptions = [
 ];
 
 export default function AdminCachePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
+
   const [scope, setScope] = useState('product');
   const [key, setKey] = useState('');
   const [isInvalidating, setIsInvalidating] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleInvalidate = () => {
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+    }
+  }, [isAuthLoading, location.pathname, navigate, user]);
+
+  const handleInvalidate = async () => {
     setIsInvalidating(true);
     setShowConfirm(false);
-    // TODO: POST /api/admin/cache/invalidate
-    setTimeout(() => {
+    setActionError(null);
+
+    try {
+      const response = await invalidateAdminCache({
+        scope,
+        key: key.trim() || undefined,
+      });
+
       setIsInvalidating(false);
-      const success = Math.random() > 0.15;
       const entry: LogEntry = {
         id: Date.now(),
         scope,
         key: key || '(все ключи)',
-        status: success ? 'success' : 'error',
-        message: success ? `Инвалидировано: ${Math.floor(Math.random() * 500 + 50)} ключей` : 'Internal server error (500)',
+        status: 'success',
+        message: `Инвалидировано: ${Number(response.deleted ?? 0)} ключей`,
         time: new Date().toLocaleTimeString('ru'),
       };
-      setLog(l => [entry, ...l]);
-      if (success) {
-        toast.success(`Cache ${scope} инвалидирован`);
-      } else {
-        toast.error('Ошибка инвалидации кэша');
+      setLog((current) => [entry, ...current]);
+      toast.success(`Кэш "${scope}" инвалидирован`);
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
       }
-    }, 1200);
+
+      const message =
+        error instanceof Error ? error.message : 'Не удалось выполнить инвалидацию кэша.';
+
+      const entry: LogEntry = {
+        id: Date.now(),
+        scope,
+        key: key || '(все ключи)',
+        status: 'error',
+        message,
+        time: new Date().toLocaleTimeString('ru'),
+      };
+      setLog((current) => [entry, ...current]);
+      setActionError(message);
+      toast.error(message);
+    } finally {
+      setIsInvalidating(false);
+    }
   };
 
   return (
@@ -113,8 +155,29 @@ export default function AdminCachePage() {
             </div>
           )}
 
+          {actionError && (
+            <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p>{actionError}</p>
+                <button
+                  type="button"
+                  onClick={() => void handleInvalidate()}
+                  className="mt-2 text-sm font-medium underline"
+                >
+                  Повторить
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
-            onClick={() => setShowConfirm(true)}
+            onClick={() => {
+              if (isAuthLoading || !user) {
+                return;
+              }
+              setShowConfirm(true);
+            }}
             disabled={isInvalidating}
             className="self-start flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
           >

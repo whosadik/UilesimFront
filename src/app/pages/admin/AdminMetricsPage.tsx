@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { getAdminMetrics } from '../../../shared/api/adminMetrics';
+import { ErrorState } from '../../components/ErrorState';
 
 /**
  * DEV NOTES:
@@ -20,24 +21,6 @@ import { getAdminMetrics } from '../../../shared/api/adminMetrics';
  * Rate limit: 20/min
  * Export: GET /api/admin/metrics/export?format=csv
  */
-
-const generateData = (days: number) =>
-  Array.from({ length: days }, (_, i) => ({
-    date: `${i + 1}`,
-    pageviews: Math.floor(Math.random() * 5000 + 8000),
-    sessions: Math.floor(Math.random() * 3000 + 5000),
-    orders: Math.floor(Math.random() * 200 + 300),
-    revenue: Math.floor(Math.random() * 500000 + 800000),
-    ctr: +(Math.random() * 3 + 3).toFixed(2),
-  }));
-
-const channelData = [
-  { channel: 'Organic', users: 4200, revenue: 3800000 },
-  { channel: 'Direct', users: 2800, revenue: 2400000 },
-  { channel: 'Email', users: 1900, revenue: 1700000 },
-  { channel: 'Push', users: 1400, revenue: 1100000 },
-  { channel: 'Referral', users: 800, revenue: 650000 },
-];
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -66,8 +49,11 @@ export default function AdminMetricsPage() {
   const [category, setCategory] = useState('all');
   const [offerType, setOfferType] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState(generateData(28));
-  const [channels, setChannels] = useState(channelData);
+  const [data, setData] = useState<
+    Array<{ date: string; pageviews: number; sessions: number; orders: number; revenue: number; ctr: number }>
+  >([]);
+  const [channels, setChannels] = useState<Array<{ channel: string; users: number; revenue: number }>>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadMetrics = async (notify = false) => {
     if (isAuthLoading) {
@@ -80,6 +66,7 @@ export default function AdminMetricsPage() {
     }
 
     setIsLoading(true);
+    setLoadError(null);
     try {
       const response = await getAdminMetrics({
         date_from: dateFrom,
@@ -95,57 +82,52 @@ export default function AdminMetricsPage() {
         (Array.isArray(payload.timeseries) && payload.timeseries) ||
         [];
 
-      if (rawSeries.length > 0) {
-        setData(
-          rawSeries.map((item, idx) => {
-            const row = asRecord(item) ?? {};
-            return {
-              date: String(row.date ?? row.day ?? idx + 1),
-              pageviews: toNumber(row.pageviews ?? row.views) ?? 0,
-              sessions: toNumber(row.sessions) ?? 0,
-              orders: toNumber(row.orders) ?? 0,
-              revenue: toNumber(row.revenue) ?? 0,
-              ctr: toNumber(row.ctr ?? row.ctr_pct) ?? 0,
-            };
-          }),
-        );
-      }
+      setData(
+        rawSeries.map((item, idx) => {
+          const row = asRecord(item) ?? {};
+          return {
+            date: String(row.date ?? row.day ?? idx + 1),
+            pageviews: toNumber(row.pageviews ?? row.views) ?? 0,
+            sessions: toNumber(row.sessions) ?? 0,
+            orders: toNumber(row.orders) ?? 0,
+            revenue: toNumber(row.revenue) ?? 0,
+            ctr: toNumber(row.ctr ?? row.ctr_pct) ?? 0,
+          };
+        }),
+      );
 
       const rawChannels =
         (Array.isArray(payload.channels) && payload.channels) ||
         (Array.isArray(payload.by_channel) && payload.by_channel) ||
         (Array.isArray(payload.channel_breakdown) && payload.channel_breakdown) ||
         [];
-      if (rawChannels.length > 0) {
-        setChannels(
-          rawChannels.map((item, idx) => {
-            const row = asRecord(item) ?? {};
-            return {
-              channel: String(row.channel ?? row.name ?? channelData[idx % channelData.length].channel),
-              users: toNumber(row.users ?? row.sessions) ?? 0,
-              revenue: toNumber(row.revenue) ?? 0,
-            };
-          }),
-        );
-      }
+      setChannels(
+        rawChannels.map((item, idx) => {
+          const row = asRecord(item) ?? {};
+          return {
+            channel: String(row.channel ?? row.name ?? `Канал ${idx + 1}`),
+            users: toNumber(row.users ?? row.sessions) ?? 0,
+            revenue: toNumber(row.revenue) ?? 0,
+          };
+        }),
+      );
 
       if (notify) {
         toast.success('Данные обновлены');
       }
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
 
-      if (error instanceof ApiError && error.status === 403) {
-        toast.error('Нет доступа');
-        return;
-      }
-
       if (error instanceof Error) {
-        toast.error(error.message);
+        setLoadError(error.message);
+      } else {
+        setLoadError('Не удалось загрузить метрики.');
       }
+      setData([]);
+      setChannels([]);
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +143,7 @@ export default function AdminMetricsPage() {
 
   const handleExport = () => {
     // TODO: GET /api/admin/metrics/export?format=csv
-    toast.success('Экспорт CSV запущен');
+    toast.error('Экспорт CSV пока не доступен в API.');
   };
 
   return (
@@ -170,7 +152,7 @@ export default function AdminMetricsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-semibold text-gray-900 text-xl">Metrics</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Графики и фильтры · mock data</p>
+          <p className="text-sm text-gray-500 mt-0.5">Графики и фильтры</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -242,66 +224,87 @@ export default function AdminMetricsPage() {
         </div>
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {/* Pageviews & Sessions */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Просмотры & Сессии</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line type="monotone" dataKey="pageviews" stroke="#111827" strokeWidth={2} dot={false} name="Просмотры" />
-              <Line type="monotone" dataKey="sessions" stroke="#FF4DB8" strokeWidth={2} dot={false} name="Сессии" />
-            </LineChart>
-          </ResponsiveContainer>
+      {loadError ? (
+        <div className="bg-white rounded-xl border border-gray-200">
+          <ErrorState
+            title="Не удалось загрузить метрики"
+            description={loadError}
+            onRetry={handleRefresh}
+          />
         </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Просмотры & Сессии</h3>
+            {data.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line type="monotone" dataKey="pageviews" stroke="#111827" strokeWidth={2} dot={false} name="Просмотры" />
+                  <Line type="monotone" dataKey="sessions" stroke="#FF4DB8" strokeWidth={2} dot={false} name="Сессии" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-500">В API нет временного ряда для этого графика.</p>
+            )}
+          </div>
 
-        {/* Orders */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Заказы</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.slice(0, 14)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-              <Bar dataKey="orders" fill="#111827" radius={[4, 4, 0, 0]} name="Заказы" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Заказы</h3>
+            {data.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={data.slice(0, 14)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  <Bar dataKey="orders" fill="#111827" radius={[4, 4, 0, 0]} name="Заказы" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-500">В API нет временного ряда для этого графика.</p>
+            )}
+          </div>
 
-        {/* CTR Trend */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">CTR тренд</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-              <Line type="monotone" dataKey="ctr" stroke="#FF4DB8" strokeWidth={2} dot={false} name="CTR %" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">CTR тренд</h3>
+            {data.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  <Line type="monotone" dataKey="ctr" stroke="#FF4DB8" strokeWidth={2} dot={false} name="CTR %" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-500">В API нет временного ряда для этого графика.</p>
+            )}
+          </div>
 
-        {/* By Channel */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Пользователи по каналам</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={channels} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis type="number" tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={60} />
-              <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-              <Bar dataKey="users" fill="#111827" radius={[0, 4, 4, 0]} name="Пользователи" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Пользователи по каналам</h3>
+            {channels.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={channels} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={60} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  <Bar dataKey="users" fill="#111827" radius={[0, 4, 4, 0]} name="Пользователи" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-500">В API нет разбивки по каналам.</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

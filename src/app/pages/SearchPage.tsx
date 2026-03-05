@@ -1,88 +1,251 @@
-import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router";
-import { Search, TrendingUp, X } from "lucide-react";
-import { ProductGrid } from "../components/ProductGrid";
-import { EmptyState } from "../components/EmptyState";
-import { LoadingSpinner } from "../components/LoadingSpinner";
-import { Chip } from "../components/Chip";
-import { FilterBar } from "../components/FilterBar";
-import { products } from "../data/products";
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { Search, TrendingUp, X } from 'lucide-react';
+import { ProductGrid, type Product } from '../components/ProductGrid';
+import { EmptyState } from '../components/EmptyState';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorState } from '../components/ErrorState';
+import { Chip } from '../components/Chip';
+import { FilterBar } from '../components/FilterBar';
+import { listProducts } from '../../shared/api/catalog';
+import { ApiError } from '../../shared/api/ApiError';
 
-/**
- * DEV NOTES:
- * Endpoint: GET /api/products/?search={query}&category=&brand=&in_stock=
- * 
- * До создания search endpoint используется client-side фильтрация
- * После добавления на бэкенде - заменить на API call
- * 
- * События: POST /api/me/recommendations/event
- * Body: { event_type: "search", query: string, results_count: number }
- */
+type ApiProduct = Record<string, unknown>;
+
+const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+const NEW_PRODUCT_WINDOW_DAYS = 60;
+const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
+const MAX_RECENT_SEARCHES = 5;
 
 const SUGGESTED_QUERIES = [
-  "Увлажняющий крем",
-  "Сыворотка с витамином C",
-  "SPF крем",
-  "Очищающий гель",
-  "Тональный крем",
-];
+  'Увлажняющий крем',
+  'Сыворотка с витамином C',
+  'SPF крем',
+  'Очищающий гель',
+  'Тональный крем',
+] as const;
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const toRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const toStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+
+const extractProducts = (payload: unknown): ApiProduct[] => {
+  if (Array.isArray(payload)) {
+    return payload.filter((item): item is ApiProduct => Boolean(toRecord(item)));
+  }
+
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    Array.isArray((payload as { results?: unknown[] }).results)
+  ) {
+    return (payload as { results: unknown[] }).results.filter(
+      (item): item is ApiProduct => Boolean(toRecord(item)),
+    );
+  }
+
+  return [];
+};
+
+const isNewByCreatedAt = (value: unknown): boolean => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return false;
+  }
+
+  const createdAt = new Date(value);
+  if (Number.isNaN(createdAt.getTime())) {
+    return false;
+  }
+
+  const diffMs = Date.now() - createdAt.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return diffDays <= NEW_PRODUCT_WINDOW_DAYS;
+};
+
+const mapApiProductToGrid = (item: ApiProduct, index: number): Product => {
+  const id = item.id !== undefined && item.id !== null ? String(item.id) : `search-product-${index}`;
+  const price = toNumber(item.price) ?? 0;
+  const originalPrice = toNumber(item.original_price);
+  const imageUrls = toStringArray(item.image_urls);
+  const image =
+    (typeof item.image_url === 'string' && item.image_url) ||
+    (typeof item.image === 'string' && item.image) ||
+    imageUrls[0] ||
+    FALLBACK_IMAGE_URL;
+
+  let discount = toNumber(item.discount);
+  if (discount === undefined && originalPrice && originalPrice > price) {
+    discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+  }
+
+  const isNew =
+    typeof item.is_new === 'boolean'
+      ? item.is_new
+      : isNewByCreatedAt(item.created_at);
+
+  return {
+    id,
+    name: (typeof item.name === 'string' && item.name.trim()) || `Товар #${id}`,
+    brand: (typeof item.brand === 'string' && item.brand.trim()) || 'Uilesim',
+    price: Math.max(0, Math.round(price)),
+    originalPrice: originalPrice !== undefined ? Math.max(0, Math.round(originalPrice)) : undefined,
+    image,
+    category:
+      (typeof item.category === 'string' && item.category) ||
+      (typeof item.product_type === 'string' && item.product_type) ||
+      'skincare',
+    isNew,
+    discount: discount !== undefined ? Math.max(0, Math.round(discount)) : undefined,
+    inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
+  };
+};
+
+const readRecentSearches = (): string[] => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(RECENT_SEARCHES_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  } catch {
+    return [];
+  }
+};
+
+const saveRecentSearches = (value: string[]) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(value));
+};
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const query = searchParams.get("q") || "";
-  
+  const navigate = useNavigate();
+  const location = useLocation();
+  const query = (searchParams.get('q') || '').trim();
+
   const [searchInput, setSearchInput] = useState(query);
-  const [isLoading, setIsLoading] = useState(false);
-  const [filteredProducts, setFilteredProducts] = useState(products);
+  const [products, setProducts] = useState<Product[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProducts = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await listProducts();
+        const mapped = extractProducts(response).map(mapApiProductToGrid);
+
+        if (!cancelled) {
+          setProducts(mapped);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', {
+            replace: true,
+            state: { from: `${location.pathname}${location.search}` },
+          });
+          return;
+        }
+
+        setProducts([]);
+        setLoadError('Не удалось загрузить товары из API. Попробуйте ещё раз.');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, location.search, navigate, reloadKey]);
 
   useEffect(() => {
     setSearchInput(query);
-    
-    if (query) {
-      performSearch(query);
-      // Add to recent searches
-      const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
-      const updated = [query, ...recent.filter((s: string) => s !== query)].slice(0, 5);
-      localStorage.setItem("recentSearches", JSON.stringify(updated));
-      setRecentSearches(updated);
-    } else {
-      setFilteredProducts(products);
-      // Load recent searches
-      const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
+    const recent = readRecentSearches();
+
+    if (!query) {
       setRecentSearches(recent);
+      return;
     }
+
+    const updated = [query, ...recent.filter((item) => item !== query)].slice(0, MAX_RECENT_SEARCHES);
+    saveRecentSearches(updated);
+    setRecentSearches(updated);
   }, [query]);
 
-  const performSearch = (searchQuery: string) => {
-    setIsLoading(true);
-
-    // TODO: Replace with actual API call
-    // const response = await fetch(`/api/products/?search=${encodeURIComponent(searchQuery)}`);
-    
-    // Mock search with client-side filtering
-    setTimeout(() => {
-      const lowerQuery = searchQuery.toLowerCase();
-      const results = products.filter(
-        (product) =>
-          product.name.toLowerCase().includes(lowerQuery) ||
-          product.brand.toLowerCase().includes(lowerQuery)
-      );
-      
-      setFilteredProducts(results);
-      setIsLoading(false);
-
-      // TODO: Track search event
-      // POST /api/me/recommendations/event
-      // { event_type: "search", query: searchQuery, results_count: results.length }
-    }, 500);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchInput.trim()) {
-      setSearchParams({ q: searchInput.trim() });
+  const filteredProducts = useMemo(() => {
+    if (!query) {
+      return products;
     }
+
+    const lowerQuery = query.toLowerCase();
+    return products.filter((product) => {
+      const nameMatched = product.name.toLowerCase().includes(lowerQuery);
+      const brandMatched = product.brand.toLowerCase().includes(lowerQuery);
+      return nameMatched || brandMatched;
+    });
+  }, [products, query]);
+
+  const popularProducts = useMemo(() => products.slice(0, 8), [products]);
+
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const normalized = searchInput.trim();
+    if (!normalized) {
+      setSearchParams({});
+      return;
+    }
+
+    setSearchParams({ q: normalized });
   };
 
   const handleSuggestedClick = (suggestion: string) => {
@@ -91,18 +254,19 @@ export default function SearchPage() {
   };
 
   const clearSearch = () => {
-    setSearchInput("");
+    setSearchInput('');
     setSearchParams({});
   };
 
   const clearRecentSearches = () => {
-    localStorage.removeItem("recentSearches");
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(RECENT_SEARCHES_STORAGE_KEY);
+    }
     setRecentSearches([]);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Search header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
@@ -111,7 +275,7 @@ export default function SearchPage() {
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Поиск товаров, брендов..."
                 className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all"
                 autoFocus
@@ -131,10 +295,18 @@ export default function SearchPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Empty state - no query */}
-        {!query && (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <LoadingSpinner size="lg" text="Загружаем товары..." />
+          </div>
+        ) : loadError ? (
+          <ErrorState
+            title="Не удалось загрузить поиск"
+            description={loadError}
+            onRetry={() => setReloadKey((value) => value + 1)}
+          />
+        ) : !query ? (
           <div className="space-y-8">
-            {/* Recent searches */}
             {recentSearches.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -148,78 +320,69 @@ export default function SearchPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {recentSearches.map((search, index) => (
-                    <Chip
-                      key={index}
-                      label={search}
-                      onClick={() => handleSuggestedClick(search)}
-                      icon={<TrendingUp className="w-4 h-4" />}
-                    />
+                    <button key={`${search}-${index}`} type="button" onClick={() => handleSuggestedClick(search)}>
+                      <Chip className="gap-2 hover:bg-gray-50 transition-colors">
+                        <TrendingUp className="w-4 h-4" />
+                        <span>{search}</span>
+                      </Chip>
+                    </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Suggested searches */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Популярные запросы</h3>
               <div className="flex flex-wrap gap-2">
-                {SUGGESTED_QUERIES.map((suggestion, index) => (
-                  <Chip
-                    key={index}
-                    label={suggestion}
-                    onClick={() => handleSuggestedClick(suggestion)}
-                  />
+                {SUGGESTED_QUERIES.map((suggestion) => (
+                  <button key={suggestion} type="button" onClick={() => handleSuggestedClick(suggestion)}>
+                    <Chip className="hover:bg-gray-50 transition-colors">
+                      <span>{suggestion}</span>
+                    </Chip>
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* Popular products fallback */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Популярное</h3>
-              <ProductGrid products={products.slice(0, 8)} />
+              {popularProducts.length > 0 ? (
+                <ProductGrid products={popularProducts} />
+              ) : (
+                <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
+                  Популярные товары пока недоступны.
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Loading state */}
-        {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <LoadingSpinner size="lg" />
-          </div>
-        )}
-
-        {/* Search results */}
-        {!isLoading && query && (
+        ) : (
           <>
-            {/* Results header */}
             <div className="mb-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                 {filteredProducts.length > 0
                   ? `Найдено ${filteredProducts.length} товаров`
-                  : "Ничего не найдено"}
+                  : 'Ничего не найдено'}
               </h2>
               <p className="text-gray-600">
                 Результаты поиска: <span className="font-medium">"{query}"</span>
               </p>
             </div>
 
-            {/* Filters */}
             {filteredProducts.length > 0 && (
               <div className="mb-6">
                 <FilterBar />
               </div>
             )}
 
-            {/* Results grid */}
             {filteredProducts.length > 0 ? (
               <ProductGrid products={filteredProducts} />
             ) : (
               <EmptyState
                 icon={<Search className="w-12 h-12" />}
                 title="Ничего не найдено"
-                description={`По запросу "${query}" ничего не найдено. Попробуйте изменить запрос или воспользуйтесь фильтрами.`}
+                description={`По запросу "${query}" ничего не найдено. Попробуйте изменить запрос.`}
                 action={{
-                  label: "Очистить поиск",
+                  label: 'Очистить поиск',
                   onClick: clearSearch,
                 }}
               />

@@ -26,14 +26,6 @@ interface Campaign {
   category: string;
 }
 
-const campaigns: Campaign[] = [
-  { id: 'cmp_001', name: 'Spring Glow Launch', status: 'active', start: '2026-03-01', end: '2026-03-31', budget: 1500000, spend: 420000, category: 'Уход за лицом' },
-  { id: 'cmp_002', name: 'Лояльность Bronze→Silver', status: 'active', start: '2026-02-15', end: '2026-04-15', budget: 800000, spend: 310000, category: 'Loyalty' },
-  { id: 'cmp_003', name: 'Novruz Sale', status: 'draft', start: '2026-03-21', end: '2026-03-28', budget: 2000000, spend: 0, category: 'Все категории' },
-  { id: 'cmp_004', name: 'VIP Club Activation', status: 'paused', start: '2026-01-10', end: '2026-03-10', budget: 600000, spend: 540000, category: 'Luxury' },
-  { id: 'cmp_005', name: 'New Year Bundle', status: 'ended', start: '2025-12-20', end: '2026-01-10', budget: 1200000, spend: 1190000, category: 'Подарки' },
-];
-
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   draft: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -65,7 +57,7 @@ export default function AdminCampaignsPage() {
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
   const [status, setStatus] = useState('all');
-  const [campaignList, setCampaignList] = useState<Campaign[]>(campaigns);
+  const [campaignList, setCampaignList] = useState<Campaign[]>([]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -113,14 +105,8 @@ export default function AdminCampaignsPage() {
           return;
         }
 
-        if (error instanceof ApiError && error.status === 401) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
-          return;
-        }
-
-        if (error instanceof ApiError && error.status === 403) {
-          toast.error('Нет доступа');
-          setCampaignList([]);
           return;
         }
 

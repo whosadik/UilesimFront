@@ -98,7 +98,7 @@ export default function BrandsPage() {
         }
 
         setBrands([]);
-        setLoadError(error instanceof Error ? error.message : 'Failed to load brands');
+        setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить список брендов.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
