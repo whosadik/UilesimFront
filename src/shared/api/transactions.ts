@@ -17,6 +17,14 @@ export type Transaction = {
   status?: string;
   tier_after?: string;
   channel?: string;
+  items?: TransactionItem[];
+  [k: string]: unknown;
+};
+
+export type TransactionItem = {
+  product?: number | string;
+  quantity?: number;
+  unit_price?: string | number;
   [k: string]: unknown;
 };
 
@@ -69,3 +77,10 @@ export async function listTransactions(params?: ListTransactionsParams): Promise
 }
 
 export const listMyTransactions = listTransactions;
+
+export function getTransactionById(id: string | number): Promise<Transaction> {
+  return apiFetch<Transaction>(`${ENDPOINT}${id}/`, {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}

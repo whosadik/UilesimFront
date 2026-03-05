@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import {
   Sparkles, ArrowRight, Target, TrendingUp, ShoppingBag,
   ChevronRight, Clock, Check, RefreshCw, Zap, Map,
-  Heart, Plus, Minus, Star, Settings,
+  Plus, Minus, Star, Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
 import { ApiError } from '../../shared/api/ApiError';
+import { getLoyalty, getProfile, updateProfile } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
 
@@ -19,13 +20,53 @@ import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recomme
  * - GET /api/me/next-best-action → { type, title, description, benefit, cta }
  * - GET /api/me/next-offer → { title, discount, saving_amount, expires_at }
  * - PATCH /api/me/profile { skin_type, goals } → quick prefs update
- * - POST /api/me/recommendations/event { event_type, product_id, section }
+ * - POST /api/me/recommendations/event { action, product_id, page, section_key, context }
  */
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
 const SKIN_TYPES = ['Жирная', 'Комбинированная', 'Сухая', 'Нормальная', 'Чувствительная'];
 const GOALS = ['Увлажнение', 'Сияние', 'Антивозрастной', 'Очищение', 'Выравнивание тона', 'Защита SPF'];
+
+const SKIN_TYPE_UI_TO_API: Record<string, string> = {
+  'Жирная': 'oily',
+  'Комбинированная': 'combination',
+  'Сухая': 'dry',
+  'Нормальная': 'normal',
+  'Чувствительная': 'sensitive',
+};
+
+const SKIN_TYPE_API_TO_UI: Record<string, string> = {
+  oily: 'Жирная',
+  combination: 'Комбинированная',
+  dry: 'Сухая',
+  normal: 'Нормальная',
+  sensitive: 'Чувствительная',
+};
+
+const GOAL_UI_TO_API: Record<string, string> = {
+  'Увлажнение': 'hydration',
+  'Сияние': 'glow',
+  'Антивозрастной': 'anti_aging',
+  'Очищение': 'cleansing',
+  'Выравнивание тона': 'even_tone',
+  'Защита SPF': 'spf',
+};
+
+const GOAL_API_TO_UI: Record<string, string> = {
+  hydration: 'Увлажнение',
+  moisturizing: 'Увлажнение',
+  glow: 'Сияние',
+  brightening: 'Сияние',
+  anti_aging: 'Антивозрастной',
+  aging: 'Антивозрастной',
+  cleansing: 'Очищение',
+  acne: 'Очищение',
+  even_tone: 'Выравнивание тона',
+  pigmentation: 'Выравнивание тона',
+  spf: 'Защита SPF',
+  sun_protection: 'Защита SPF',
+};
 
 const mockRecommendations = [
   {
@@ -115,17 +156,94 @@ const toNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-const extractHomeResults = (response: HomeRecsResponse): unknown[] => {
-  if (Array.isArray(response)) {
-    return response;
+const toStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
   }
-  if (response && typeof response === 'object' && Array.isArray((response as { results?: unknown[] }).results)) {
-    return (response as { results: unknown[] }).results;
+
+  if (value && typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([key]) => key);
+  }
+
+  return [];
+};
+
+const mapApiSkinTypeToUi = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  return SKIN_TYPE_API_TO_UI[value.toLowerCase()] ?? null;
+};
+
+const mapUiSkinTypeToApi = (value: string): string =>
+  SKIN_TYPE_UI_TO_API[value] ?? 'normal';
+
+const mapApiGoalsToUi = (value: unknown): string[] => {
+  const mapped = toStringArray(value)
+    .map((goal) => GOAL_API_TO_UI[goal.toLowerCase()] ?? null)
+    .filter((goal): goal is string => Boolean(goal));
+
+  return Array.from(new Set(mapped));
+};
+
+const mapUiGoalsToApi = (value: string[]): string[] => {
+  const mapped = value
+    .map((goal) => GOAL_UI_TO_API[goal] ?? null)
+    .filter((goal): goal is string => Boolean(goal));
+
+  return Array.from(new Set(mapped));
+};
+
+const formatTierLabel = (value: string): string => {
+  const normalized = value.toLowerCase();
+  if (normalized === 'bronze') {
+    return 'Bronze';
+  }
+  if (normalized === 'silver') {
+    return 'Silver';
+  }
+  if (normalized === 'gold') {
+    return 'Gold';
+  }
+  if (normalized === 'platinum') {
+    return 'Platinum';
+  }
+  return value || 'Gold';
+};
+
+type HomeResultItem = { item: unknown; sectionKey?: string };
+
+const extractHomeResults = (response: HomeRecsResponse): HomeResultItem[] => {
+  if (Array.isArray(response)) {
+    return response.map((item) => ({ item }));
+  }
+  if (response && typeof response === 'object') {
+    const record = response as {
+      results?: unknown[];
+      sections?: Array<{ key?: unknown; results?: unknown[] }>;
+    };
+
+    if (Array.isArray(record.sections)) {
+      return record.sections.flatMap((section) => {
+        if (!Array.isArray(section.results)) {
+          return [];
+        }
+
+        const sectionKey = typeof section.key === 'string' ? section.key : undefined;
+        return section.results.map((item) => ({ item, sectionKey }));
+      });
+    }
+
+    if (Array.isArray(record.results)) {
+      return record.results.map((item) => ({ item }));
+    }
   }
   return [];
 };
 
-const normalizeRec = (item: unknown, index: number): RecommendationCard => {
+const normalizeRec = (item: unknown, index: number, sectionKey?: string): RecommendationCard => {
   const fallback = mockRecommendations[index % mockRecommendations.length];
   const source = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
   const product = (
@@ -172,7 +290,7 @@ const normalizeRec = (item: unknown, index: number): RecommendationCard => {
     expectedBenefit:
       (typeof source.expectedBenefit === 'string' && source.expectedBenefit) ||
       fallback.expectedBenefit,
-    section: (typeof source.section === 'string' && source.section) || fallback.section,
+    section: sectionKey || (typeof source.section === 'string' && source.section) || fallback.section,
   };
 };
 
@@ -536,9 +654,11 @@ export default function ForYouPage() {
   const [offerCartAmount, setOfferCartAmount] = useState(1299);
   const [offerExpiry, setOfferExpiry] = useState(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000));
   const [offerAssignmentId, setOfferAssignmentId] = useState<number | undefined>(undefined);
-
-  const loyaltyPoints = 1247;
-  const loyaltyTier = 'gold';
+  const [loyaltyPoints, setLoyaltyPoints] = useState(1247);
+  const [loyaltyTier, setLoyaltyTier] = useState('gold');
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -553,19 +673,82 @@ export default function ForYouPage() {
     let cancelled = false;
 
     const loadPersonalization = async () => {
+      setIsDataLoading(true);
+      setLoadError(null);
+
       try {
-        const [homeResponse, offerResponse] = await Promise.all([home(), nextOffer()]);
+        const [homeResult, offerResult, profileResult, loyaltyResult] = await Promise.allSettled([
+          home(),
+          nextOffer(),
+          getProfile(),
+          getLoyalty(),
+        ]);
+
         if (cancelled) {
           return;
         }
 
-        const normalized = extractHomeResults(homeResponse).map((item, index) => normalizeRec(item, index));
+        const rejectedReasons: unknown[] = [];
+        for (const result of [homeResult, offerResult, profileResult, loyaltyResult]) {
+          if (result.status === 'rejected') {
+            rejectedReasons.push(result.reason);
+          }
+        }
+
+        const authError = rejectedReasons.find(
+          (reason) =>
+            reason instanceof ApiError &&
+            (reason.status === 401 || reason.status === 403),
+        );
+
+        if (authError) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (profileResult.status === 'fulfilled') {
+          const profile = profileResult.value as Record<string, unknown>;
+          const nextSkinType = mapApiSkinTypeToUi(profile.skin_type);
+          if (nextSkinType) {
+            setSkinType(nextSkinType);
+          }
+
+          const nextGoals = mapApiGoalsToUi(profile.goals);
+          if (nextGoals.length > 0) {
+            setGoals(nextGoals);
+          }
+        }
+
+        if (loyaltyResult.status === 'fulfilled') {
+          const points = toNumber(loyaltyResult.value.points_balance);
+          if (points !== undefined) {
+            setLoyaltyPoints(Math.max(0, Math.round(points)));
+          }
+
+          if (typeof loyaltyResult.value.tier === 'string' && loyaltyResult.value.tier.trim()) {
+            setLoyaltyTier(loyaltyResult.value.tier.toLowerCase());
+          }
+        }
+
+        const homeResponse = homeResult.status === 'fulfilled' ? homeResult.value : null;
+        const normalized = homeResponse
+          ? extractHomeResults(homeResponse).map(({ item, sectionKey }, index) =>
+              normalizeRec(item, index, sectionKey),
+            )
+          : [];
+
         if (normalized.length > 0) {
           const forYou = normalized.filter((item) => item.section === 'for_you');
           const trending = normalized.filter((item) => item.section === 'trending');
           setRecommendations((forYou.length > 0 ? forYou : normalized).slice(0, 6));
           setTrendingRecommendations(
-            (trending.length > 0 ? trending : normalized.slice(6, 10).length > 0 ? normalized.slice(6, 10) : normalized).slice(0, 4),
+            (
+              trending.length > 0
+                ? trending
+                : normalized.slice(6, 10).length > 0
+                  ? normalized.slice(6, 10)
+                  : normalized
+            ).slice(0, 4),
           );
         }
 
@@ -576,93 +759,131 @@ export default function ForYouPage() {
         const effectiveOffer =
           homeNextOffer && typeof homeNextOffer === 'object'
             ? (homeNextOffer as Record<string, unknown>)
-            : offerResponse;
+            : offerResult.status === 'fulfilled'
+              ? offerResult.value
+              : null;
 
-        const assignmentIdValue = toNumber(effectiveOffer.assignment_id);
-        const assignmentId = assignmentIdValue !== undefined ? Math.round(assignmentIdValue) : undefined;
-        if (assignmentId !== undefined) {
-          setOfferAssignmentId(assignmentId);
-        }
+        if (effectiveOffer) {
+          const assignmentIdValue = toNumber(effectiveOffer.assignment_id);
+          const assignmentId = assignmentIdValue !== undefined ? Math.round(assignmentIdValue) : undefined;
+          if (assignmentId !== undefined) {
+            setOfferAssignmentId(assignmentId);
+          }
 
-        const savingAmount = toNumber(effectiveOffer.saving_amount ?? effectiveOffer.discount_amount);
-        if (savingAmount !== undefined) {
-          setOfferSavingAmount(Math.max(0, Math.round(savingAmount)));
-        }
+          const savingAmount = toNumber(effectiveOffer.saving_amount ?? effectiveOffer.discount_amount);
+          if (savingAmount !== undefined) {
+            setOfferSavingAmount(Math.max(0, Math.round(savingAmount)));
+          }
 
-        const cartAmount = toNumber(
-          effectiveOffer.base_amount ??
-            effectiveOffer.min_basket_amount ??
-            (effectiveOffer.target as Record<string, unknown> | undefined)?.min_basket_amount,
-        );
-        if (cartAmount !== undefined) {
-          setOfferCartAmount(Math.max(0, Math.round(cartAmount)));
-        }
+          const cartAmount = toNumber(
+            effectiveOffer.base_amount ??
+              effectiveOffer.min_basket_amount ??
+              (effectiveOffer.target as Record<string, unknown> | undefined)?.min_basket_amount,
+          );
+          if (cartAmount !== undefined) {
+            setOfferCartAmount(Math.max(0, Math.round(cartAmount)));
+          }
 
-        const expiresAt = effectiveOffer.expires_at;
-        if (typeof expiresAt === 'string') {
-          const parsed = new Date(expiresAt);
-          if (!Number.isNaN(parsed.getTime())) {
-            setOfferExpiry(parsed);
+          const expiresAt = effectiveOffer.expires_at;
+          if (typeof expiresAt === 'string') {
+            const parsed = new Date(expiresAt);
+            if (!Number.isNaN(parsed.getTime())) {
+              setOfferExpiry(parsed);
+            }
           }
         }
 
-        if (normalized.length > 0) {
-          const firstProductId = Number(normalized[0]?.id);
-          if (Number.isFinite(firstProductId)) {
-            void sendEvent({
-              event_type: 'impression',
-              placement: 'for_you_home',
-              product_id: firstProductId,
-              assignment_id: assignmentId,
-              meta: { count: normalized.length },
-            }).catch(() => undefined);
-          }
+        if (homeResult.status === 'rejected' && offerResult.status === 'rejected') {
+          setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
+        } else if (homeResult.status === 'rejected') {
+          setLoadError('Часть персональных данных недоступна. Показаны резервные рекомендации.');
+        } else if (offerResult.status === 'rejected') {
+          setLoadError('Не удалось загрузить персональный оффер. Остальные данные отображаются.');
         }
-      } catch (error) {
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
-          return;
+      } catch {
+        if (!cancelled) {
+          setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
         }
-
-        if (error instanceof Error) {
-          toast.error(error.message);
+      } finally {
+        if (!cancelled) {
+          setIsDataLoading(false);
         }
       }
     };
 
-    loadPersonalization();
+    loadPersonalization().catch(() => {
+      if (!cancelled) {
+        setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
+        setIsDataLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, user]);
+  }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
 
   const handleRecommendationClick = (product: typeof mockRecommendations[0]) => {
     const productId = Number(product.id);
     if (!Number.isFinite(productId)) {
       return;
     }
+
     void sendEvent({
-      event_type: 'click',
-      placement: 'for_you_home',
+      action: 'click',
       product_id: productId,
-      assignment_id: offerAssignmentId,
-      meta: { section: product.section },
+      page: 'for_you',
+      section_key: product.section,
+      context: { assignment_id: offerAssignmentId },
     }).catch(() => undefined);
   };
 
   const handleAddToCart = (id: string) => {
-    const points = [...recommendations, ...trendingRecommendations].find(p => p.id === id)?.pointsEarned || 0;
+    const selected = [...recommendations, ...trendingRecommendations].find((product) => product.id === id);
+    const points = selected?.pointsEarned || 0;
     toast.success('Добавлено в корзину!', { description: `+${points} баллов после покупки` });
+
+    if (selected) {
+      const productId = Number(selected.id);
+      if (Number.isFinite(productId)) {
+        void sendEvent({
+          action: 'add_to_cart',
+          product_id: productId,
+          page: 'for_you',
+          section_key: selected.section,
+          context: { assignment_id: offerAssignmentId },
+        }).catch(() => undefined);
+      }
+    }
   };
 
-  const handleSavePrefs = () => {
+  const handleSavePrefs = async () => {
+    if (isSaving) {
+      return;
+    }
+
     setIsSaving(true);
-    // TODO: PATCH /api/me/profile { skin_type: skinType, goals }
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      await updateProfile({
+        skin_type: mapUiSkinTypeToApi(skinType),
+        goals: mapUiGoalsToApi(goals),
+      });
+      setRetryKey((value) => value + 1);
       toast.success('Рекомендации обновлены!');
-    }, 1200);
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Не удалось сохранить настройки.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isNewUser) {
@@ -700,7 +921,9 @@ export default function ForYouPage() {
             <div className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-[#EAE6EF]">
               <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
               <span className="text-sm font-semibold text-[#111827]">{loyaltyPoints.toLocaleString('ru')} баллов</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold ml-1">Gold</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold ml-1">
+                {formatTierLabel(loyaltyTier)}
+              </span>
             </div>
             {/* Demo toggle */}
             <button
@@ -712,6 +935,24 @@ export default function ForYouPage() {
             </button>
           </div>
         </div>
+
+        {isDataLoading && (
+          <div className="mb-4 p-3 rounded-xl border border-[#EAE6EF] bg-white text-sm text-[#6B7280]">
+            Загружаем персональные данные...
+          </div>
+        )}
+
+        {loadError && (
+          <div className="mb-4 p-3 rounded-xl border border-[#FECACA] bg-[#FEF2F2]">
+            <p className="text-sm text-[#B42318]">{loadError}</p>
+            <button
+              onClick={() => setRetryKey((value) => value + 1)}
+              className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
+            >
+              Повторить
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* ─── Main column ─────────────────────────────────────── */}

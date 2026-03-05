@@ -1,20 +1,58 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { CheckCircle, Sparkles, ArrowRight, Map, TrendingUp, Star, ChevronRight } from 'lucide-react';
+import { ApiError } from '../../shared/api/ApiError';
+import { listTransactions } from '../../shared/api/transactions';
+import { getLoyalty } from '../../shared/api/me';
+import { nextOffer } from '../../shared/api/offers';
 
 /**
  * DEV NOTES:
- * Endpoint: POST /api/checkout
- * Required: idempotency_key, cart_id, use_points?
- * Response: {
- *   ok: true,
- *   transaction_id, gross_amount, discount, points_used, net_amount,
- *   points_earned, new_points_balance, tier, tier_upgraded,
- *   next_roadmap_step: { title, product_name, product_id }
- * }
+ * Endpoints:
+ * - GET /api/transactions/
+ * - GET /api/me/loyalty
+ * - GET /api/me/next-offer
+ * /api/checkout response snapshot в этом роуте недоступен напрямую, поэтому
+ * часть полей остаётся fallback до появления endpoint с деталями последнего checkout.
  */
 
-const result = {
+type TierName = 'bronze' | 'silver' | 'gold' | 'platinum';
+
+type CheckoutResult = {
+  transactionId: string;
+  grossAmount: number;
+  discount: number;
+  pointsUsed: number;
+  netAmount: number;
+  pointsEarned: number;
+  previousBalance: number;
+  newPointsBalance: number;
+  tier: TierName;
+  tierUpgraded: boolean;
+  newTier: string;
+};
+
+type RoadmapStep = {
+  stepNum: number;
+  totalSteps: number;
+  title: string;
+  description: string;
+  productName: string;
+  productId: string;
+  pointsBonus: number;
+};
+
+type NextRecommendation = {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  image: string;
+  pointsEarned: number;
+  why: string;
+};
+
+const FALLBACK_RESULT: CheckoutResult = {
   transactionId: 'TXN-2026-03-12345',
   grossAmount: 2749,
   discount: 412,
@@ -23,12 +61,12 @@ const result = {
   pointsEarned: 275,
   previousBalance: 1247,
   newPointsBalance: 1522,
-  tier: 'gold' as const,
+  tier: 'gold',
   tierUpgraded: true,
   newTier: 'Platinum',
 };
 
-const nextRoadmapStep = {
+const FALLBACK_NEXT_ROADMAP_STEP: RoadmapStep = {
   stepNum: 3,
   totalSteps: 5,
   title: 'Увлажнение',
@@ -38,7 +76,7 @@ const nextRoadmapStep = {
   pointsBonus: 145,
 };
 
-const nextRec = {
+const FALLBACK_NEXT_REC: NextRecommendation = {
   id: '5',
   name: 'SPF 50 Солнцезащитный крем',
   brand: 'La Roche-Posay',
@@ -46,6 +84,63 @@ const nextRec = {
   image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400&q=80',
   pointsEarned: 189,
   why: 'Шаг 4 вашего Roadmap',
+};
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const normalizeTier = (value: unknown): TierName | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized = value.toLowerCase();
+  if (normalized === 'bronze' || normalized === 'silver' || normalized === 'gold' || normalized === 'platinum') {
+    return normalized;
+  }
+
+  return undefined;
+};
+
+const formatTransactionId = (value: unknown): string | undefined => {
+  const numericId = toNumber(value);
+  if (numericId === undefined) {
+    return undefined;
+  }
+  return `TXN-${String(Math.round(numericId)).padStart(8, '0')}`;
+};
+
+const extractOfferTargetProductId = (value: unknown): string | undefined => {
+  if (!isRecord(value) || !isRecord(value.target)) {
+    return undefined;
+  }
+
+  const target = value.target;
+  if (target.scope !== 'product_id') {
+    return undefined;
+  }
+
+  const targetValue = target.value;
+  if (typeof targetValue === 'number' || typeof targetValue === 'string') {
+    return String(targetValue);
+  }
+
+  return undefined;
 };
 
 const TIERS = [
@@ -57,8 +152,15 @@ const TIERS = [
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showPoints, setShowPoints] = useState(false);
   const [showNext, setShowNext] = useState(false);
+  const [result, setResult] = useState<CheckoutResult>(FALLBACK_RESULT);
+  const [nextRoadmapStep, setNextRoadmapStep] = useState<RoadmapStep>(FALLBACK_NEXT_ROADMAP_STEP);
+  const [nextRec, setNextRec] = useState<NextRecommendation>(FALLBACK_NEXT_REC);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   // Staggered animation
   useEffect(() => {
@@ -66,6 +168,141 @@ export default function CheckoutPage() {
     const t2 = setTimeout(() => setShowNext(true), 1200);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCheckoutData = async () => {
+      setIsDataLoading(true);
+      setLoadError(null);
+
+      const [transactionsResult, loyaltyResult, offerResult] = await Promise.allSettled([
+        listTransactions({ page_size: 1 }),
+        getLoyalty(),
+        nextOffer(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      const rejectedReasons: unknown[] = [];
+      for (const item of [transactionsResult, loyaltyResult, offerResult]) {
+        if (item.status === 'rejected') {
+          rejectedReasons.push(item.reason);
+        }
+      }
+
+      const authError = rejectedReasons.find(
+          (error) =>
+            error instanceof ApiError &&
+            (error.status === 401 || error.status === 403),
+      );
+
+      if (authError) {
+        setIsDataLoading(false);
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      const nextResult: CheckoutResult = { ...FALLBACK_RESULT };
+
+      if (transactionsResult.status === 'fulfilled' && transactionsResult.value.length > 0) {
+        const latestTransaction = transactionsResult.value[0];
+
+        const txId = formatTransactionId(latestTransaction.id);
+        if (txId) {
+          nextResult.transactionId = txId;
+        }
+
+        const txTotal = toNumber(latestTransaction.total_amount);
+        if (txTotal !== undefined) {
+          const rounded = Math.max(0, Math.round(txTotal));
+          nextResult.grossAmount = rounded;
+          nextResult.netAmount = rounded;
+        }
+
+        const txDiscount = toNumber(latestTransaction['discount_amount']);
+        if (txDiscount !== undefined) {
+          nextResult.discount = Math.max(0, Math.round(txDiscount));
+        }
+
+        const txPointsUsed = toNumber(latestTransaction.points_redeemed);
+        if (txPointsUsed !== undefined) {
+          nextResult.pointsUsed = Math.max(0, Math.round(txPointsUsed));
+        }
+
+        const txNet = toNumber(latestTransaction['net_total']);
+        if (txNet !== undefined) {
+          nextResult.netAmount = Math.max(0, Math.round(txNet));
+        }
+
+        const txPointsEarned = toNumber(latestTransaction.points_earned);
+        if (txPointsEarned !== undefined) {
+          nextResult.pointsEarned = Math.max(0, Math.round(txPointsEarned));
+        }
+      }
+
+      if (loyaltyResult.status === 'fulfilled') {
+        const balance = toNumber(loyaltyResult.value.points_balance);
+        if (balance !== undefined) {
+          nextResult.newPointsBalance = Math.max(0, Math.round(balance));
+        }
+
+        const tier = normalizeTier(loyaltyResult.value.tier);
+        if (tier) {
+          nextResult.tier = tier;
+        }
+
+        nextResult.previousBalance = Math.max(
+          0,
+          nextResult.newPointsBalance - nextResult.pointsEarned + nextResult.pointsUsed,
+        );
+      }
+
+      const nextRoadmap: RoadmapStep = { ...FALLBACK_NEXT_ROADMAP_STEP };
+      const nextRecommendation: NextRecommendation = { ...FALLBACK_NEXT_REC };
+
+      if (offerResult.status === 'fulfilled') {
+        const offer = offerResult.value;
+        const offerProductId = extractOfferTargetProductId(offer);
+
+        if (offerProductId) {
+          nextRoadmap.productId = offerProductId;
+          nextRoadmap.productName = `Товар #${offerProductId}`;
+
+          nextRecommendation.id = offerProductId;
+          nextRecommendation.why = 'Персональный оффер';
+          nextRecommendation.name = `Рекомендуемый товар #${offerProductId}`;
+        }
+      }
+
+      setResult(nextResult);
+      setNextRoadmapStep(nextRoadmap);
+      setNextRec(nextRecommendation);
+
+      if (
+        transactionsResult.status === 'rejected' &&
+        loyaltyResult.status === 'rejected' &&
+        offerResult.status === 'rejected'
+      ) {
+        setLoadError('Не удалось загрузить данные оформления. Попробуйте ещё раз.');
+      }
+
+      setIsDataLoading(false);
+    };
+
+    loadCheckoutData().catch(() => {
+      if (!cancelled) {
+        setLoadError('Не удалось загрузить данные оформления. Попробуйте ещё раз.');
+        setIsDataLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, navigate, retryKey]);
 
   const currentTier = TIERS.find(t => t.name.toLowerCase() === result.tier) || TIERS[2];
   const nextTierData = TIERS[TIERS.indexOf(currentTier) + 1];
@@ -94,6 +331,24 @@ export default function CheckoutPage() {
             Номер: <span className="font-semibold text-[#111827]">{result.transactionId}</span>
           </p>
         </div>
+
+        {isDataLoading && (
+          <div className="mb-4 p-3 rounded-xl border border-[#EAE6EF] bg-white text-sm text-[#6B7280]">
+            Загружаем данные заказа...
+          </div>
+        )}
+
+        {loadError && (
+          <div className="mb-4 p-3 rounded-xl border border-[#FECACA] bg-[#FEF2F2]">
+            <p className="text-sm text-[#B42318]">{loadError}</p>
+            <button
+              onClick={() => setRetryKey((value) => value + 1)}
+              className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
+            >
+              Повторить
+            </button>
+          </div>
+        )}
 
         {/* ─── Tier Upgrade Banner ───────────────────────── */}
         {result.tierUpgraded && (

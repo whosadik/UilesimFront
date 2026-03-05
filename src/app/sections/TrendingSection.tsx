@@ -1,21 +1,131 @@
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { CarouselHeader } from '../components/CarouselHeader';
 import { ProductCarousel } from '../components/ProductCarousel';
-import { mockProducts } from '../data/products';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { home } from '../../shared/api/recommendations';
+import { ApiError } from '../../shared/api/ApiError';
+
+type CarouselProduct = {
+  id: string;
+  image: string;
+  brand: string;
+  name: string;
+  price: number;
+  category?: string;
+  inStock?: boolean;
+};
+
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function mapRecommendationProduct(item: unknown): CarouselProduct | null {
+  if (!isRecord(item)) {
+    return null;
+  }
+
+  const product = isRecord(item.product) ? item.product : null;
+  if (!product || (typeof product.id !== 'number' && typeof product.id !== 'string')) {
+    return null;
+  }
+
+  return {
+    id: String(product.id),
+    image:
+      (typeof product.image_url === 'string' && product.image_url) ||
+      (typeof product.image === 'string' && product.image) ||
+      FALLBACK_IMAGE,
+    brand: typeof product.brand === 'string' ? product.brand : 'Uilesim',
+    name: typeof product.name === 'string' ? product.name : `Товар #${String(product.id)}`,
+    price: toNumber(product.price) ?? 0,
+    category: typeof product.category === 'string' ? product.category : undefined,
+    inStock: product.in_stock === undefined ? true : Boolean(product.in_stock),
+  };
+}
 
 export function TrendingSection() {
-  const products = mockProducts.slice(2, 12).map(p => ({
-    id: p.id,
-    name: p.title,
-    brand: p.brand,
-    price: p.price,
-    originalPrice: p.oldPrice,
-    discount: p.discount,
-    image: p.image,
-    category: 'skincare',
-    isNew: p.isNew,
-    inStock: !p.outOfStock,
-    pointsEarned: Math.floor(p.price * 0.05),
-  }));
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [products, setProducts] = useState<CarouselProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTrending = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await home();
+        let results: unknown[] = [];
+
+        if (isRecord(response) && Array.isArray(response.sections)) {
+          const trendingSection = response.sections.find(
+            (section) => isRecord(section) && section.key === 'trending',
+          );
+          if (isRecord(trendingSection) && Array.isArray(trendingSection.results)) {
+            results = trendingSection.results;
+          }
+        } else if (Array.isArray(response)) {
+          results = response;
+        } else if (isRecord(response) && Array.isArray(response.results)) {
+          results = response.results;
+        }
+
+        const mapped = results
+          .map(mapRecommendationProduct)
+          .filter((item): item is CarouselProduct => item !== null);
+
+        if (!cancelled) {
+          setProducts(mapped);
+        }
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+
+        if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        setProducts([]);
+        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить тренды');
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTrending();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, navigate, retryKey]);
 
   return (
     <section className="py-12">
@@ -24,7 +134,25 @@ export function TrendingSection() {
           title="Тренды"
           subtitle="Что берут чаще всего сейчас"
         />
-        <ProductCarousel products={products} />
+
+        {error ? (
+          <ErrorState
+            title="Не удалось загрузить тренды"
+            description="Произошла ошибка при загрузке трендовых товаров. Попробуйте ещё раз."
+            onRetry={() => setRetryKey((value) => value + 1)}
+          />
+        ) : !isLoading && products.length === 0 ? (
+          <EmptyState
+            title="Тренды пока недоступны"
+            description="Сейчас нет данных для трендовой подборки."
+            action={{
+              label: 'Обновить',
+              onClick: () => setRetryKey((value) => value + 1),
+            }}
+          />
+        ) : (
+          <ProductCarousel products={products} loading={isLoading} />
+        )}
       </div>
     </section>
   );

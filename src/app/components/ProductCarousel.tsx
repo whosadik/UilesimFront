@@ -1,29 +1,15 @@
 import { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ProductCard, ProductCardSkeleton } from './ProductCard';
+import { ProductCard, ProductCardSkeleton, type ProductCardProps } from './ProductCard';
 
 interface ProductCarouselProps {
-  products: Array<{
-    id: string;
-    image: string;
-    brand: string;
-    name: string;
-    price: number;
-    originalPrice?: number;
-    discount?: number;
-    inStock?: boolean;
-    isNew?: boolean;
-    rating?: number;
-    reviewsCount?: number;
-    pointsEarned?: number;
-    pointsMultiplier?: number;
-    recommendationScore?: number;
-    category?: string;
-  }>;
+  products: ProductCardProps['product'][];
   loading?: boolean;
+  onAddToCart?: ProductCardProps['onAddToCart'];
+  onEvent?: ProductCardProps['onEvent'];
 }
 
-export function ProductCarousel({ products, loading }: ProductCarouselProps) {
+export function ProductCarousel({ products, loading, onAddToCart, onEvent }: ProductCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -62,7 +48,12 @@ export function ProductCarousel({ products, loading }: ProductCarouselProps) {
         ) : (
           products.map((product) => (
             <div key={product.id} className="snap-start flex-shrink-0">
-              <ProductCard product={product} variant="carousel" />
+              <ProductCard
+                product={product}
+                variant="carousel"
+                onAddToCart={onAddToCart}
+                onEvent={onEvent}
+              />
             </div>
           ))
         )}

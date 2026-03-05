@@ -6,6 +6,8 @@ import { OfferCard } from '../components/OfferCard';
 import { ProductCarousel } from '../components/ProductCarousel';
 import { Button } from '../components/Button';
 import { ProfileWizard } from '../components/ProfileWizard';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ErrorState } from '../components/ErrorState';
 import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
@@ -90,6 +92,71 @@ function mapBudgetEnum(budgetMax?: number): 'low' | 'medium' | 'high' {
   return 'high';
 }
 
+const SKIN_TYPE_MAP: Record<string, 'dry' | 'oily' | 'combination' | 'normal' | 'sensitive'> = {
+  dry: 'dry',
+  oily: 'oily',
+  combination: 'combination',
+  normal: 'normal',
+  sensitive: 'sensitive',
+  'сухая': 'dry',
+  'жирная': 'oily',
+  'комбинированная': 'combination',
+  'нормальная': 'normal',
+  'чувствительная': 'sensitive',
+};
+
+const GOAL_MAP: Record<string, string> = {
+  hydration: 'hydration',
+  'anti-age': 'anti_age',
+  anti_age: 'anti_age',
+  acne: 'acne',
+  brightening: 'brightening',
+  spf: 'spf',
+  pore_care: 'pore_care',
+  'увлажнение': 'hydration',
+  'анти-эйдж': 'anti_age',
+  'против акне': 'acne',
+  'осветление': 'brightening',
+  'защита от солнца': 'spf',
+  'сужение пор': 'pore_care',
+};
+
+const AVOID_FLAG_MAP: Record<string, string> = {
+  parabens: 'parabens',
+  silicones: 'silicones',
+  fragrance: 'fragrance',
+  alcohol: 'alcohol',
+  essential_oils: 'essential_oils',
+  gluten: 'gluten',
+  'парабены': 'parabens',
+  'силиконы': 'silicones',
+  'отдушки': 'fragrance',
+  'спирт': 'alcohol',
+  'эфирные масла': 'essential_oils',
+  'глютен': 'gluten',
+};
+
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function mapSkinType(value?: string): 'dry' | 'oily' | 'combination' | 'normal' | 'sensitive' {
+  if (!value) {
+    return 'normal';
+  }
+  return SKIN_TYPE_MAP[normalizeKey(value)] ?? 'normal';
+}
+
+function mapListValues(values: string[] | undefined, dictionary: Record<string, string>): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .map((value) => dictionary[normalizeKey(String(value))] ?? String(value))
+    .filter((value) => value.length > 0);
+}
+
 function calcCompletion(profile: Record<string, unknown>) {
   const fields = ['skin_type', 'goals', 'avoid_flags', 'budget', 'hair_profile', 'makeup_profile', 'fragrance_profile'];
   const filled = fields.filter((key) => {
@@ -141,6 +208,9 @@ export default function ProfilePage() {
 
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
   const [offer, setOffer] = useState<OfferState | null>(null);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const offerStatus = useMemo<'active' | 'none' | 'expired'>(() => {
     if (!offer) return 'none';
@@ -162,6 +232,9 @@ export default function ProfilePage() {
     let cancelled = false;
 
     const load = async () => {
+      setIsPageLoading(true);
+      setLoadError(null);
+
       try {
         const [profileResp, loyaltyResp, favResp, offerResp, homeResp] = await Promise.all([
           getProfile(),          // GET /api/me/profile :contentReference[oaicite:18]{index=18}
@@ -273,7 +346,13 @@ export default function ProfilePage() {
           navigate('/login', { replace: true, state: { from: location.pathname } });
           return;
         }
-        if (error instanceof Error) toast.error(error.message);
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : 'Failed to load profile data');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPageLoading(false);
+        }
       }
     };
 
@@ -281,7 +360,27 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, user]);
+  }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
+
+  if (isAuthLoading || isPageLoading) {
+    return (
+      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+          <LoadingSpinner size="lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+          <ErrorState onRetry={() => setRetryKey((prev) => prev + 1)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -442,11 +541,10 @@ export default function ProfilePage() {
 
             <ProfileWizard
               onComplete={async (data: ProfileWizardData) => {
-                // PUT /api/me/profile :contentReference[oaicite:26]{index=26}
                 const payload = {
-                  skin_type: data.skinType?.[0] ?? 'normal',
-                  goals: data.goals ?? [],
-                  avoid_flags: data.avoidFlags ?? [],
+                  skin_type: mapSkinType(data.skinType?.[0]),
+                  goals: mapListValues(data.goals, GOAL_MAP),
+                  avoid_flags: mapListValues(data.avoidFlags, AVOID_FLAG_MAP),
                   budget: mapBudgetEnum(data.budgetMax),
                   hair_profile: data.hairProfile ?? {},
                   makeup_profile: data.makeupProfile ?? {},
@@ -460,6 +558,10 @@ export default function ProfilePage() {
                     updated && typeof updated === 'object' && 'profile' in updated && updated.profile
                       ? (updated.profile as Record<string, unknown>)
                       : (updated as Record<string, unknown>);
+                  const bonusObj =
+                    updated && typeof updated === 'object' && 'profile_completion_bonus' in updated
+                      ? (updated.profile_completion_bonus as Record<string, unknown>)
+                      : null;
 
                   const profileObj = Object.keys(updatedProfile || {}).length > 0 ? updatedProfile : await getProfile();
                   const loyaltyObj = await getLoyalty();
@@ -475,6 +577,21 @@ export default function ProfilePage() {
                     tier: mapTier(l.tier),
                     points: Number(l.points_balance) || 0,
                   });
+
+                  const awarded = Boolean(bonusObj && bonusObj.awarded);
+                  const pointsAddedRaw = bonusObj?.points_added;
+                  const pointsAdded =
+                    typeof pointsAddedRaw === 'number'
+                      ? pointsAddedRaw
+                      : typeof pointsAddedRaw === 'string'
+                        ? Number(pointsAddedRaw)
+                        : 0;
+
+                  if (awarded && Number.isFinite(pointsAdded) && pointsAdded > 0) {
+                    toast.success(`Профиль сохранён. +${pointsAdded} баллов`);
+                  } else {
+                    toast.success('Профиль сохранён');
+                  }
 
                   setWizardOpen(false);
                 } catch (error) {

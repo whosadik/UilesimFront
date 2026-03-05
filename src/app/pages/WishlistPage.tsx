@@ -1,51 +1,126 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Heart } from "lucide-react";
-import { ProductGrid } from "../components/ProductGrid";
+import { ProductGrid, type Product } from "../components/ProductGrid";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { FilterBar } from "../components/FilterBar";
 import { products } from "../data/products";
-import { toast } from "sonner";
+import { listProducts } from "../../shared/api/catalog";
+import { ApiError } from "../../shared/api/ApiError";
 
 /**
  * DEV NOTES:
- * Endpoint: GET /api/me/wishlist/
- * Response: { ok: true, items: Product[] }
- * 
- * Remove: DELETE /api/me/wishlist/{product_id}/
- * Add: POST /api/me/wishlist/ { product_id: string }
- * 
- * События: POST /api/me/recommendations/event
- * { event_type: "wishlist_view" | "remove_from_wishlist", product_id: string }
+ * - В OpenAPI и backend routes нет /api/me/wishlist.
+ * - Для карточек на странице используем GET /api/products/ как временный источник данных.
+ * - Реальные операции wishlist (list/add/remove) остаются fallback до появления API-контракта.
  */
 
-export default function WishlistPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [wishlistProducts] = useState(products.slice(0, 6)); // Mock wishlist
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
+const FALLBACK_WISHLIST: Product[] = products.slice(0, 6);
 
-  // TODO: Load wishlist from API
-  // useEffect(() => {
-  //   fetchWishlist();
-  // }, []);
+type ApiProduct = Record<string, unknown>;
 
-  // const fetchWishlist = async () => {
-  //   setIsLoading(true);
-  //   const response = await fetch('/api/me/wishlist/', { credentials: 'include' });
-  //   const data = await response.json();
-  //   if (data.ok) setWishlistProducts(data.items);
-  //   setIsLoading(false);
-  // };
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
 
-  const handleRemoveFromWishlist = (productId: string) => {
-    // TODO: API call to remove
-    // DELETE /api/me/wishlist/{productId}/
-    
-    toast.success("Товар удален из избранного");
-    
-    // Track event
-    // POST /api/me/recommendations/event
-    // { event_type: "remove_from_wishlist", product_id: productId }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
+
+const mapApiProduct = (item: ApiProduct, index: number): Product => {
+  const id = item.id !== undefined && item.id !== null ? String(item.id) : `wishlist-${index}`;
+  const price = toNumber(item.price) ?? 0;
+
+  return {
+    id,
+    name: typeof item.name === "string" && item.name.trim() ? item.name : `Товар #${id}`,
+    brand: typeof item.brand === "string" && item.brand.trim() ? item.brand : "Uilesim",
+    price,
+    originalPrice: toNumber(item.original_price),
+    image:
+      (typeof item.image_url === "string" && item.image_url) ||
+      (typeof item.image === "string" && item.image) ||
+      FALLBACK_IMAGE,
+    category:
+      (typeof item.category === "string" && item.category) ||
+      (typeof item.product_type === "string" && item.product_type) ||
+      "skincare",
+    discount: toNumber(item.discount),
+    isNew: Boolean(item.is_new),
+    inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
+    pointsEarned: toNumber(item.points_earned),
   };
+};
+
+export default function WishlistPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [wishlistProducts, setWishlistProducts] = useState<Product[]>(FALLBACK_WISHLIST);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchWishlistCards = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await listProducts();
+        const items = Array.isArray(response)
+          ? response
+          : Array.isArray(response.results)
+            ? response.results
+            : [];
+
+        const mapped = items
+          .map((item, index) => mapApiProduct(item as ApiProduct, index))
+          .slice(0, 6);
+
+        if (!cancelled && mapped.length > 0) {
+          setWishlistProducts(mapped);
+        }
+      } catch (loadError) {
+        if (cancelled) {
+          return;
+        }
+
+        if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+          navigate("/login", { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        setWishlistProducts(FALLBACK_WISHLIST);
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Не удалось загрузить избранное из API. Попробуйте ещё раз.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchWishlistCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, navigate, retryKey]);
 
   if (isLoading) {
     return (
@@ -57,7 +132,6 @@ export default function WishlistPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-2">
@@ -73,22 +147,31 @@ export default function WishlistPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {error && (
+          <div className="mb-6 p-4 rounded-xl border border-[#FECACA] bg-[#FEF2F2]">
+            <p className="text-sm text-[#B42318]">{error}</p>
+            <button
+              onClick={() => setRetryKey((value) => value + 1)}
+              className="mt-2 text-xs text-[#111827] font-medium underline underline-offset-2"
+            >
+              Повторить
+            </button>
+          </div>
+        )}
+
         {wishlistProducts.length > 0 ? (
           <>
-            {/* Filters */}
             <div className="mb-6">
               <FilterBar />
             </div>
 
-            {/* Products grid */}
             <ProductGrid products={wishlistProducts} />
 
-            {/* Wishlist tips */}
             <div className="mt-12 p-6 bg-white rounded-xl border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">💡 Совет</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">Совет</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Добавляйте товары в избранное, чтобы не потерять их! Мы уведомим вас о скидках и
-                акциях на товары из вашего списка желаний.
+                Добавляйте товары в избранное, чтобы не потерять их. Мы уведомим вас о скидках и акциях на товары из
+                вашего списка желаний.
               </p>
             </div>
           </>

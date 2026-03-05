@@ -1,53 +1,118 @@
-﻿import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Search, Heart, ShoppingCart, User, Menu as MenuIcon, AlignJustify, Percent, LogOut, Settings, Package, Receipt, Map, Clock, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import {
+  Search,
+  Heart,
+  ShoppingCart,
+  User,
+  Menu as MenuIcon,
+  AlignJustify,
+  Percent,
+  LogOut,
+  Package,
+  Receipt,
+  Map,
+  Clock,
+  Shield,
+} from 'lucide-react';
 import { IconButton } from './IconButton';
-import { MegaMenu } from './MegaMenu';
-import { MobileMenu } from './MobileMenu';
+import { MegaMenu, type MegaMenuCategory, type MegaMenuQuickLink } from './MegaMenu';
+import { MobileMenu, type MobileMenuCategory, type MobileMenuItem } from './MobileMenu';
 import logoImage from '@/assets/UylesimLogo.png';
 import { useAuth } from '../../shared/auth/AuthContext';
 
-export function Navbar() {
+type MainMenuItem = {
+  label: string;
+  href: string;
+  hasIcon?: boolean;
+  trigger?: boolean;
+};
+
+interface NavbarProps {
+  wishlistCount?: number;
+  cartCount?: number;
+  mainMenu?: MainMenuItem[];
+  profileMenuItems?: MobileMenuItem[];
+  megaMenuCategories?: MegaMenuCategory[];
+  megaMenuQuickLinks?: MegaMenuQuickLink[];
+  mobileMenuCategories?: MobileMenuCategory[];
+}
+
+const DEFAULT_MAIN_MENU: MainMenuItem[] = [
+  { label: 'Каталог', hasIcon: true, trigger: true, href: '/catalog' },
+  { label: 'Бренды', href: '/brands' },
+  { label: 'Новинки', href: '/new' },
+  { label: 'Акции', href: '/promotions' },
+  { label: 'Для вас', href: '/for-you' },
+  { label: 'Магазины', href: '/stores' },
+  { label: 'Подарочные карты', href: '/gift-cards' },
+];
+
+const DEFAULT_PROFILE_MENU: MobileMenuItem[] = [
+  { label: 'Мой профиль', href: '/me', icon: <User className="w-4 h-4" /> },
+  { label: 'Мои товары', href: '/me/owned', icon: <Package className="w-4 h-4" /> },
+  { label: 'Roadmap', href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
+  { label: 'Моя рутина', href: '/me/routine', icon: <Clock className="w-4 h-4" /> },
+  { label: 'Транзакции', href: '/me/transactions', icon: <Receipt className="w-4 h-4" /> },
+];
+
+const DEFAULT_MOBILE_CATEGORIES: MobileMenuCategory[] = [
+  { label: 'Skincare', href: '/catalog?category=skincare' },
+  { label: 'Makeup', href: '/catalog?category=makeup' },
+  { label: 'Haircare', href: '/catalog?category=haircare' },
+  { label: 'Fragrance', href: '/catalog?category=fragrance' },
+  { label: 'Наборы', href: '/catalog?product_type=set' },
+];
+
+export function Navbar({
+  wishlistCount,
+  cartCount,
+  mainMenu,
+  profileMenuItems,
+  megaMenuCategories,
+  megaMenuQuickLinks,
+  mobileMenuCategories,
+}: NavbarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [megaMenuOpen, setMegaMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const mainMenu = [
-    { label: 'Каталог', hasIcon: true, trigger: true, href: '/catalog' },
-    { label: 'Бренды', href: '/brands' },
-    { label: 'Новинки', isActive: true, href: '/new' },
-    { label: 'Акции', href: '/promotions' },
-    { label: 'Для вас', href: '/for-you' },
-    { label: 'Магазины', href: '/stores' },
-    { label: 'Подарочные карты', href: '/gift-cards' },
-  ];
+  const menuItems = Array.isArray(mainMenu) && mainMenu.length > 0 ? mainMenu : DEFAULT_MAIN_MENU;
+  const profileItems =
+    Array.isArray(profileMenuItems) && profileMenuItems.length > 0
+      ? profileMenuItems
+      : DEFAULT_PROFILE_MENU;
+  const mobileMenuItems: MobileMenuItem[] = menuItems.map((item) => ({
+    label: item.label,
+    href: item.href,
+    hasSubmenu: item.trigger,
+  }));
+  const mobileCategories =
+    Array.isArray(mobileMenuCategories) && mobileMenuCategories.length > 0
+      ? mobileMenuCategories
+      : DEFAULT_MOBILE_CATEGORIES;
 
-  const profileMenuItems = [
-    { label: 'Мой профиль', href: '/me', icon: <User className="w-4 h-4" /> },
-    { label: 'Мои товары', href: '/me/owned', icon: <Package className="w-4 h-4" /> },
-    { label: 'Roadmap', href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
-    { label: 'Моя рутина', href: '/me/routine', icon: <Clock className="w-4 h-4" /> },
-    { label: 'Транзакции', href: '/me/transactions', icon: <Receipt className="w-4 h-4" /> },
-  ];
+  const isPathActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-[#EAE6EF]">
-      {/* Topbar - Info Links */}
       <div className="border-b border-[#EAE6EF]/50 hidden md:block">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
           <div className="flex items-center justify-between h-10">
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
-              <a href="#" className="hover:text-[#FF4DB8] transition-colors">
+              <Link to="/delivery-returns" className="hover:text-[#FF4DB8] transition-colors">
                 Доставка и оплата
-              </a>
-              <a href="#" className="hover:text-[#FF4DB8] transition-colors">
+              </Link>
+              <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
                 Контакты
-              </a>
-              <a href="#" className="hover:text-[#FF4DB8] transition-colors">
+              </Link>
+              <Link to="/about" className="hover:text-[#FF4DB8] transition-colors">
                 О нас
-              </a>
+              </Link>
               <Link
                 to="/admin"
                 className="flex items-center gap-1 hover:text-[#FF4DB8] transition-colors font-medium text-[#111827]"
@@ -57,25 +122,23 @@ export function Navbar() {
               </Link>
             </div>
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
-              <a href="#" className="hover:text-[#FF4DB8] transition-colors">
+              <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
                 Помощь
-              </a>
-              <a href="#" className="hover:text-[#FF4DB8] transition-colors">
+              </Link>
+              <Link to="/terms" className="hover:text-[#FF4DB8] transition-colors">
                 Программа лояльности
-              </a>
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Navigation */}
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
         <div className="flex items-center justify-between h-16 lg:h-20">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group flex-shrink-0">
-            <img 
-              src={logoImage} 
-              alt="Üilesim" 
+            <img
+              src={logoImage}
+              alt="Üilesim"
               className="w-9 h-9 lg:w-10 lg:h-10 object-contain transition-transform group-hover:scale-105"
             />
             <span className="text-[#111827] font-semibold text-base lg:text-lg tracking-tight">
@@ -83,61 +146,47 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Main Menu */}
           <div className="hidden xl:flex items-center gap-1 flex-1 justify-center px-8">
-            {mainMenu.map((item) => (
-              item.trigger ? (
+            {menuItems.map((item) => {
+              const isActive = isPathActive(item.href);
+
+              return item.trigger ? (
                 <button
                   key={item.label}
                   onClick={(e) => {
                     e.preventDefault();
-                    setMegaMenuOpen(!megaMenuOpen);
+                    setMegaMenuOpen((prev) => !prev);
                   }}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all relative group ${
-                    item.isActive
-                      ? 'text-[#111827]'
-                      : 'text-[#6B7280] hover:text-[#111827]'
+                    isActive ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
                   }`}
                 >
                   {item.hasIcon && <AlignJustify className="w-4 h-4" />}
                   <span>{item.label}</span>
-                  
-                  {/* Active underline */}
-                  {item.isActive && (
-                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]"></span>
-                  )}
-                  
-                  {/* Hover underline */}
-                  {!item.isActive && (
-                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8] scale-x-0 group-hover:scale-x-100 transition-transform"></span>
+                  {isActive ? (
+                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
+                  ) : (
+                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8] scale-x-0 group-hover:scale-x-100 transition-transform" />
                   )}
                 </button>
               ) : (
                 <Link
                   key={item.label}
-                  to={item.href || '#'}
+                  to={item.href}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all relative group ${
-                    item.isActive
-                      ? 'text-[#111827]'
-                      : 'text-[#6B7280] hover:text-[#111827]'
+                    isActive ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
                   }`}
                 >
                   <span>{item.label}</span>
-                  
-                  {/* Active underline */}
-                  {item.isActive && (
-                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]"></span>
-                  )}
-                  
-                  {/* Hover underline */}
-                  {!item.isActive && (
-                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8] scale-x-0 group-hover:scale-x-100 transition-transform"></span>
+                  {isActive ? (
+                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
+                  ) : (
+                    <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8] scale-x-0 group-hover:scale-x-100 transition-transform" />
                   )}
                 </Link>
-              )
-            ))}
+              );
+            })}
 
-            {/* Special Promo Pill */}
             <Link
               to="/sale"
               className="flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-full bg-[#FFE1F2] border border-[#FF4DB8] text-[#FF4DB8] text-sm font-medium hover:bg-[#FF4DB8] hover:text-white transition-all group"
@@ -147,56 +196,80 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Tablet Menu (simplified) */}
           <div className="hidden lg:flex xl:hidden items-center gap-1 flex-1 justify-center px-4">
             <button
               onClick={(e) => {
                 e.preventDefault();
-                setMegaMenuOpen(!megaMenuOpen);
+                setMegaMenuOpen((prev) => !prev);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors"
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors relative ${
+                isPathActive('/catalog') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
+              }`}
             >
               <AlignJustify className="w-4 h-4" />
               <span>Каталог</span>
+              {isPathActive('/catalog') && (
+                <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
+              )}
             </button>
-            <Link to="/brands" className="px-3 py-2 text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors">
+            <Link
+              to="/brands"
+              className={`px-3 py-2 text-sm font-medium transition-colors relative ${
+                isPathActive('/brands') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
+              }`}
+            >
               Бренды
+              {isPathActive('/brands') && (
+                <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
+              )}
             </Link>
-            <Link to="/new" className="px-3 py-2 text-sm font-medium text-[#111827] hover:text-[#111827] transition-colors relative">
+            <Link
+              to="/new"
+              className={`px-3 py-2 text-sm font-medium transition-colors relative ${
+                isPathActive('/new') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
+              }`}
+            >
               Новинки
-              <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]"></span>
+              {isPathActive('/new') && (
+                <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
+              )}
             </Link>
-            <Link to="/promotions" className="px-3 py-2 text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors">
+            <Link
+              to="/promotions"
+              className={`px-3 py-2 text-sm font-medium transition-colors relative ${
+                isPathActive('/promotions') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
+              }`}
+            >
               Акции
+              {isPathActive('/promotions') && (
+                <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
+              )}
             </Link>
           </div>
 
-          {/* Right Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <Link to="/search">
               <IconButton icon={<Search className="w-5 h-5" />} />
             </Link>
             <Link to="/wishlist">
-              <IconButton icon={<Heart className="w-5 h-5" />} badge={2} />
+              <IconButton icon={<Heart className="w-5 h-5" />} badge={wishlistCount} />
             </Link>
             <Link to="/cart">
-              <IconButton icon={<ShoppingCart className="w-5 h-5" />} badge={3} />
+              <IconButton icon={<ShoppingCart className="w-5 h-5" />} badge={cartCount} />
             </Link>
-            
-            {/* Profile Menu (Desktop) */}
+
             <div className="hidden md:block relative">
               <button
-                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                onClick={() => setProfileMenuOpen((prev) => !prev)}
                 onBlur={() => setTimeout(() => setProfileMenuOpen(false), 200)}
                 className="w-10 h-10 flex items-center justify-center rounded-full bg-white/80 border border-[#EAE6EF] text-[#111827] hover:bg-white hover:shadow-md transition-all"
               >
                 <User className="w-5 h-5" />
               </button>
 
-              {/* Dropdown */}
               {profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                  {profileMenuItems.map((item) => (
+                  {profileItems.map((item) => (
                     <Link
                       key={item.href}
                       to={item.href}
@@ -224,8 +297,7 @@ export function Navbar() {
                 </div>
               )}
             </div>
-            
-            {/* Mobile Menu Trigger */}
+
             <div className="xl:hidden ml-1">
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -238,11 +310,20 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mega Menu */}
-      <MegaMenu isOpen={megaMenuOpen} onClose={() => setMegaMenuOpen(false)} />
+      <MegaMenu
+        isOpen={megaMenuOpen}
+        onClose={() => setMegaMenuOpen(false)}
+        categories={megaMenuCategories}
+        quickLinks={megaMenuQuickLinks}
+      />
 
-      {/* Mobile Menu */}
-      <MobileMenu isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <MobileMenu
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        menuItems={mobileMenuItems}
+        profileItems={profileItems}
+        categories={mobileCategories}
+      />
     </nav>
   );
 }

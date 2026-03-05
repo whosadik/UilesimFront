@@ -15,20 +15,60 @@ export type RecItem = {
 };
 
 export type HomeRecsResponse =
-  | { ok?: boolean; results: RecItem[]; next_offer?: unknown; [k: string]: unknown }
-  | { results: RecItem[]; [k: string]: unknown }
+  | {
+      ok?: boolean;
+      sections?: Array<{
+        key?: string;
+        title?: string;
+        results?: RecItem[];
+        [k: string]: unknown;
+      }>;
+      results?: RecItem[];
+      next_offer?: unknown;
+      [k: string]: unknown;
+    }
+  | RecItem[];
+
+export type BundleRecsResponse =
+  | {
+      query?: Record<string, unknown>;
+      results?: RecItem[];
+      [k: string]: unknown;
+    }
   | RecItem[];
 
 export type RecommendationEventPayload = {
-  event_type: string;
-  placement: string;
-  product_id?: number;
-  assignment_id?: number;
-  meta?: Record<string, unknown>;
+  action: 'click' | 'add_to_cart';
+  product_id: number;
+  page?: string;
+  section_key?: string;
+  context?: Record<string, unknown>;
 };
 
 export function home(): Promise<HomeRecsResponse> {
   return apiFetch<HomeRecsResponse>('/api/me/recommendations/home', {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}
+
+export function bundle(params: {
+  product_id: number | string;
+  limit?: number;
+  algo?: 'cooc' | 'reranker' | 'auto';
+}): Promise<BundleRecsResponse> {
+  const query = new URLSearchParams();
+  query.set('product_id', String(params.product_id));
+
+  if (params.limit !== undefined) {
+    query.set('limit', String(params.limit));
+  }
+
+  if (params.algo) {
+    query.set('algo', params.algo);
+  }
+
+  return apiFetch<BundleRecsResponse>(`/api/me/recommendations/bundle?${query.toString()}`, {
     method: 'GET',
     skipCsrf: true,
   });

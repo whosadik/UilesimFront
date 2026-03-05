@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
 import { Trash2, Sparkles, ShoppingBag, ArrowRight, ChevronRight, TrendingUp } from 'lucide-react';
@@ -7,15 +7,16 @@ import { toast } from 'sonner';
 import { ApiError } from '../../shared/api/ApiError';
 import { commit, preview } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
+import { nextOffer } from '../../shared/api/offers';
 
 /**
  * DEV NOTES:
  * Endpoints:
- * - GET /api/me/cart
- * - PATCH /api/me/cart/items/{id} { quantity }
- * - DELETE /api/me/cart/items/{id}
- * - POST /api/checkout/preview { use_points: number }
- * Response: { items, subtotal, discount, points_used, total, points_earned }
+ * - GET /api/me/loyalty
+ * - GET /api/me/next-offer
+ * - POST /api/checkout/preview
+ * - POST /api/checkout
+ * Cart items пока остаются локальным fallback: /api/me/cart отсутствует в OpenAPI/schema-map.
  */
 
 interface CartItem {
@@ -34,6 +35,15 @@ interface CheckoutTotals {
   pointsDiscount: number;
   total: number;
   pointsEarned: number;
+}
+
+interface ActiveOffer {
+  name: string;
+  type?: string;
+  value?: number;
+  scope?: string;
+  targetValue?: string;
+  targetProductId?: string;
 }
 
 const POINTS_RATE = 0.1; // 10 баллов за 100 ₸
@@ -58,6 +68,34 @@ const toNumber = (value: unknown): number | undefined => {
   }
 
   return undefined;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const parseActiveOffer = (value: unknown): ActiveOffer | null => {
+  if (!isRecord(value) || !isRecord(value.offer)) {
+    return null;
+  }
+
+  const offerData = value.offer;
+  const targetData = isRecord(value.target) ? value.target : null;
+  const targetValue =
+    targetData && (typeof targetData.value === 'number' || typeof targetData.value === 'string')
+      ? String(targetData.value)
+      : undefined;
+  const scope = targetData && typeof targetData.scope === 'string' ? targetData.scope : undefined;
+
+  return {
+    name:
+      (typeof offerData.name === 'string' && offerData.name.trim()) ||
+      'Персональное предложение',
+    type: typeof offerData.type === 'string' ? offerData.type : undefined,
+    value: toNumber(offerData.value),
+    scope,
+    targetValue,
+    targetProductId: scope === 'product_id' ? targetValue : undefined,
+  };
 };
 
 function LoyaltyCartWidget({
@@ -132,6 +170,7 @@ function LoyaltyCartWidget({
 
 export default function CartPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [cartItems, setCartItems] = useState<CartItem[]>([
     {
       id: '1',
@@ -155,8 +194,12 @@ export default function CartPage() {
   const [pointsToUse, setPointsToUse] = useState(0);
   const [previewTotals, setPreviewTotals] = useState<CheckoutTotals | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const availablePoints = 1247;
-  const currentTier = 'gold';
+  const [availablePoints, setAvailablePoints] = useState(1247);
+  const [currentTier, setCurrentTier] = useState('gold');
+  const [activeOffer, setActiveOffer] = useState<ActiveOffer | null>(null);
+  const [isMetaLoading, setIsMetaLoading] = useState(true);
+  const [metaError, setMetaError] = useState<string | null>(null);
+  const [metaRetryKey, setMetaRetryKey] = useState(0);
 
   const updateQuantity = (id: string, newQty: number) => {
     setCartItems(items =>
@@ -179,6 +222,69 @@ export default function CartPage() {
   const summaryPointsDiscount = previewTotals?.pointsDiscount ?? pointsDiscount;
   const summaryTotal = previewTotals?.total ?? total;
   const summaryPointsEarned = previewTotals?.pointsEarned ?? totalPointsEarned;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSidebarMeta = async () => {
+      setIsMetaLoading(true);
+      setMetaError(null);
+
+      const [loyaltyResult, offerResult] = await Promise.allSettled([getLoyalty(), nextOffer()]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (loyaltyResult.status === 'rejected') {
+        const loyaltyError = loyaltyResult.reason;
+        if (loyaltyError instanceof ApiError && (loyaltyError.status === 401 || loyaltyError.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+      } else {
+        const points = toNumber(loyaltyResult.value.points_balance);
+        if (points !== undefined) {
+          setAvailablePoints(Math.max(0, Math.round(points)));
+        }
+
+        if (typeof loyaltyResult.value.tier === 'string' && loyaltyResult.value.tier) {
+          setCurrentTier(loyaltyResult.value.tier.toLowerCase());
+        }
+      }
+
+      if (offerResult.status === 'rejected') {
+        const offerError = offerResult.reason;
+        if (offerError instanceof ApiError && (offerError.status === 401 || offerError.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+      } else {
+        setActiveOffer(parseActiveOffer(offerResult.value));
+      }
+
+      if (loyaltyResult.status === 'rejected' && offerResult.status === 'rejected') {
+        setMetaError('Не удалось загрузить данные лояльности. Попробуйте еще раз.');
+      }
+
+      setIsMetaLoading(false);
+    };
+
+    loadSidebarMeta().catch(() => {
+      if (!cancelled) {
+        setMetaError('Не удалось загрузить данные лояльности. Попробуйте еще раз.');
+        setIsMetaLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, metaRetryKey, navigate]);
+
+  useEffect(() => {
+    setPointsToUse((value) => Math.min(value, availablePoints));
+  }, [availablePoints]);
 
   const buildCheckoutItems = () =>
     cartItems
@@ -236,7 +342,7 @@ export default function CartPage() {
         }
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', { replace: true });
+          navigate('/login', { replace: true, state: { from: location.pathname } });
           return;
         }
 
@@ -249,7 +355,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [cartItems, pointsToUse, navigate, subtotal, discount, total, totalPointsEarned]);
+  }, [cartItems, pointsToUse, navigate, location.pathname, subtotal, discount, total, totalPointsEarned]);
 
   const handleCheckout = async () => {
     const items = buildCheckoutItems();
@@ -293,7 +399,15 @@ export default function CartPage() {
       });
 
       try {
-        await getLoyalty();
+        const loyalty = await getLoyalty();
+        const points = toNumber(loyalty.points_balance);
+        if (points !== undefined) {
+          setAvailablePoints(Math.max(0, Math.round(points)));
+        }
+
+        if (typeof loyalty.tier === 'string' && loyalty.tier) {
+          setCurrentTier(loyalty.tier.toLowerCase());
+        }
       } catch {
         // ignore: loyalty will be refreshed on the next profile load
       }
@@ -302,7 +416,7 @@ export default function CartPage() {
       navigate('/checkout');
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-        navigate('/login', { replace: true });
+        navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
 
@@ -315,6 +429,30 @@ export default function CartPage() {
       setIsCheckingOut(false);
     }
   };
+
+  const fallbackOfferTitle = 'Скидка 15% применена';
+  const offerTitle =
+    activeOffer && activeOffer.type === 'discount' && activeOffer.value !== undefined
+      ? `Активный оффер: ${activeOffer.value}%`
+      : activeOffer?.name || fallbackOfferTitle;
+
+  const offerDescription =
+    summaryDiscount > 0
+      ? `Выгода по расчету: ${summaryDiscount.toLocaleString('ru')} ₸`
+      : activeOffer?.scope === 'cart'
+        ? 'Оффер будет применен ко всей корзине при оформлении.'
+        : activeOffer?.scope === 'product_id' && activeOffer.targetValue
+          ? `Оффер действует на товар #${activeOffer.targetValue}.`
+          : 'Оффер будет применен к подходящим товарам.';
+
+  const upsellProductId = activeOffer?.targetProductId;
+  const upsellActionProductId = upsellProductId || '4';
+  const upsellTitle = upsellProductId
+    ? `Добавьте товар #${upsellProductId} и используйте персональный оффер`
+    : 'Добавьте еще на 201 ₸ и получите Platinum!';
+  const upsellDescription = upsellProductId
+    ? 'Этот товар отмечен в рамках активного оффера.'
+    : 'SPF-крем за 890 ₸ - шаг 4 вашего Roadmap';
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen bg-gray-50">
@@ -393,11 +531,11 @@ export default function CartPage() {
                   <TrendingUp className="w-4 h-4 text-[#6B7280]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[#111827]">Добавьте ещё на 201 ₸ и получите Platinum!</p>
-                  <p className="text-xs text-[#6B7280]">SPF-крем за 890 ₸ — шаг 4 вашего Roadmap</p>
+                  <p className="text-xs font-medium text-[#111827]">{upsellTitle}</p>
+                  <p className="text-xs text-[#6B7280]">{upsellDescription}</p>
                 </div>
                 <button
-                  onClick={() => navigate('/product/4')}
+                  onClick={() => navigate(`/product/${upsellActionProductId}`)}
                   className="flex-shrink-0 flex items-center gap-1 text-xs text-[#111827] font-medium hover:text-[#FF4DB8] transition-colors"
                 >
                   Добавить <ChevronRight className="w-3.5 h-3.5" />
@@ -412,8 +550,25 @@ export default function CartPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">ОФФЕР</span>
                 </div>
-                <p className="text-sm font-semibold text-[#111827]">Скидка 15% применена</p>
-                <p className="text-xs text-[#6B7280] mt-0.5">Вы экономите {summaryDiscount.toLocaleString('ru')} ₸ на этом заказе</p>
+                {isMetaLoading ? (
+                  <p className="text-xs text-[#6B7280] mt-0.5">Загружаем персональный оффер...</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-[#111827]">{offerTitle}</p>
+                    <p className="text-xs text-[#6B7280] mt-0.5">{offerDescription}</p>
+                  </>
+                )}
+                {metaError && (
+                  <div className="mt-3">
+                    <p className="text-xs text-[#B42318]">{metaError}</p>
+                    <button
+                      onClick={() => setMetaRetryKey((value) => value + 1)}
+                      className="mt-2 text-xs text-[#111827] font-medium underline underline-offset-2"
+                    >
+                      Повторить
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Loyalty Points widget */}

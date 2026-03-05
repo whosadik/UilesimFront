@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from './Button';
 import * as Slider from '@radix-ui/react-slider';
-import { toast } from 'sonner';
 
 interface ProfileWizardProps {
-  onComplete?: (data: ProfileData) => void;
+  onComplete?: (data: ProfileData) => void | Promise<void>;
   onClose?: () => void;
+  options?: Partial<ProfileWizardOptions>;
+  initialData?: ProfileData;
 }
 
 interface ProfileData {
@@ -29,53 +30,107 @@ interface ProfileData {
   };
 }
 
-const steps = [
-  { id: 1, title: 'Тип кожи', description: 'Выберите ваш тип кожи' },
-  { id: 2, title: 'Цели', description: 'Что вы хотите улучшить?' },
-  { id: 3, title: 'Избегать', description: 'Исключения и аллергены' },
-  { id: 4, title: 'Бюджет', description: 'Комфортный ценовой диапазон' },
-  { id: 5, title: 'Волосы', description: 'Тип волос и уход (опционально)' },
-  { id: 6, title: 'Макияж', description: 'Предпочтения по макияжу (опционально)' },
-  { id: 7, title: 'Парфюм', description: 'Любимые ароматы (опционально)' },
-];
+type WizardStep = { id: number; title: string; description: string };
 
-const skinTypes = ['Сухая', 'Жирная', 'Комбинированная', 'Нормальная', 'Чувствительная'];
-const skinGoals = ['Увлажнение', 'Анти-эйдж', 'Против акне', 'Осветление', 'Защита от солнца', 'Сужение пор'];
-const avoidFlags = ['Парабены', 'Силиконы', 'Отдушки', 'Спирт', 'Эфирные масла', 'Глютен'];
-const hairTypes = ['Прямые', 'Волнистые', 'Кудрявые', 'Афро'];
-const hairConcerns = ['Выпадение', 'Секущиеся концы', 'Сухость', 'Жирность', 'Перхоть', 'Объём'];
-const coverageOptions = ['Лёгкое', 'Среднее', 'Плотное'];
-const fragranceNotes = ['Цитрус', 'Цветочные', 'Древесные', 'Восточные', 'Свежие', 'Пряные'];
-const intensityOptions = ['Лёгкий', 'Средний', 'Интенсивный'];
+interface ProfileWizardOptions {
+  steps: WizardStep[];
+  skinTypes: string[];
+  skinGoals: string[];
+  avoidFlags: string[];
+  hairTypes: string[];
+  hairConcerns: string[];
+  coverageOptions: string[];
+  fragranceNotes: string[];
+  intensityOptions: string[];
+}
 
-export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
+const DEFAULT_OPTIONS: ProfileWizardOptions = {
+  steps: [
+    { id: 1, title: 'Тип кожи', description: 'Выберите ваш тип кожи' },
+    { id: 2, title: 'Цели', description: 'Что вы хотите улучшить?' },
+    { id: 3, title: 'Избегать', description: 'Исключения и аллергены' },
+    { id: 4, title: 'Бюджет', description: 'Комфортный ценовой диапазон' },
+    { id: 5, title: 'Волосы', description: 'Тип волос и уход (опционально)' },
+    { id: 6, title: 'Макияж', description: 'Предпочтения по макияжу (опционально)' },
+    { id: 7, title: 'Парфюм', description: 'Любимые ароматы (опционально)' },
+  ],
+  skinTypes: ['Сухая', 'Жирная', 'Комбинированная', 'Нормальная', 'Чувствительная'],
+  skinGoals: ['Увлажнение', 'Анти-эйдж', 'Против акне', 'Осветление', 'Защита от солнца', 'Сужение пор'],
+  avoidFlags: ['Парабены', 'Силиконы', 'Отдушки', 'Спирт', 'Эфирные масла', 'Глютен'],
+  hairTypes: ['Прямые', 'Волнистые', 'Кудрявые', 'Афро'],
+  hairConcerns: ['Выпадение', 'Секущиеся концы', 'Сухость', 'Жирность', 'Перхоть', 'Объём'],
+  coverageOptions: ['Лёгкое', 'Среднее', 'Плотное'],
+  fragranceNotes: ['Цитрус', 'Цветочные', 'Древесные', 'Восточные', 'Свежие', 'Пряные'],
+  intensityOptions: ['Лёгкий', 'Средний', 'Интенсивный'],
+};
+
+const DEFAULT_DATA: ProfileData = {
+  skinType: [],
+  goals: [],
+  avoidFlags: [],
+  budgetMin: 500,
+  budgetMax: 5000,
+  hairProfile: { type: [], concerns: [] },
+  makeupProfile: {},
+  fragranceProfile: { notes: [] },
+};
+
+function mergeOptions(options?: Partial<ProfileWizardOptions>): ProfileWizardOptions {
+  return {
+    steps: options?.steps && options.steps.length > 0 ? options.steps : DEFAULT_OPTIONS.steps,
+    skinTypes:
+      options?.skinTypes && options.skinTypes.length > 0 ? options.skinTypes : DEFAULT_OPTIONS.skinTypes,
+    skinGoals:
+      options?.skinGoals && options.skinGoals.length > 0 ? options.skinGoals : DEFAULT_OPTIONS.skinGoals,
+    avoidFlags:
+      options?.avoidFlags && options.avoidFlags.length > 0 ? options.avoidFlags : DEFAULT_OPTIONS.avoidFlags,
+    hairTypes:
+      options?.hairTypes && options.hairTypes.length > 0 ? options.hairTypes : DEFAULT_OPTIONS.hairTypes,
+    hairConcerns:
+      options?.hairConcerns && options.hairConcerns.length > 0
+        ? options.hairConcerns
+        : DEFAULT_OPTIONS.hairConcerns,
+    coverageOptions:
+      options?.coverageOptions && options.coverageOptions.length > 0
+        ? options.coverageOptions
+        : DEFAULT_OPTIONS.coverageOptions,
+    fragranceNotes:
+      options?.fragranceNotes && options.fragranceNotes.length > 0
+        ? options.fragranceNotes
+        : DEFAULT_OPTIONS.fragranceNotes,
+    intensityOptions:
+      options?.intensityOptions && options.intensityOptions.length > 0
+        ? options.intensityOptions
+        : DEFAULT_OPTIONS.intensityOptions,
+  };
+}
+
+export function ProfileWizard({ onComplete, onClose, options, initialData }: ProfileWizardProps) {
+  const config = useMemo(() => mergeOptions(options), [options]);
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<ProfileData>({
-    skinType: [],
-    goals: [],
-    avoidFlags: [],
-    budgetMin: 500,
-    budgetMax: 5000,
-    hairProfile: { type: [], concerns: [] },
-    makeupProfile: {},
-    fragranceProfile: { notes: [] },
+    ...DEFAULT_DATA,
+    ...initialData,
+    hairProfile: { ...DEFAULT_DATA.hairProfile, ...initialData?.hairProfile },
+    makeupProfile: { ...DEFAULT_DATA.makeupProfile, ...initialData?.makeupProfile },
+    fragranceProfile: { ...DEFAULT_DATA.fragranceProfile, ...initialData?.fragranceProfile },
   });
 
   const toggleSelection = (field: keyof ProfileData, value: string) => {
-    const current = data[field] as string[];
+    const current = (data[field] as string[] | undefined) ?? [];
     const updated = current.includes(value)
-      ? current.filter(v => v !== value)
+      ? current.filter((item) => item !== value)
       : [...current, value];
     setData({ ...data, [field]: updated });
   };
 
   const handleNext = () => {
-    if (currentStep < steps.length) {
+    if (currentStep < config.steps.length) {
       setCurrentStep(currentStep + 1);
-    } else {
-      handleSubmit();
+      return;
     }
+    void handleSubmit();
   };
 
   const handleBack = () => {
@@ -86,65 +141,60 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
 
   const handleSubmit = async () => {
     setIsLoading(true);
-    
-    // Mock API call
-    setTimeout(() => {
+    try {
+      await onComplete?.(data);
+    } finally {
       setIsLoading(false);
-      onComplete?.(data);
-      toast.success('Профиль сохранён', {
-        description: '+50 баллов за завершение профиля',
-      });
-    }, 1000);
+    }
   };
 
   const canProceed = () => {
-    if (currentStep === 1) return data.skinType && data.skinType.length > 0;
-    if (currentStep === 2) return data.goals && data.goals.length > 0;
-    return true; // Other steps are optional
+    if (currentStep === 1) return Boolean(data.skinType && data.skinType.length > 0);
+    if (currentStep === 2) return Boolean(data.goals && data.goals.length > 0);
+    return true;
   };
+
+  const step = config.steps[currentStep - 1];
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Stepper */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          {steps.map((step, idx) => (
-            <div key={step.id} className="flex items-center flex-1">
+          {config.steps.map((item, idx) => (
+            <div key={item.id} className="flex items-center flex-1">
               <div className="flex flex-col items-center flex-1">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
-                    currentStep > step.id
+                    currentStep > item.id
                       ? 'bg-[#FF4DB8] text-white'
-                      : currentStep === step.id
-                      ? 'bg-[#111827] text-white'
-                      : 'bg-gray-200 text-[#6B7280]'
+                      : currentStep === item.id
+                        ? 'bg-[#111827] text-white'
+                        : 'bg-gray-200 text-[#6B7280]'
                   }`}
                 >
-                  {currentStep > step.id ? <Check className="w-4 h-4" /> : step.id}
+                  {currentStep > item.id ? <Check className="w-4 h-4" /> : item.id}
                 </div>
                 <span className="text-xs text-[#6B7280] mt-2 hidden lg:block text-center">
-                  {step.title}
+                  {item.title}
                 </span>
               </div>
-              {idx < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 ${currentStep > step.id ? 'bg-[#FF4DB8]' : 'bg-gray-200'}`} />
+              {idx < config.steps.length - 1 && (
+                <div className={`h-0.5 flex-1 ${currentStep > item.id ? 'bg-[#FF4DB8]' : 'bg-gray-200'}`} />
               )}
             </div>
           ))}
         </div>
 
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-[#111827] mb-2">{steps[currentStep - 1].title}</h2>
-          <p className="text-sm text-[#6B7280]">{steps[currentStep - 1].description}</p>
+          <h2 className="text-2xl font-bold text-[#111827] mb-2">{step.title}</h2>
+          <p className="text-sm text-[#6B7280]">{step.description}</p>
         </div>
       </div>
 
-      {/* Step Content */}
       <div className="min-h-[300px] mb-8">
-        {/* Step 1: Skin Type */}
         {currentStep === 1 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {skinTypes.map((type) => (
+            {config.skinTypes.map((type) => (
               <button
                 key={type}
                 onClick={() => toggleSelection('skinType', type)}
@@ -160,10 +210,9 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
           </div>
         )}
 
-        {/* Step 2: Goals */}
         {currentStep === 2 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {skinGoals.map((goal) => (
+            {config.skinGoals.map((goal) => (
               <button
                 key={goal}
                 onClick={() => toggleSelection('goals', goal)}
@@ -179,10 +228,9 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
           </div>
         )}
 
-        {/* Step 3: Avoid Flags */}
         {currentStep === 3 && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {avoidFlags.map((flag) => (
+            {config.avoidFlags.map((flag) => (
               <button
                 key={flag}
                 onClick={() => toggleSelection('avoidFlags', flag)}
@@ -198,7 +246,6 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
           </div>
         )}
 
-        {/* Step 4: Budget */}
         {currentStep === 4 && (
           <div className="space-y-6 max-w-md mx-auto">
             <Slider.Root
@@ -228,18 +275,19 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
           </div>
         )}
 
-        {/* Step 5: Hair Profile */}
         {currentStep === 5 && (
           <div className="space-y-6">
             <div>
               <p className="text-sm font-semibold text-[#111827] mb-3">Тип волос</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {hairTypes.map((type) => (
+                {config.hairTypes.map((type) => (
                   <button
                     key={type}
                     onClick={() => {
                       const current = data.hairProfile?.type || [];
-                      const updated = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+                      const updated = current.includes(type)
+                        ? current.filter((item) => item !== type)
+                        : [...current, type];
                       setData({ ...data, hairProfile: { ...data.hairProfile, type: updated } });
                     }}
                     className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
@@ -253,15 +301,18 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
                 ))}
               </div>
             </div>
+
             <div>
               <p className="text-sm font-semibold text-[#111827] mb-3">Проблемы</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {hairConcerns.map((concern) => (
+                {config.hairConcerns.map((concern) => (
                   <button
                     key={concern}
                     onClick={() => {
                       const current = data.hairProfile?.concerns || [];
-                      const updated = current.includes(concern) ? current.filter(c => c !== concern) : [...current, concern];
+                      const updated = current.includes(concern)
+                        ? current.filter((item) => item !== concern)
+                        : [...current, concern];
                       setData({ ...data, hairProfile: { ...data.hairProfile, concerns: updated } });
                     }}
                     className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
@@ -278,13 +329,12 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
           </div>
         )}
 
-        {/* Step 6: Makeup */}
         {currentStep === 6 && (
           <div className="space-y-6">
             <div>
               <p className="text-sm font-semibold text-[#111827] mb-3">Покрытие</p>
               <div className="grid grid-cols-3 gap-3">
-                {coverageOptions.map((coverage) => (
+                {config.coverageOptions.map((coverage) => (
                   <button
                     key={coverage}
                     onClick={() => setData({ ...data, makeupProfile: { ...data.makeupProfile, coverage } })}
@@ -302,18 +352,19 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
           </div>
         )}
 
-        {/* Step 7: Fragrance */}
         {currentStep === 7 && (
           <div className="space-y-6">
             <div>
               <p className="text-sm font-semibold text-[#111827] mb-3">Любимые ноты</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {fragranceNotes.map((note) => (
+                {config.fragranceNotes.map((note) => (
                   <button
                     key={note}
                     onClick={() => {
                       const current = data.fragranceProfile?.notes || [];
-                      const updated = current.includes(note) ? current.filter(n => n !== note) : [...current, note];
+                      const updated = current.includes(note)
+                        ? current.filter((item) => item !== note)
+                        : [...current, note];
                       setData({ ...data, fragranceProfile: { ...data.fragranceProfile, notes: updated } });
                     }}
                     className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
@@ -330,10 +381,12 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
             <div>
               <p className="text-sm font-semibold text-[#111827] mb-3">Интенсивность</p>
               <div className="grid grid-cols-3 gap-3">
-                {intensityOptions.map((intensity) => (
+                {config.intensityOptions.map((intensity) => (
                   <button
                     key={intensity}
-                    onClick={() => setData({ ...data, fragranceProfile: { ...data.fragranceProfile, intensity } })}
+                    onClick={() =>
+                      setData({ ...data, fragranceProfile: { ...data.fragranceProfile, intensity } })
+                    }
                     className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
                       data.fragranceProfile?.intensity === intensity
                         ? 'border-[#FF4DB8] bg-[#FFE1F2] text-[#FF4DB8]'
@@ -349,13 +402,8 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-3 sticky bottom-0 bg-white pt-4 border-t border-[#EAE6EF]">
-        <Button
-          variant="ghost"
-          onClick={currentStep === 1 ? onClose : handleBack}
-          disabled={isLoading}
-        >
+        <Button variant="ghost" onClick={currentStep === 1 ? onClose : handleBack} disabled={isLoading}>
           <ChevronLeft className="w-4 h-4 mr-2" />
           {currentStep === 1 ? 'Отмена' : 'Назад'}
         </Button>
@@ -368,7 +416,7 @@ export function ProfileWizard({ onComplete, onClose }: ProfileWizardProps) {
         >
           {isLoading ? (
             'Сохранение...'
-          ) : currentStep === steps.length ? (
+          ) : currentStep === config.steps.length ? (
             'Сохранить профиль'
           ) : (
             <>

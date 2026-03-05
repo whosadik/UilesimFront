@@ -1,56 +1,103 @@
-import { X, ChevronRight, Percent, User, Package, Map, Clock, Receipt, Heart, Search } from 'lucide-react';
-import { Link } from 'react-router';
+import { X, ChevronRight, Percent, Search, Heart } from 'lucide-react';
+import { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router';
+
+export type MobileMenuItem = {
+  label: string;
+  href: string;
+  hasSubmenu?: boolean;
+  icon?: ReactNode;
+};
+
+export type MobileMenuCategory = {
+  label: string;
+  href: string;
+  count?: number | string;
+};
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  menuItems?: MobileMenuItem[];
+  quickActions?: MobileMenuItem[];
+  profileItems?: MobileMenuItem[];
+  categories?: MobileMenuCategory[];
+  showLoginButton?: boolean;
 }
 
-export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
+const DEFAULT_MENU_ITEMS: MobileMenuItem[] = [
+  { label: 'Каталог', hasSubmenu: true, href: '/catalog' },
+  { label: 'Бренды', href: '/brands' },
+  { label: 'Новинки', href: '/new' },
+  { label: 'Акции', href: '/promotions' },
+  { label: 'Для вас', href: '/for-you' },
+  { label: 'Магазины', href: '/stores' },
+  { label: 'Подарочные карты', href: '/gift-cards' },
+];
+
+const DEFAULT_QUICK_ACTIONS: MobileMenuItem[] = [
+  { label: 'Поиск', href: '/search', icon: <Search className="w-4 h-4" /> },
+  { label: 'Избранное', href: '/wishlist', icon: <Heart className="w-4 h-4" /> },
+];
+
+const DEFAULT_PROFILE_ITEMS: MobileMenuItem[] = [
+  { label: 'Мой профиль', href: '/me' },
+  { label: 'Мои товары', href: '/me/owned' },
+  { label: 'Roadmap', href: '/me/roadmap' },
+  { label: 'Моя рутина', href: '/me/routine' },
+  { label: 'Транзакции', href: '/me/transactions' },
+];
+
+const DEFAULT_CATEGORIES: MobileMenuCategory[] = [
+  { label: 'Skincare', href: '/catalog?category=skincare' },
+  { label: 'Makeup', href: '/catalog?category=makeup' },
+  { label: 'Haircare', href: '/catalog?category=haircare' },
+  { label: 'Fragrance', href: '/catalog?category=fragrance' },
+  { label: 'Наборы', href: '/catalog?product_type=set' },
+];
+
+function normalizeCount(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.round(parsed));
+    }
+  }
+  return undefined;
+}
+
+export function MobileMenu({
+  isOpen,
+  onClose,
+  menuItems,
+  quickActions,
+  profileItems,
+  categories,
+  showLoginButton = true,
+}: MobileMenuProps) {
+  const location = useLocation();
+
   if (!isOpen) return null;
 
-  const menuItems = [
-    { label: 'Каталог', hasSubmenu: true, href: '/catalog' },
-    { label: 'Бренды', href: '/brands' },
-    { label: 'Новинки', href: '/new' },
-    { label: 'Акции', href: '/promotions' },
-    { label: 'Для вас', href: '/for-you' },
-    { label: 'Магазины', href: '/stores' },
-    { label: 'Подарочные карты', href: '/gift-cards' },
-  ];
+  const menu = Array.isArray(menuItems) && menuItems.length > 0 ? menuItems : DEFAULT_MENU_ITEMS;
+  const actions = Array.isArray(quickActions) && quickActions.length > 0 ? quickActions : DEFAULT_QUICK_ACTIONS;
+  const profile = Array.isArray(profileItems) && profileItems.length > 0 ? profileItems : DEFAULT_PROFILE_ITEMS;
+  const categoryItems = Array.isArray(categories) && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
 
-  const quickActions = [
-    { label: 'Поиск', href: '/search', icon: <Search className="w-4 h-4" /> },
-    { label: 'Избранное', href: '/wishlist', icon: <Heart className="w-4 h-4" /> },
-  ];
-
-  const profileItems = [
-    { label: 'Мой профиль', href: '/me', icon: <User className="w-4 h-4" /> },
-    { label: 'Мои товары', href: '/me/owned', icon: <Package className="w-4 h-4" /> },
-    { label: 'Roadmap', href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
-    { label: 'Моя рутина', href: '/me/routine', icon: <Clock className="w-4 h-4" /> },
-    { label: 'Транзакции', href: '/me/transactions', icon: <Receipt className="w-4 h-4" /> },
-  ];
-
-  const categories = [
-    { label: 'Skincare', count: 247, href: '/catalog?category=skincare' },
-    { label: 'Makeup', count: 189, href: '/catalog?category=makeup' },
-    { label: 'Haircare', count: 156, href: '/catalog?category=haircare' },
-    { label: 'Fragrance', count: 98, href: '/catalog?category=fragrance' },
-    { label: 'Наборы', count: 45, href: '/catalog?category=sets' },
-  ];
+  const isPathActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <>
-      {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/40 z-50 lg:hidden animate-in fade-in duration-200"
         onClick={onClose}
       />
 
-      {/* Drawer */}
       <div className="fixed top-0 left-0 bottom-0 w-[85%] max-w-sm bg-white z-50 shadow-2xl overflow-y-auto lg:hidden animate-in slide-in-from-left duration-300">
-        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[#EAE6EF] px-6 py-4 flex items-center justify-between z-10">
           <span className="text-lg font-bold text-[#111827]">Меню</span>
           <button
@@ -61,7 +108,6 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           </button>
         </div>
 
-        {/* Special Offer - Pinned at top */}
         <div className="mx-6 mt-4">
           <Link
             to="/sale"
@@ -76,10 +122,9 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           </Link>
         </div>
 
-        {/* Quick Actions */}
         <div className="px-6 pt-4">
           <div className="grid grid-cols-2 gap-2">
-            {quickActions.map((action) => (
+            {actions.map((action) => (
               <Link
                 key={action.label}
                 to={action.href}
@@ -93,81 +138,104 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
           </div>
         </div>
 
-        {/* Main Navigation */}
         <nav className="px-6 py-6">
           <ul className="space-y-1">
-            {menuItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  to={item.href || '#'}
-                  onClick={onClose}
-                  className="flex items-center justify-between px-4 py-3 rounded-xl text-[#111827] font-medium text-sm hover:bg-gray-50 transition-colors group"
-                >
-                  <span>{item.label}</span>
-                  {item.hasSubmenu && (
-                    <ChevronRight className="w-4 h-4 text-[#6B7280] group-hover:text-[#FF4DB8] group-hover:translate-x-0.5 transition-all" />
-                  )}
-                </Link>
-              </li>
-            ))}
+            {menu.map((item) => {
+              const active = isPathActive(item.href);
+
+              return (
+                <li key={item.label}>
+                  <Link
+                    to={item.href}
+                    onClick={onClose}
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-colors group ${
+                      active
+                        ? 'text-[#111827] bg-[#FFE1F2]/40'
+                        : 'text-[#111827] hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="font-medium">{item.label}</span>
+                    {item.hasSubmenu && (
+                      <ChevronRight className="w-4 h-4 text-[#6B7280] group-hover:text-[#FF4DB8] group-hover:translate-x-0.5 transition-all" />
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
-        {/* Profile Section */}
         <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
-          <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">
-            Профиль
-          </h3>
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">Профиль</h3>
           <ul className="space-y-1">
-            {profileItems.map((item) => (
-              <li key={item.label}>
-                <Link
-                  to={item.href}
-                  onClick={onClose}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[#111827] text-sm hover:bg-gray-50 transition-colors"
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            ))}
+            {profile.map((item) => {
+              const active = isPathActive(item.href);
+
+              return (
+                <li key={item.label}>
+                  <Link
+                    to={item.href}
+                    onClick={onClose}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                      active
+                        ? 'text-[#111827] bg-[#FFE1F2]/40'
+                        : 'text-[#111827] hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
 
-        {/* Categories */}
         <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
           <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">
             Популярные категории
           </h3>
           <ul className="space-y-1">
-            {categories.map((category) => (
-              <li key={category.label}>
-                <Link
-                  to={category.href}
-                  onClick={onClose}
-                  className="flex items-center justify-between px-4 py-2.5 rounded-xl text-[#111827] text-sm hover:bg-gray-50 transition-colors"
-                >
-                  <span>{category.label}</span>
-                  <span className="text-xs text-[#6B7280]">{category.count}</span>
-                </Link>
-              </li>
-            ))}
+            {categoryItems.map((category) => {
+              const count = normalizeCount(category.count);
+              const active = isPathActive('/catalog') && location.search.includes(category.href.split('?')[1] ?? '');
+
+              return (
+                <li key={category.label}>
+                  <Link
+                    to={category.href}
+                    onClick={onClose}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                      active ? 'text-[#111827] bg-[#FFE1F2]/40' : 'text-[#111827] hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>{category.label}</span>
+                    {count !== undefined && <span className="text-xs text-[#6B7280]">{count}</span>}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
 
-        {/* Bottom Actions */}
         <div className="sticky bottom-0 bg-white border-t border-[#EAE6EF] px-6 py-4 space-y-3">
-          <Link
-            to="/login"
-            onClick={onClose}
-            className="block text-center px-4 py-3 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors"
-          >
-            Войти в аккаунт
-          </Link>
+          {showLoginButton && (
+            <Link
+              to="/login"
+              onClick={onClose}
+              className="block text-center px-4 py-3 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors"
+            >
+              Войти в аккаунт
+            </Link>
+          )}
           <div className="flex items-center justify-center gap-4 text-xs text-[#6B7280]">
-            <a href="#" className="hover:text-[#FF4DB8] transition-colors">Помощь</a>
-            <span>·</span>
-            <a href="#" className="hover:text-[#FF4DB8] transition-colors">Контакты</a>
+            <Link to="/help" onClick={onClose} className="hover:text-[#FF4DB8] transition-colors">
+              Помощь
+            </Link>
+            <span>•</span>
+            <Link to="/help" onClick={onClose} className="hover:text-[#FF4DB8] transition-colors">
+              Контакты
+            </Link>
           </div>
         </div>
       </div>
