@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, Filter, RefreshCw } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { toast } from 'sonner';
+import { useLocation, useNavigate } from 'react-router';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { getAdminMetrics } from '../../../shared/api/adminMetrics';
 
 /**
  * DEV NOTES:
@@ -35,22 +39,124 @@ const channelData = [
   { channel: 'Referral', users: 800, revenue: 650000 },
 ];
 
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
 export default function AdminMetricsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [dateFrom, setDateFrom] = useState('2026-02-01');
   const [dateTo, setDateTo] = useState('2026-03-03');
   const [category, setCategory] = useState('all');
   const [offerType, setOfferType] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [data, setData] = useState(generateData(28));
+  const [channels, setChannels] = useState(channelData);
 
-  const data = generateData(28);
+  const loadMetrics = async (notify = false) => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await getAdminMetrics({
+        date_from: dateFrom,
+        date_to: dateTo,
+        category: category !== 'all' ? category : undefined,
+        offer_type: offerType !== 'all' ? offerType : undefined,
+      });
+
+      const payload = asRecord(response) ?? {};
+      const rawSeries =
+        (Array.isArray(payload.series) && payload.series) ||
+        (Array.isArray(payload.trend) && payload.trend) ||
+        (Array.isArray(payload.timeseries) && payload.timeseries) ||
+        [];
+
+      if (rawSeries.length > 0) {
+        setData(
+          rawSeries.map((item, idx) => {
+            const row = asRecord(item) ?? {};
+            return {
+              date: String(row.date ?? row.day ?? idx + 1),
+              pageviews: toNumber(row.pageviews ?? row.views) ?? 0,
+              sessions: toNumber(row.sessions) ?? 0,
+              orders: toNumber(row.orders) ?? 0,
+              revenue: toNumber(row.revenue) ?? 0,
+              ctr: toNumber(row.ctr ?? row.ctr_pct) ?? 0,
+            };
+          }),
+        );
+      }
+
+      const rawChannels =
+        (Array.isArray(payload.channels) && payload.channels) ||
+        (Array.isArray(payload.by_channel) && payload.by_channel) ||
+        (Array.isArray(payload.channel_breakdown) && payload.channel_breakdown) ||
+        [];
+      if (rawChannels.length > 0) {
+        setChannels(
+          rawChannels.map((item, idx) => {
+            const row = asRecord(item) ?? {};
+            return {
+              channel: String(row.channel ?? row.name ?? channelData[idx % channelData.length].channel),
+              users: toNumber(row.users ?? row.sessions) ?? 0,
+              revenue: toNumber(row.revenue) ?? 0,
+            };
+          }),
+        );
+      }
+
+      if (notify) {
+        toast.success('Данные обновлены');
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      if (error instanceof ApiError && error.status === 403) {
+        toast.error('Нет доступа');
+        return;
+      }
+
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadMetrics();
+  }, [dateFrom, dateTo, category, offerType, isAuthLoading, location.pathname, navigate, user]);
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    // TODO: fetch from /api/admin/metrics
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('Данные обновлены');
-    }, 1200);
+    void loadMetrics(true);
   };
 
   const handleExport = () => {
@@ -186,7 +292,7 @@ export default function AdminMetricsPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="font-semibold text-gray-900 mb-4">Пользователи по каналам</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={channelData} layout="vertical">
+            <BarChart data={channels} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis type="number" tick={{ fontSize: 10 }} />
               <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={60} />

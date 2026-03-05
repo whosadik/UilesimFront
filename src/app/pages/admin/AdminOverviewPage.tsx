@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   TrendingUp, TrendingDown, Users, ShoppingBag, Percent, Repeat,
   ArrowUpRight, AlertTriangle, Info, XCircle, ChevronRight, Zap, X,
@@ -6,7 +6,11 @@ import {
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { toast } from 'sonner';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { getAdminOverview } from '../../../shared/api/adminMetrics';
 
 /**
  * DEV NOTES:
@@ -108,6 +112,44 @@ const alertStyles: Record<string, { bg: string; border: string; icon: React.Reac
   info: { bg: 'bg-blue-50', border: 'border-blue-200', icon: <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" /> },
 };
 
+const DEFAULT_KPIS = {
+  ctr: { value: '4.7%', delta: '+0.8%', up: true },
+  cr: { value: '2.1%', delta: '+0.3%', up: true },
+  users: { value: '12 430', delta: '+5.2%', up: true },
+  promo: { value: '18.4%', delta: '-1.2%', up: false },
+};
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const formatPercent = (value: unknown, fallback: string) => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.includes('%') ? value : `${value}%`;
+  }
+
+  const numberValue = toNumber(value);
+  if (numberValue === null) {
+    return fallback;
+  }
+
+  return `${numberValue}%`;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
 // ─── KPI Card ────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
@@ -148,10 +190,196 @@ function KpiCard({ label, value, delta, up, icon, sparkIdx }: KpiCardProps) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AdminOverviewPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('7d');
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
+  const [kpis, setKpis] = useState(DEFAULT_KPIS);
+  const [trendSeries, setTrendSeries] = useState(trendData);
+  const [offers, setOffers] = useState(topOffers);
+  const [categories, setCategories] = useState(topCategories);
+  const [alerts, setAlerts] = useState(ALERTS);
+  const [recommendedActions, setRecommendedActions] = useState(RECOMMENDED_ACTIONS);
 
-  const visibleAlerts = ALERTS.filter(a => !dismissedAlerts.has(a.id));
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOverview = async () => {
+      try {
+        const response = await getAdminOverview();
+        if (cancelled) {
+          return;
+        }
+
+        const payload = asRecord(response) ?? {};
+        const metrics = asRecord(payload.kpis) ?? payload;
+
+        setKpis((prev) => ({
+          ctr: {
+            value: formatPercent(metrics.ctr ?? metrics.ctr_pct, prev.ctr.value),
+            delta: formatPercent(metrics.ctr_delta, prev.ctr.delta),
+            up: toNumber(metrics.ctr_delta) !== null ? (toNumber(metrics.ctr_delta) ?? 0) >= 0 : prev.ctr.up,
+          },
+          cr: {
+            value: formatPercent(metrics.cr ?? metrics.conversion_rate, prev.cr.value),
+            delta: formatPercent(metrics.cr_delta ?? metrics.conversion_rate_delta, prev.cr.delta),
+            up: toNumber(metrics.cr_delta ?? metrics.conversion_rate_delta) !== null
+              ? (toNumber(metrics.cr_delta ?? metrics.conversion_rate_delta) ?? 0) >= 0
+              : prev.cr.up,
+          },
+          users: {
+            value:
+              toNumber(metrics.active_users ?? metrics.users_active ?? metrics.users) !== null
+                ? (toNumber(metrics.active_users ?? metrics.users_active ?? metrics.users) ?? 0).toLocaleString('ru')
+                : prev.users.value,
+            delta: formatPercent(metrics.active_users_delta ?? metrics.users_delta, prev.users.delta),
+            up: toNumber(metrics.active_users_delta ?? metrics.users_delta) !== null
+              ? (toNumber(metrics.active_users_delta ?? metrics.users_delta) ?? 0) >= 0
+              : prev.users.up,
+          },
+          promo: {
+            value: formatPercent(metrics.promo_redemption ?? metrics.redemption, prev.promo.value),
+            delta: formatPercent(metrics.promo_redemption_delta ?? metrics.redemption_delta, prev.promo.delta),
+            up: toNumber(metrics.promo_redemption_delta ?? metrics.redemption_delta) !== null
+              ? (toNumber(metrics.promo_redemption_delta ?? metrics.redemption_delta) ?? 0) >= 0
+              : prev.promo.up,
+          },
+        }));
+
+        const rawTrend =
+          (Array.isArray(payload.trend) && payload.trend) ||
+          (Array.isArray(payload.trends) && payload.trends) ||
+          (Array.isArray(payload.series) && payload.series) ||
+          [];
+        if (rawTrend.length > 0) {
+          setTrendSeries(
+            rawTrend.map((item, idx) => {
+              const row = asRecord(item) ?? {};
+              return {
+                day: String(row.day ?? row.date ?? idx + 1),
+                ctr: toNumber(row.ctr ?? row.ctr_pct) ?? 0,
+                cr: toNumber(row.cr ?? row.conversion_rate) ?? 0,
+                users: toNumber(row.users ?? row.active_users) ?? 0,
+              };
+            }),
+          );
+        }
+
+        const rawOffers =
+          (Array.isArray(payload.top_offers) && payload.top_offers) ||
+          (Array.isArray(payload.offers) && payload.offers) ||
+          [];
+        if (rawOffers.length > 0) {
+          setOffers(
+            rawOffers.map((item, idx) => {
+              const row = asRecord(item) ?? {};
+              return {
+                id: Number(row.id ?? idx + 1),
+                name: String(row.name ?? topOffers[idx % topOffers.length].name),
+                type: String(row.type ?? row.offer_type ?? topOffers[idx % topOffers.length].type),
+                cr: formatPercent(row.cr ?? row.conversion_rate, topOffers[idx % topOffers.length].cr),
+              };
+            }),
+          );
+        }
+
+        const rawCategories =
+          (Array.isArray(payload.top_categories) && payload.top_categories) ||
+          (Array.isArray(payload.categories) && payload.categories) ||
+          [];
+        if (rawCategories.length > 0) {
+          setCategories(
+            rawCategories.map((item, idx) => {
+              const row = asRecord(item) ?? {};
+              const growth = formatPercent(row.growth ?? row.delta, topCategories[idx % topCategories.length].growth);
+              return {
+                name: String(row.name ?? row.category ?? topCategories[idx % topCategories.length].name),
+                revenue:
+                  toNumber(row.revenue) !== null
+                    ? `${(toNumber(row.revenue) ?? 0).toLocaleString('ru')} ₸`
+                    : String(row.revenue ?? topCategories[idx % topCategories.length].revenue),
+                growth,
+                up: growth.trim().startsWith('-') ? false : topCategories[idx % topCategories.length].up,
+              };
+            }),
+          );
+        }
+
+        const rawAlerts = (Array.isArray(payload.alerts) && payload.alerts) || [];
+        if (rawAlerts.length > 0) {
+          setAlerts(
+            rawAlerts.map((item, idx) => {
+              const row = asRecord(item) ?? {};
+              const level = String(row.level ?? 'info');
+              return {
+                id: String(row.id ?? `a${idx + 1}`),
+                level: level === 'warning' || level === 'error' || level === 'info' ? level : 'info',
+                title: String(row.title ?? ALERTS[idx % ALERTS.length].title),
+                detail: String(row.detail ?? row.reason ?? ALERTS[idx % ALERTS.length].detail),
+                action:
+                  row.action && asRecord(row.action)
+                    ? {
+                        label: String((asRecord(row.action) as Record<string, unknown>).label ?? 'Открыть'),
+                        href: String((asRecord(row.action) as Record<string, unknown>).href ?? '/admin'),
+                      }
+                    : ALERTS[idx % ALERTS.length].action,
+              };
+            }),
+          );
+        }
+
+        const rawActions =
+          (Array.isArray(payload.recommended_actions) && payload.recommended_actions) ||
+          (Array.isArray(payload.actions) && payload.actions) ||
+          [];
+        if (rawActions.length > 0) {
+          setRecommendedActions(
+            rawActions.map((item, idx) => {
+              const row = asRecord(item) ?? {};
+              return {
+                id: Number(row.id ?? idx + 1),
+                priority: String(row.priority ?? RECOMMENDED_ACTIONS[idx % RECOMMENDED_ACTIONS.length].priority),
+                title: String(row.title ?? RECOMMENDED_ACTIONS[idx % RECOMMENDED_ACTIONS.length].title),
+                reason: String(row.reason ?? RECOMMENDED_ACTIONS[idx % RECOMMENDED_ACTIONS.length].reason),
+                href: String(row.href ?? RECOMMENDED_ACTIONS[idx % RECOMMENDED_ACTIONS.length].href),
+              };
+            }),
+          );
+        }
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          toast.error('Нет доступа');
+          return;
+        }
+
+        if (error instanceof Error) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    loadOverview();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthLoading, location.pathname, navigate, period, user]);
+
+  const visibleAlerts = alerts.filter(a => !dismissedAlerts.has(a.id));
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -221,10 +449,10 @@ export default function AdminOverviewPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard label="CTR" value="4.7%" delta="+0.8%" up sparkIdx={0} icon={<Percent className="w-4 h-4" />} />
-        <KpiCard label="Конверсия (CR)" value="2.1%" delta="+0.3%" up sparkIdx={1} icon={<ShoppingBag className="w-4 h-4" />} />
-        <KpiCard label="Активные пользователи" value="12 430" delta="+5.2%" up sparkIdx={3} icon={<Users className="w-4 h-4" />} />
-        <KpiCard label="Promo Redemption" value="18.4%" delta="-1.2%" up={false} sparkIdx={2} icon={<Repeat className="w-4 h-4" />} />
+        <KpiCard label="CTR" value={kpis.ctr.value} delta={kpis.ctr.delta} up={kpis.ctr.up} sparkIdx={0} icon={<Percent className="w-4 h-4" />} />
+        <KpiCard label="Конверсия (CR)" value={kpis.cr.value} delta={kpis.cr.delta} up={kpis.cr.up} sparkIdx={1} icon={<ShoppingBag className="w-4 h-4" />} />
+        <KpiCard label="Активные пользователи" value={kpis.users.value} delta={kpis.users.delta} up={kpis.users.up} sparkIdx={3} icon={<Users className="w-4 h-4" />} />
+        <KpiCard label="Promo Redemption" value={kpis.promo.value} delta={kpis.promo.delta} up={kpis.promo.up} sparkIdx={2} icon={<Repeat className="w-4 h-4" />} />
       </div>
 
       {/* Trend Chart */}
@@ -234,7 +462,7 @@ export default function AdminOverviewPage() {
           <span className="text-xs text-gray-400">mock data</span>
         </div>
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={trendData}>
+          <LineChart data={trendSeries}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
             <XAxis dataKey="day" tick={{ fontSize: 11 }} stroke="#e5e7eb" />
             <YAxis tick={{ fontSize: 11 }} stroke="#e5e7eb" />
@@ -254,7 +482,7 @@ export default function AdminOverviewPage() {
             <h2 className="font-semibold text-gray-900">Рекомендуемые действия</h2>
           </div>
           <div className="divide-y divide-gray-50">
-            {RECOMMENDED_ACTIONS.map((action) => (
+            {recommendedActions.map((action) => (
               <Link
                 key={action.id}
                 to={action.href}
@@ -290,7 +518,7 @@ export default function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {topOffers.map((o) => (
+              {offers.map((o) => (
                 <tr key={o.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3 font-medium text-gray-900">{o.name}</td>
                   <td className="px-3 py-3">
@@ -320,7 +548,7 @@ export default function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {topCategories.map((c) => (
+              {categories.map((c) => (
                 <tr key={c.name} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3 font-medium text-gray-900">{c.name}</td>
                   <td className="px-3 py-3 text-right text-gray-600">{c.revenue}</td>

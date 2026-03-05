@@ -1,11 +1,15 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import {
   Sparkles, ArrowRight, Target, TrendingUp, ShoppingBag,
   ChevronRight, Clock, Check, RefreshCw, Zap, Map,
   Heart, Plus, Minus, Star, Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../../shared/auth/AuthContext';
+import { ApiError } from '../../shared/api/ApiError';
+import { nextOffer } from '../../shared/api/offers';
+import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
 
 /**
  * DEV NOTES:
@@ -96,6 +100,82 @@ const mockTrendingRecs = [
   },
 ];
 
+type RecommendationCard = typeof mockRecommendations[number];
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+};
+
+const extractHomeResults = (response: HomeRecsResponse): unknown[] => {
+  if (Array.isArray(response)) {
+    return response;
+  }
+  if (response && typeof response === 'object' && Array.isArray((response as { results?: unknown[] }).results)) {
+    return (response as { results: unknown[] }).results;
+  }
+  return [];
+};
+
+const normalizeRec = (item: unknown, index: number): RecommendationCard => {
+  const fallback = mockRecommendations[index % mockRecommendations.length];
+  const source = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+  const product = (
+    source.product && typeof source.product === 'object' ? source.product : source
+  ) as Record<string, unknown>;
+
+  const id = String(product.id ?? source.id ?? fallback.id);
+  const price = toNumber(product.price ?? source.price) ?? fallback.price;
+  const originalPrice = toNumber(product.original_price ?? source.original_price ?? source.originalPrice);
+  const score = toNumber(source.score ?? source.recommendationScore) ?? fallback.recommendationScore;
+  const pointsEarned = toNumber(source.points_earned ?? source.pointsEarned) ?? Math.max(1, Math.round(price * 0.1));
+  const whySource = source.why;
+  const whyRecommended =
+    (typeof whySource === 'string' && whySource) ||
+    (Array.isArray(whySource) && whySource.filter((v): v is string => typeof v === 'string').join(' · ')) ||
+    (typeof source.whyRecommended === 'string' && source.whyRecommended) ||
+    fallback.whyRecommended;
+
+  return {
+    id,
+    name:
+      (typeof product.name === 'string' && product.name) ||
+      (typeof source.name === 'string' && source.name) ||
+      fallback.name,
+    brand:
+      (typeof product.brand === 'string' && product.brand) ||
+      (typeof source.brand === 'string' && source.brand) ||
+      fallback.brand,
+    price,
+    originalPrice: originalPrice && originalPrice > price ? originalPrice : undefined,
+    image:
+      (typeof product.image_url === 'string' && product.image_url) ||
+      (typeof product.image === 'string' && product.image) ||
+      (typeof source.image_url === 'string' && source.image_url) ||
+      (typeof source.image === 'string' && source.image) ||
+      fallback.image,
+    pointsEarned: Math.max(0, Math.round(pointsEarned)),
+    recommendationScore: Math.max(0, Math.min(100, Math.round(score))),
+    whyRecommended,
+    whatImproves:
+      (typeof source.whatImproves === 'string' && source.whatImproves) ||
+      (typeof source.components === 'string' && source.components) ||
+      fallback.whatImproves,
+    expectedBenefit:
+      (typeof source.expectedBenefit === 'string' && source.expectedBenefit) ||
+      fallback.expectedBenefit,
+    section: (typeof source.section === 'string' && source.section) || fallback.section,
+  };
+};
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function LoyaltyProgressMini({ points, tier }: { points: number; tier: string }) {
@@ -149,9 +229,10 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
 interface EnhancedRecCardProps {
   product: typeof mockRecommendations[0];
   onAdd: (id: string) => void;
+  onProductClick?: (product: typeof mockRecommendations[0]) => void;
 }
 
-function EnhancedRecCard({ product, onAdd }: EnhancedRecCardProps) {
+function EnhancedRecCard({ product, onAdd, onProductClick }: EnhancedRecCardProps) {
   const [inCart, setInCart] = useState(false);
   const [qty, setQty] = useState(1);
 
@@ -162,7 +243,7 @@ function EnhancedRecCard({ product, onAdd }: EnhancedRecCardProps) {
   };
 
   return (
-    <Link to={`/product/${product.id}`} className="block group">
+    <Link to={`/product/${product.id}`} className="block group" onClick={() => onProductClick?.(product)}>
       <div className="bg-white rounded-2xl border border-[#EAE6EF] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
           <img
@@ -441,19 +522,138 @@ function ColdStartState({ onComplete }: { onComplete: () => void }) {
 
 export default function ForYouPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   // Simulate states
   const [isNewUser, setIsNewUser] = useState(false);
   const [skinType, setSkinType] = useState('Жирная');
   const [goals, setGoals] = useState(['Увлажнение', 'Сияние']);
   const [isSaving, setIsSaving] = useState(false);
+  const [recommendations, setRecommendations] = useState(mockRecommendations);
+  const [trendingRecommendations, setTrendingRecommendations] = useState(mockTrendingRecs);
+  const [offerSavingAmount, setOfferSavingAmount] = useState(195);
+  const [offerCartAmount, setOfferCartAmount] = useState(1299);
+  const [offerExpiry, setOfferExpiry] = useState(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000));
+  const [offerAssignmentId, setOfferAssignmentId] = useState<number | undefined>(undefined);
 
   const loyaltyPoints = 1247;
   const loyaltyTier = 'gold';
-  const offerExpiry = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000);
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPersonalization = async () => {
+      try {
+        const [homeResponse, offerResponse] = await Promise.all([home(), nextOffer()]);
+        if (cancelled) {
+          return;
+        }
+
+        const normalized = extractHomeResults(homeResponse).map((item, index) => normalizeRec(item, index));
+        if (normalized.length > 0) {
+          const forYou = normalized.filter((item) => item.section === 'for_you');
+          const trending = normalized.filter((item) => item.section === 'trending');
+          setRecommendations((forYou.length > 0 ? forYou : normalized).slice(0, 6));
+          setTrendingRecommendations(
+            (trending.length > 0 ? trending : normalized.slice(6, 10).length > 0 ? normalized.slice(6, 10) : normalized).slice(0, 4),
+          );
+        }
+
+        const homeNextOffer =
+          homeResponse && typeof homeResponse === 'object' && !Array.isArray(homeResponse)
+            ? (homeResponse as { next_offer?: unknown }).next_offer
+            : undefined;
+        const effectiveOffer =
+          homeNextOffer && typeof homeNextOffer === 'object'
+            ? (homeNextOffer as Record<string, unknown>)
+            : offerResponse;
+
+        const assignmentIdValue = toNumber(effectiveOffer.assignment_id);
+        const assignmentId = assignmentIdValue !== undefined ? Math.round(assignmentIdValue) : undefined;
+        if (assignmentId !== undefined) {
+          setOfferAssignmentId(assignmentId);
+        }
+
+        const savingAmount = toNumber(effectiveOffer.saving_amount ?? effectiveOffer.discount_amount);
+        if (savingAmount !== undefined) {
+          setOfferSavingAmount(Math.max(0, Math.round(savingAmount)));
+        }
+
+        const cartAmount = toNumber(
+          effectiveOffer.base_amount ??
+            effectiveOffer.min_basket_amount ??
+            (effectiveOffer.target as Record<string, unknown> | undefined)?.min_basket_amount,
+        );
+        if (cartAmount !== undefined) {
+          setOfferCartAmount(Math.max(0, Math.round(cartAmount)));
+        }
+
+        const expiresAt = effectiveOffer.expires_at;
+        if (typeof expiresAt === 'string') {
+          const parsed = new Date(expiresAt);
+          if (!Number.isNaN(parsed.getTime())) {
+            setOfferExpiry(parsed);
+          }
+        }
+
+        if (normalized.length > 0) {
+          const firstProductId = Number(normalized[0]?.id);
+          if (Number.isFinite(firstProductId)) {
+            void sendEvent({
+              event_type: 'impression',
+              placement: 'for_you_home',
+              product_id: firstProductId,
+              assignment_id: assignmentId,
+              meta: { count: normalized.length },
+            }).catch(() => undefined);
+          }
+        }
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (error instanceof Error) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    loadPersonalization();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthLoading, location.pathname, navigate, user]);
+
+  const handleRecommendationClick = (product: typeof mockRecommendations[0]) => {
+    const productId = Number(product.id);
+    if (!Number.isFinite(productId)) {
+      return;
+    }
+    void sendEvent({
+      event_type: 'click',
+      placement: 'for_you_home',
+      product_id: productId,
+      assignment_id: offerAssignmentId,
+      meta: { section: product.section },
+    }).catch(() => undefined);
+  };
 
   const handleAddToCart = (id: string) => {
-    toast.success('Добавлено в корзину!', { description: `+${mockRecommendations.find(p => p.id === id)?.pointsEarned || 0} баллов после покупки` });
+    const points = [...recommendations, ...trendingRecommendations].find(p => p.id === id)?.pointsEarned || 0;
+    toast.success('Добавлено в корзину!', { description: `+${points} баллов после покупки` });
   };
 
   const handleSavePrefs = () => {
@@ -493,7 +693,7 @@ export default function ForYouPage() {
           <div>
             <p className="text-sm text-[#6B7280] mb-1">Персональный центр</p>
             <h1 className="text-3xl font-semibold text-[#111827]">
-              Привет, Аяла ✦
+              Привет, {user?.username ?? 'Аяла'} ✦
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -578,8 +778,8 @@ export default function ForYouPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mockRecommendations.map(p => (
-                  <EnhancedRecCard key={p.id} product={p} onAdd={handleAddToCart} />
+                {recommendations.map(p => (
+                  <EnhancedRecCard key={p.id} product={p} onAdd={handleAddToCart} onProductClick={handleRecommendationClick} />
                 ))}
               </div>
             </section>
@@ -602,8 +802,8 @@ export default function ForYouPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {mockTrendingRecs.map(p => (
-                  <EnhancedRecCard key={p.id} product={p} onAdd={handleAddToCart} />
+                {trendingRecommendations.map(p => (
+                  <EnhancedRecCard key={p.id} product={p} onAdd={handleAddToCart} onProductClick={handleRecommendationClick} />
                 ))}
               </div>
             </section>
@@ -658,7 +858,7 @@ export default function ForYouPage() {
               <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
                 <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
                 <p className="text-xs text-[#111827]">
-                  На корзине 1 299 ₸ вы сэкономите <strong>195 ₸</strong>
+                  На корзине {offerCartAmount.toLocaleString('ru')} ₸ вы сэкономите <strong>{offerSavingAmount.toLocaleString('ru')} ₸</strong>
                 </p>
               </div>
 

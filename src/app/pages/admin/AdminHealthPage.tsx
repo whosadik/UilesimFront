@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLocation, useNavigate } from 'react-router';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { getAdminHealth } from '../../../shared/api/adminMetrics';
 
 /**
  * DEV NOTES:
@@ -36,20 +40,93 @@ const statusConfig: Record<ServiceStatus, { icon: React.ReactNode; label: string
   down: { icon: <XCircle className="w-5 h-5 text-red-500" />, label: 'Down', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
 };
 
+const defaultLabels: Record<string, string> = {
+  api: 'API Server',
+  db: 'PostgreSQL',
+  cache: 'Redis Cache',
+  queue: 'Celery Queue',
+  recs: 'Recs Engine',
+  storage: 'S3 Storage',
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
 export default function AdminHealthPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [services, setServices] = useState(mockServices);
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState(new Date());
 
-  const handleRecheck = () => {
+  const loadHealth = async (notify = false) => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
     setChecking(true);
-    // TODO: GET /api/admin/health
-    setTimeout(() => {
-      setServices(mockServices.map(s => ({ ...s, last_check: new Date().toISOString(), latency_ms: Math.floor(Math.random() * 100 + 5) })));
+    try {
+      const response = await getAdminHealth();
+      const payload = asRecord(response) ?? {};
+      const rawServices = (Array.isArray(payload.services) && payload.services) || [];
+
+      if (rawServices.length > 0) {
+        setServices(
+          rawServices.map((item, idx) => {
+            const row = asRecord(item) ?? {};
+            const name = String(row.name ?? mockServices[idx % mockServices.length].name);
+            const statusRaw = String(row.status ?? 'ok');
+            const status =
+              statusRaw === 'ok' || statusRaw === 'degraded' || statusRaw === 'down'
+                ? statusRaw
+                : 'ok';
+            return {
+              name,
+              label: String(row.label ?? defaultLabels[name] ?? mockServices[idx % mockServices.length].label),
+              status,
+              latency_ms: Number(row.latency_ms ?? 0) || 0,
+              detail: String(row.detail ?? mockServices[idx % mockServices.length].detail),
+              last_check: String(row.last_check ?? new Date().toISOString()),
+            };
+          }),
+        );
+      }
+
       setLastChecked(new Date());
+      if (notify) {
+        toast.success('Health check завершён');
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      if (error instanceof ApiError && error.status === 403) {
+        toast.error('Нет доступа');
+        return;
+      }
+
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
+    } finally {
       setChecking(false);
-      toast.success('Health check завершён');
-    }, 1500);
+    }
+  };
+
+  useEffect(() => {
+    void loadHealth();
+  }, [isAuthLoading, location.pathname, navigate, user]);
+
+  const handleRecheck = () => {
+    void loadHealth(true);
   };
 
   const overall = services.every(s => s.status === 'ok') ? 'ok' : services.some(s => s.status === 'down') ? 'down' : 'degraded';

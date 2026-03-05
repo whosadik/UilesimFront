@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, ChevronRight, Filter } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { toast } from 'sonner';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { listCampaigns } from '../../../shared/api/adminCampaigns';
 
 /**
  * DEV NOTES:
@@ -57,9 +61,83 @@ function SpendBar({ spend, budget }: { spend: number; budget: number }) {
 }
 
 export default function AdminCampaignsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [status, setStatus] = useState('all');
+  const [campaignList, setCampaignList] = useState<Campaign[]>(campaigns);
 
-  const filtered = campaigns.filter(c => status === 'all' || c.status === status);
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCampaigns = async () => {
+      try {
+        const results = await listCampaigns({
+          is_active: status === 'active' ? true : undefined,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const mapped = results.map((item) => {
+          const budget = Number(item.weekly_limit ?? 0);
+          const spend = Number(item.weekly_spent ?? 0);
+          return {
+            id: String(item.id),
+            name: String(item.name ?? `Campaign #${item.id}`),
+            status: item.is_active ? 'active' : 'paused',
+            start: item.week_start_date ?? '—',
+            end: '—',
+            budget: Number.isFinite(budget) ? budget : 0,
+            spend: Number.isFinite(spend) ? spend : 0,
+            category:
+              Array.isArray(item.allowed_categories) && item.allowed_categories.length > 0
+                ? String(item.allowed_categories[0])
+                : 'Все категории',
+          } as Campaign;
+        });
+
+        setCampaignList(mapped);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 401) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          toast.error('Нет доступа');
+          setCampaignList([]);
+          return;
+        }
+
+        if (error instanceof Error) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    loadCampaigns();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthLoading, location.pathname, navigate, status, user]);
+
+  const filtered = campaignList.filter(c => status === 'all' || c.status === status);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

@@ -1,5 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, ChevronRight, FlaskConical } from 'lucide-react';
+import { toast } from 'sonner';
+import { useLocation, useNavigate } from 'react-router';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { getAdminRecsMetrics } from '../../../shared/api/adminMetrics';
 
 /**
  * DEV NOTES:
@@ -82,8 +87,108 @@ const statusColors: Record<string, string> = {
   draft: 'bg-blue-50 text-blue-700 border-blue-200',
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+
 export default function AdminExperimentsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [experimentList, setExperimentList] = useState(experiments);
   const [selected, setSelected] = useState<Experiment | null>(null);
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadExperiments = async () => {
+      try {
+        const response = await getAdminRecsMetrics();
+        if (cancelled) {
+          return;
+        }
+
+        const payload = asRecord(response) ?? {};
+        const rawExperiments =
+          (Array.isArray(payload.experiments) && payload.experiments) ||
+          (Array.isArray(payload.results) && payload.results) ||
+          [];
+
+        if (rawExperiments.length > 0) {
+          const mapped = rawExperiments.map((item, idx) => {
+            const row = asRecord(item) ?? {};
+            const statusRaw = String(row.status ?? row.state ?? 'draft');
+            const status =
+              statusRaw === 'running' || statusRaw === 'paused' || statusRaw === 'completed' || statusRaw === 'draft'
+                ? statusRaw
+                : 'draft';
+            const variantsRaw = Array.isArray(row.variants) ? row.variants : [];
+
+            return {
+              id: Number(row.id ?? idx + 1),
+              name: String(row.name ?? experiments[idx % experiments.length].name),
+              status,
+              traffic_pct: Number(row.traffic_pct ?? row.traffic ?? 0) || 0,
+              started_at: String(row.started_at ?? row.start_date ?? '—'),
+              description: String(row.description ?? experiments[idx % experiments.length].description),
+              variants:
+                variantsRaw.length > 0
+                  ? variantsRaw.map((variant, variantIdx) => {
+                      const v = asRecord(variant) ?? {};
+                      return {
+                        name: String(v.name ?? `Variant ${variantIdx + 1}`),
+                        traffic: Number(v.traffic ?? v.traffic_pct ?? 0) || 0,
+                        ctr: `${Number(v.ctr ?? v.ctr_pct ?? 0) || 0}%`,
+                        cr: `${Number(v.cr ?? v.conversion_rate ?? 0) || 0}%`,
+                      };
+                    })
+                  : experiments[idx % experiments.length].variants,
+              guardrails: Array.isArray(row.guardrails)
+                ? row.guardrails.map((guardrail) => String(guardrail))
+                : experiments[idx % experiments.length].guardrails,
+            } as Experiment;
+          });
+
+          setExperimentList(mapped);
+          setSelected((current) => {
+            if (!current) {
+              return null;
+            }
+            return mapped.find((item) => item.id === current.id) ?? null;
+          });
+        }
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          toast.error('Нет доступа');
+          setExperimentList([]);
+          return;
+        }
+
+        if (error instanceof Error) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    loadExperiments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthLoading, location.pathname, navigate, user]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto flex gap-6">
@@ -108,7 +213,7 @@ export default function AdminExperimentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {experiments.map((exp) => (
+              {experimentList.map((exp) => (
                 <tr
                   key={exp.id}
                   onClick={() => setSelected(exp)}

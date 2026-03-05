@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useParams, Link, useLocation, useNavigate } from 'react-router';
 import { ChevronLeft, Save, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../../../shared/auth/AuthContext';
+import { ApiError } from '../../../shared/api/ApiError';
+import { createCampaign, getCampaign, patchCampaign } from '../../../shared/api/adminCampaigns';
 
 /**
  * DEV NOTES:
@@ -27,13 +30,99 @@ const mockCampaign = {
 };
 
 export default function AdminCampaignDetailPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   const [form, setForm] = useState(mockCampaign);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  const handleSave = () => {
+  const parseCampaign = (
+    response: Record<string, unknown> | { ok?: boolean; campaign?: Record<string, unknown> },
+  ) => {
+    const source =
+      response && typeof response === 'object' && 'campaign' in response
+        ? ((response as { campaign?: Record<string, unknown> }).campaign ?? {})
+        : response;
+
+    const budget = Number((source as Record<string, unknown>).weekly_limit ?? 0);
+    const categories = (source as Record<string, unknown>).allowed_categories;
+    const steps = (source as Record<string, unknown>).allowed_steps;
+
+    return {
+      id: String((source as Record<string, unknown>).id ?? id ?? mockCampaign.id),
+      name: String((source as Record<string, unknown>).name ?? mockCampaign.name),
+      status: (source as Record<string, unknown>).is_active ? 'active' : 'draft',
+      start: String((source as Record<string, unknown>).week_start_date ?? mockCampaign.start),
+      end: mockCampaign.end,
+      budget: String(Number.isFinite(budget) ? budget : 0),
+      categories: Array.isArray(categories) ? categories.map((item) => String(item)) : mockCampaign.categories,
+      product_types: Array.isArray(steps) ? steps.map((item) => String(item)) : mockCampaign.product_types,
+      tiers: mockCampaign.tiers,
+      promo_text:
+        typeof (source as Record<string, unknown>).promo_text === 'string'
+          ? ((source as Record<string, unknown>).promo_text as string)
+          : mockCampaign.promo_text,
+    };
+  };
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    if (!id || id === 'new') {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCampaign = async () => {
+      try {
+        const response = await getCampaign(id);
+        if (cancelled) {
+          return;
+        }
+        if (response && typeof response === 'object') {
+          setForm(parseCampaign(response as Record<string, unknown>));
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 401) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          setValidationError('Нет доступа');
+          toast.error('Нет доступа');
+          return;
+        }
+
+        if (error instanceof Error) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    loadCampaign();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthLoading, location.pathname, navigate, user]);
+
+  const handleSave = async () => {
     if (!form.name.trim()) {
       setValidationError('Название кампании обязательно');
       return;
@@ -44,11 +133,59 @@ export default function AdminCampaignDetailPage() {
     }
     setValidationError('');
     setSaving(true);
-    // TODO: PATCH /api/admin/campaigns/{id}
-    setTimeout(() => {
-      setSaving(false);
+
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      is_active: form.status === 'active',
+      weekly_limit: String(form.budget),
+      week_start_date: form.start || null,
+      allowed_categories: form.categories,
+      allowed_steps: form.product_types,
+    };
+
+    try {
+      if (!id || id === 'new') {
+        const created = await createCampaign(payload);
+        toast.success('Кампания сохранена');
+
+        if (created && typeof created === 'object') {
+          const createdCampaign =
+            'campaign' in created
+              ? (created as { campaign?: { id?: number | string } }).campaign
+              : (created as { id?: number | string });
+
+          const createdId = createdCampaign?.id;
+          if (createdId !== undefined && createdId !== null) {
+            navigate(`/admin/campaigns/${createdId}`, { replace: true });
+          }
+        }
+        return;
+      }
+
+      const updated = await patchCampaign(id, payload);
+      if (updated && typeof updated === 'object') {
+        setForm(parseCampaign(updated as Record<string, unknown>));
+      }
       toast.success('Кампания сохранена');
-    }, 1000);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      if (error instanceof ApiError && error.status === 403) {
+        setValidationError('Нет доступа');
+        toast.error('Нет доступа');
+        return;
+      }
+
+      if (error instanceof Error) {
+        setValidationError(error.message);
+        toast.error(error.message);
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePublish = () => {

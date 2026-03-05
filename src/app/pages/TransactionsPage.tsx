@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Receipt, Calendar, Filter, ChevronDown } from "lucide-react";
 import { TransactionRow, Transaction } from "../components/TransactionRow";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Button } from "../components/Button";
+import { toast } from "sonner";
 import { 
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import { useAuth } from "../../shared/auth/AuthContext";
+import { ApiError } from "../../shared/api/ApiError";
+import { listTransactions, type Transaction as ApiTransaction } from "../../shared/api/transactions";
 
 /**
  * DEV NOTES:
@@ -74,17 +79,125 @@ const MOCK_TRANSACTIONS: Transaction[] = [
   },
 ];
 
+const toNumber = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+};
+
+const mapApiTransactionToRow = (transaction: ApiTransaction, index: number): Transaction => {
+  const idValue = typeof transaction.id === "number" ? transaction.id : index + 1;
+  const explicitType = typeof transaction.type === "string" ? transaction.type.toLowerCase() : "";
+  const totalAmount = toNumber(transaction.total_amount ?? transaction.net_total ?? transaction.amount);
+  const pointsEarned = toNumber(transaction.points_earned);
+  const pointsRedeemed = toNumber(transaction.points_redeemed);
+  const fallbackPoints = toNumber(transaction.points_change);
+  const pointsChange =
+    pointsEarned !== 0 ? pointsEarned : pointsRedeemed !== 0 ? -Math.abs(pointsRedeemed) : fallbackPoints;
+
+  const type: Transaction["type"] =
+    explicitType === "purchase" ||
+    explicitType === "reward" ||
+    explicitType === "refund" ||
+    explicitType === "redeem"
+      ? explicitType
+      : pointsChange < 0 || totalAmount < 0
+        ? "redeem"
+        : "purchase";
+
+  const transactionId =
+    (typeof transaction.transaction_id === "string" && transaction.transaction_id) ||
+    `TRX-${String(idValue).padStart(6, "0")}`;
+
+  const date =
+    (typeof transaction.created_at === "string" && transaction.created_at) ||
+    new Date().toISOString();
+
+  const description =
+    (typeof transaction.description === "string" && transaction.description) ||
+    `Транзакция #${idValue}`;
+
+  const rawStatus = typeof transaction.status === "string" ? transaction.status.toLowerCase() : "";
+  const status: Transaction["status"] =
+    rawStatus === "pending" || rawStatus === "failed" || rawStatus === "completed"
+      ? rawStatus
+      : "completed";
+
+  return {
+    id: String(idValue),
+    transaction_id: transactionId,
+    type,
+    amount: totalAmount,
+    points_change: pointsChange,
+    description,
+    date,
+    status,
+    tier_after: typeof transaction.tier_after === "string" ? transaction.tier_after : undefined,
+  };
+};
+
 export default function TransactionsPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [transactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [showDetailDialog, setShowDetailDialog] = useState(false);
 
-  // TODO: Load transactions from API
-  // useEffect(() => {
-  //   fetchTransactions();
-  // }, [filterType]);
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate("/login", { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchTransactions = async () => {
+      setIsLoading(true);
+      try {
+        const apiTransactions = await listTransactions();
+        if (cancelled) {
+          return;
+        }
+        setTransactions(apiTransactions.map((transaction, index) => mapApiTransactionToRow(transaction, index)));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate("/login", { replace: true, state: { from: location.pathname } });
+          return;
+        }
+        setTransactions([]);
+        if (error instanceof Error) {
+          toast.error(error.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchTransactions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthLoading, location.pathname, navigate, user]);
 
   const handleTransactionClick = (transaction: Transaction) => {
     setSelectedTransaction(transaction);

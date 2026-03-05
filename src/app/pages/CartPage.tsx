@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
 import { Trash2, Sparkles, ShoppingBag, ArrowRight, ChevronRight, TrendingUp } from 'lucide-react';
+import { toast } from 'sonner';
+import { ApiError } from '../../shared/api/ApiError';
+import { commit, preview } from '../../shared/api/checkout';
+import { getLoyalty } from '../../shared/api/me';
 
 /**
  * DEV NOTES:
@@ -24,6 +28,14 @@ interface CartItem {
   pointsEarned: number;
 }
 
+interface CheckoutTotals {
+  subtotal: number;
+  discount: number;
+  pointsDiscount: number;
+  total: number;
+  pointsEarned: number;
+}
+
 const POINTS_RATE = 0.1; // 10 баллов за 100 ₸
 
 const LOYALTY_TIERS = [
@@ -32,6 +44,21 @@ const LOYALTY_TIERS = [
   { name: 'Gold', min: 1000, color: '#F59E0B' },
   { name: 'Platinum', min: 1500, color: '#6366F1' },
 ];
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+};
 
 function LoyaltyCartWidget({
   pointsEarned,
@@ -126,6 +153,8 @@ export default function CartPage() {
     },
   ]);
   const [pointsToUse, setPointsToUse] = useState(0);
+  const [previewTotals, setPreviewTotals] = useState<CheckoutTotals | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const availablePoints = 1247;
   const currentTier = 'gold';
 
@@ -144,6 +173,148 @@ export default function CartPage() {
   const pointsDiscount = pointsToUse;
   const total = subtotal - discount - pointsDiscount;
   const totalPointsEarned = cartItems.reduce((sum, item) => sum + item.pointsEarned * item.quantity, 0);
+
+  const summarySubtotal = previewTotals?.subtotal ?? subtotal;
+  const summaryDiscount = previewTotals?.discount ?? discount;
+  const summaryPointsDiscount = previewTotals?.pointsDiscount ?? pointsDiscount;
+  const summaryTotal = previewTotals?.total ?? total;
+  const summaryPointsEarned = previewTotals?.pointsEarned ?? totalPointsEarned;
+
+  const buildCheckoutItems = () =>
+    cartItems
+      .map((item) => ({
+        product: Number(item.id),
+        quantity: item.quantity,
+      }))
+      .filter((item) => Number.isFinite(item.product) && item.quantity > 0);
+
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      setPreviewTotals(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPreview = async () => {
+      const items = buildCheckoutItems();
+      if (items.length === 0) {
+        setPreviewTotals(null);
+        return;
+      }
+
+      try {
+        const response: any = await preview({
+          channel: 'online',
+          items,
+          redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        const gross = toNumber(response.gross_total) ?? toNumber(response.subtotal) ?? subtotal;
+        const appliedDiscount = toNumber(response.discount_amount) ?? toNumber(response.discount) ?? discount;
+        const usedPoints = toNumber(response.points_redeemed) ?? pointsToUse;
+        const net = toNumber(response.net_total) ?? total;
+        const earned =
+          toNumber(response.estimated_points_earned) ??
+          toNumber(response.points_earned) ??
+          totalPointsEarned;
+
+        setPreviewTotals({
+          subtotal: Math.max(0, Math.round(gross)),
+          discount: Math.max(0, Math.round(appliedDiscount)),
+          pointsDiscount: Math.max(0, Math.round(usedPoints)),
+          total: Math.max(0, Math.round(net)),
+          pointsEarned: Math.max(0, Math.round(earned)),
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        setPreviewTotals(null);
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cartItems, pointsToUse, navigate, subtotal, discount, total, totalPointsEarned]);
+
+  const handleCheckout = async () => {
+    const items = buildCheckoutItems();
+    if (items.length === 0 || isCheckingOut) {
+      return;
+    }
+
+    setIsCheckingOut(true);
+
+    try {
+      const previewResponse: any = await preview({
+        channel: 'online',
+        items,
+        redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
+      });
+
+      const gross = toNumber(previewResponse.gross_total) ?? toNumber(previewResponse.subtotal) ?? subtotal;
+      const appliedDiscount =
+        toNumber(previewResponse.discount_amount) ?? toNumber(previewResponse.discount) ?? discount;
+      const usedPoints = toNumber(previewResponse.points_redeemed) ?? pointsToUse;
+      const net = toNumber(previewResponse.net_total) ?? total;
+      const earned =
+        toNumber(previewResponse.estimated_points_earned) ??
+        toNumber(previewResponse.points_earned) ??
+        totalPointsEarned;
+
+      setPreviewTotals({
+        subtotal: Math.max(0, Math.round(gross)),
+        discount: Math.max(0, Math.round(appliedDiscount)),
+        pointsDiscount: Math.max(0, Math.round(usedPoints)),
+        total: Math.max(0, Math.round(net)),
+        pointsEarned: Math.max(0, Math.round(earned)),
+      });
+
+      const idem = `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      await commit({
+        idempotency_key: idem,
+        channel: 'online',
+        items,
+        redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
+      });
+
+      try {
+        await getLoyalty();
+      } catch {
+        // ignore: loyalty will be refreshed on the next profile load
+      }
+
+      toast.success('Заказ оформлен!');
+      navigate('/checkout');
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Не удалось оформить заказ');
+      }
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen bg-gray-50">
@@ -242,12 +413,12 @@ export default function CartPage() {
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">ОФФЕР</span>
                 </div>
                 <p className="text-sm font-semibold text-[#111827]">Скидка 15% применена</p>
-                <p className="text-xs text-[#6B7280] mt-0.5">Вы экономите {discount.toLocaleString('ru')} ₸ на этом заказе</p>
+                <p className="text-xs text-[#6B7280] mt-0.5">Вы экономите {summaryDiscount.toLocaleString('ru')} ₸ на этом заказе</p>
               </div>
 
               {/* Loyalty Points widget */}
               <LoyaltyCartWidget
-                pointsEarned={totalPointsEarned}
+                pointsEarned={summaryPointsEarned}
                 currentBalance={availablePoints}
                 tier={currentTier}
               />
@@ -270,7 +441,7 @@ export default function CartPage() {
                     className="flex-1 px-3 py-2 rounded-xl border border-[#EAE6EF] text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                   />
                   <button
-                    onClick={() => setPointsToUse(Math.min(availablePoints, total))}
+                    onClick={() => setPointsToUse(Math.min(availablePoints, summaryTotal))}
                     className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
                     Макс.
@@ -285,28 +456,28 @@ export default function CartPage() {
               <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF] space-y-2.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Товары</span>
-                  <span className="font-semibold text-[#111827]">{subtotal.toLocaleString('ru')} ₸</span>
+                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru')} ₸</span>
                 </div>
-                {discount > 0 && (
+                {summaryDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">Скидка −15%</span>
-                    <span className="font-semibold text-[#FF4DB8]">−{discount.toLocaleString('ru')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">−{summaryDiscount.toLocaleString('ru')} ₸</span>
                   </div>
                 )}
-                {pointsDiscount > 0 && (
+                {summaryPointsDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">Баллы</span>
-                    <span className="font-semibold text-[#FF4DB8]">−{pointsDiscount.toLocaleString('ru')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">−{summaryPointsDiscount.toLocaleString('ru')} ₸</span>
                   </div>
                 )}
                 <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">
                   <span className="text-base font-semibold text-[#111827]">Итого</span>
-                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, total).toLocaleString('ru')} ₸</span>
+                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru')} ₸</span>
                 </div>
               </div>
 
               <button
-                onClick={() => navigate('/checkout')}
+                onClick={handleCheckout}
                 className="w-full h-12 rounded-xl bg-[#111827] text-white font-semibold text-sm hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2 hover:shadow-lg"
               >
                 Оформить заказ
@@ -314,7 +485,7 @@ export default function CartPage() {
               </button>
 
               <p className="text-center text-xs text-[#6B7280]">
-                После покупки начислим <strong className="text-[#FF4DB8]">+{totalPointsEarned} баллов</strong>
+                После покупки начислим <strong className="text-[#FF4DB8]">+{summaryPointsEarned} баллов</strong>
               </p>
             </div>
           </div>
