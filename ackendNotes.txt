@@ -302,4 +302,69 @@ Backend notes (только заметки, без правок)
  Какие несостыковки контракта мешают: Audit фильтруется по user_id, а UI раньше работал как по actor-строке; Cache invalidate принимает запрос, но фактически инвалидирует фиксированный набор recs-ключей; Campaign API отдаёт бюджетную модель, а UI формы ожидают более “маркетинговый” объект.
  Где это видно (файлы/места в backend-коде или в схемах): views_admin.py, views_admin.py, views.py, views.py, views_admin_campaigns.py, schema-map.md, .tmp_backend_openapi.yaml.
 
- 
+ Не сделано
+
+В этом задании не трогал CartPage, поэтому он по‑прежнему делает navigate('/checkout') без checkoutCommit/checkoutPreview. Из-за этого CheckoutPage иногда работает через fallback-пересчёт preview по items, что может не совпасть с фактическим commit при apply_assignment_id/redeem_points.
+Интеграционные/е2е тесты не запускались, только production build.
+Backend notes
+
+Контракт подтверждён:
+checkout_app/urls.py: POST /api/checkout, POST /api/checkout/preview (без trailing slash).
+checkout_app/serializers.py и checkout_app/views.py: нужные поля в ответах есть.
+Чтобы закрыть расхождение без передачи state с фронта, нужен read-only источник последнего checkout snapshot (например, pricing_meta в transactions API или отдельный GET /api/checkout/last). Сейчас это ограничение текущего контракта чтения.
+
+
+Не сделано
+
+Не трогал другие страницы/файлы (только ProfilePage.tsx).
+Не запускал e2e/интеграционные тесты, только сборку.
+Backend notes
+
+Контракт GET /api/me/favorite-category подтверждён в users_app/views.py:
+favorite_category
+window_days
+profile_complete
+explain.window_start
+explain.window_end
+explain.history_items_considered
+explain.picked_by
+explain.signals
+Полей totalSpent/productsBought в контракте нет (поэтому они убраны из UI).
+Логика формирования данных подтверждена в users_app/services.py (favorite_category_snapshot)
+
+
+
+Не сделано
+
+Не добавлял новых endpoint’ов и не менял backend (по условию).
+Не расширял API-контракт для секций, которых сейчас нет в /api/admin/overview (например, recommended_actions, alerts, top_categories как бизнес-блоки).
+Backend notes
+
+Текущий реальный контракт admin overview подтверждён в:
+admin_tools/views.py (line 168)
+admin_tools/urls.py (line 7)
+Поля, на которые теперь опирается фронт:
+transactions.{7d,30d}.unique_buyers
+recs.{7d,30d}.{ctr,cr}
+offers.{7d,30d}.redemption_rate_exposed
+offers.events_kpis.by_campaign_30d[*].{campaign_name, redemption_rate_exposed}
+retention.active_users_90d
+Что отсутствует в текущем backend shape и поэтому на фронте показывается empty:
+alerts
+recommended_actions
+top_categories (в бизнес-смысле overview-таблицы)
+
+Не сделано
+
+CSV export не реализован (в API по-прежнему нет рабочего endpoint’а экспорта для этой страницы; оставил сообщение).
+Реальная фильтрация по date_from/date_to/category/offer_type/channel не появилась, т.к. backend их сейчас игнорирует.
+Backend notes
+
+Фактический shape /api/admin/metrics берётся из:
+views.py (line 121)
+
+В текущем AdminMetricsView query-параметры фильтров не используются в get() (ответ строится без чтения request.query_params):
+views.py (line 30)
+
+Подтверждённые секции ответа, на которые завязан фронт после правки:
+offers, budget, loyalty, routines, segments, retention, recs, campaigns.

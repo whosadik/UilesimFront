@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Trash2, Sparkles, ShoppingBag, ArrowRight, ChevronRight, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '../../shared/api/ApiError';
-import { commit, preview } from '../../shared/api/checkout';
+import { preview } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 
@@ -372,48 +372,12 @@ export default function CartPage() {
         redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
       });
 
-      const gross = toNumber(previewResponse.gross_total) ?? toNumber(previewResponse.subtotal) ?? subtotal;
-      const appliedDiscount =
-        toNumber(previewResponse.discount_amount) ?? toNumber(previewResponse.discount) ?? discount;
-      const usedPoints = toNumber(previewResponse.points_redeemed) ?? pointsToUse;
-      const net = toNumber(previewResponse.net_total) ?? total;
-      const earned =
-        toNumber(previewResponse.estimated_points_earned) ??
-        toNumber(previewResponse.points_earned) ??
-        totalPointsEarned;
-
-      setPreviewTotals({
-        subtotal: Math.max(0, Math.round(gross)),
-        discount: Math.max(0, Math.round(appliedDiscount)),
-        pointsDiscount: Math.max(0, Math.round(usedPoints)),
-        total: Math.max(0, Math.round(net)),
-        pointsEarned: Math.max(0, Math.round(earned)),
+      navigate('/checkout', {
+        state: {
+          checkoutPreview: previewResponse,
+          items,
+        },
       });
-
-      const idem = `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      await commit({
-        idempotency_key: idem,
-        channel: 'online',
-        items,
-        redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
-      });
-
-      try {
-        const loyalty = await getLoyalty();
-        const points = toNumber(loyalty.points_balance);
-        if (points !== undefined) {
-          setAvailablePoints(Math.max(0, Math.round(points)));
-        }
-
-        if (typeof loyalty.tier === 'string' && loyalty.tier) {
-          setCurrentTier(loyalty.tier.toLowerCase());
-        }
-      } catch {
-        // ignore: loyalty will be refreshed on the next profile load
-      }
-
-      toast.success('Заказ оформлен!');
-      navigate('/checkout');
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -423,7 +387,7 @@ export default function CartPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Не удалось оформить заказ');
+        toast.error('Не удалось получить предпросмотр checkout');
       }
     } finally {
       setIsCheckingOut(false);

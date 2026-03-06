@@ -1,8 +1,16 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Download, Filter, RefreshCw } from 'lucide-react';
 import {
-  LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router';
@@ -11,16 +19,84 @@ import { ApiError } from '../../../shared/api/ApiError';
 import { getAdminMetrics } from '../../../shared/api/adminMetrics';
 import { ErrorState } from '../../components/ErrorState';
 
-/**
- * DEV NOTES:
- * Endpoint: GET /api/admin/metrics
- * Params: { date_from, date_to, category, offer_type, channel }
- * Permission: view_metrics
- * Response: { charts: [...], summary: {...} }
- * Errors: 401, 403, 429 (rate limit), 500
- * Rate limit: 20/min
- * Export: GET /api/admin/metrics/export?format=csv
- */
+type Summary = {
+  assignmentsTotal: number | null;
+  redemptionsTotal: number | null;
+  redemptionRatePct: number | null;
+  promoEfficiency: number | null;
+  budgetLeft: number | null;
+  earnedPointsTotal: number | null;
+};
+
+type RetentionRow = {
+  window: string;
+  repeatRatePct: number;
+  activeUsers: number;
+  repeatUsers: number;
+};
+
+type OfferEventRow = {
+  window: string;
+  exposed: number;
+  clicked: number;
+  redeemed: number;
+  ctrPct: number;
+  redemptionRatePct: number;
+};
+
+type TierRow = {
+  tier: string;
+  users: number;
+};
+
+type SegmentRow = {
+  segment: string;
+  count: number;
+};
+
+type RoutineRow = {
+  step: string;
+  count: number;
+};
+
+type CampaignRow = {
+  campaign: string;
+  assignments: number;
+  redemptions: number;
+  redemptionRatePct: number;
+};
+
+type RecsAlgoRow = {
+  algo: string;
+  impressions: number;
+  clicks: number;
+  purchases: number;
+  ctrPct: number;
+  conversionPct: number;
+};
+
+type MetricsViewModel = {
+  summary: Summary;
+  retention: RetentionRow[];
+  offerEvents: OfferEventRow[];
+  tiers: TierRow[];
+  segments: SegmentRow[];
+  routines: RoutineRow[];
+  campaigns: CampaignRow[];
+  recsByAlgo: RecsAlgoRow[];
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const asRecordArray = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value)
+    ? value
+        .map((item) => asRecord(item))
+        .filter((item): item is Record<string, unknown> => item !== null)
+    : [];
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -37,23 +113,171 @@ const toNumber = (value: unknown): number | null => {
   return null;
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+const toPercent = (ratio: unknown): number | null => {
+  const value = toNumber(ratio);
+  return value === null ? null : value * 100;
+};
+
+const formatCount = (value: number | null): string =>
+  value === null ? 'нет данных' : Math.round(value).toLocaleString('ru');
+
+const formatPercent = (value: number | null): string =>
+  value === null ? 'нет данных' : `${value.toFixed(2)}%`;
+
+const formatMoney = (value: number | null): string =>
+  value === null ? 'нет данных' : `${Math.round(value).toLocaleString('ru')} ₸`;
+
+const formatMultiplier = (value: number | null): string =>
+  value === null ? 'нет данных' : `${value.toFixed(2)}x`;
+
+const adaptMetrics = (response: unknown): MetricsViewModel => {
+  const payload = asRecord(response) ?? {};
+
+  const offers = asRecord(payload.offers) ?? {};
+  const budget = asRecord(payload.budget) ?? {};
+  const loyalty = asRecord(payload.loyalty) ?? {};
+  const retention = asRecord(payload.retention) ?? {};
+  const routines = asRecord(payload.routines) ?? {};
+  const segments = asRecord(payload.segments) ?? {};
+  const campaigns = asRecord(payload.campaigns) ?? {};
+  const recs = asRecord(payload.recs) ?? {};
+
+  const eventsKpis = asRecord(offers.events_kpis) ?? {};
+  const promoEfficiency = asRecord(offers.promo_efficiency_30d) ?? {};
+  const tierDistribution = asRecord(loyalty.tier_distribution) ?? {};
+  const recsByAlgo = asRecord(recs.by_algo) ?? {};
+
+  const retentionRows: RetentionRow[] = [
+    {
+      window: '30d',
+      repeatRatePct: toPercent(retention.repeat_purchase_rate_30d) ?? 0,
+      activeUsers: toNumber(retention.active_users_30d) ?? 0,
+      repeatUsers: toNumber(retention.repeat_users_30d) ?? 0,
+    },
+    {
+      window: '60d',
+      repeatRatePct: toPercent(retention.repeat_purchase_rate_60d) ?? 0,
+      activeUsers: toNumber(retention.active_users_60d) ?? 0,
+      repeatUsers: toNumber(retention.repeat_users_60d) ?? 0,
+    },
+    {
+      window: '90d',
+      repeatRatePct: toPercent(retention.repeat_purchase_rate_90d) ?? 0,
+      activeUsers: toNumber(retention.active_users_90d) ?? 0,
+      repeatUsers: toNumber(retention.repeat_users_90d) ?? 0,
+    },
+  ].filter((row) => row.activeUsers > 0 || row.repeatUsers > 0 || row.repeatRatePct > 0);
+
+  const offerEvents: OfferEventRow[] = [
+    {
+      window: '7d',
+      exposed: toNumber(eventsKpis.exposed_7d) ?? 0,
+      clicked: toNumber(eventsKpis.clicked_7d) ?? 0,
+      redeemed: toNumber(eventsKpis.redeemed_7d) ?? 0,
+      ctrPct: toPercent(eventsKpis.ctr_clicks_exposed_7d) ?? 0,
+      redemptionRatePct: toPercent(eventsKpis.redemption_rate_exposed_7d) ?? 0,
+    },
+    {
+      window: '30d',
+      exposed: toNumber(eventsKpis.exposed_30d) ?? 0,
+      clicked: toNumber(eventsKpis.clicked_30d) ?? 0,
+      redeemed: toNumber(eventsKpis.redeemed_30d) ?? 0,
+      ctrPct: toPercent(eventsKpis.ctr_clicks_exposed_30d) ?? 0,
+      redemptionRatePct: toPercent(eventsKpis.redemption_rate_exposed_30d) ?? 0,
+    },
+  ].filter((row) => row.exposed > 0 || row.clicked > 0 || row.redeemed > 0);
+
+  const tiers: TierRow[] = Object.entries(tierDistribution)
+    .map(([tier, count]) => ({
+      tier,
+      users: toNumber(count) ?? 0,
+    }))
+    .filter((row) => row.users > 0)
+    .sort((a, b) => b.users - a.users);
+
+  const segmentRows: SegmentRow[] = asRecordArray(segments.distribution_30d)
+    .map((row) => ({
+      segment: String(row.segment ?? 'неизвестно'),
+      count: toNumber(row.count) ?? 0,
+    }))
+    .filter((row) => row.count > 0);
+
+  const routineRows: RoutineRow[] = asRecordArray(routines.top_missing_steps_30d)
+    .map((row) => ({
+      step: String(row.step ?? 'неизвестно'),
+      count: toNumber(row.count) ?? 0,
+    }))
+    .filter((row) => row.count > 0);
+
+  const campaignRows: CampaignRow[] = asRecordArray(campaigns.last_30d)
+    .map((row) => ({
+      campaign: String(row.campaign ?? 'неизвестно'),
+      assignments: toNumber(row.assignments_30d) ?? 0,
+      redemptions: toNumber(row.redemptions_30d) ?? 0,
+      redemptionRatePct: toPercent(row.redemption_rate) ?? 0,
+    }))
+    .filter((row) => row.assignments > 0 || row.redemptions > 0)
+    .slice(0, 10);
+
+  const recsAlgoRowsMapped: RecsAlgoRow[] = Object.entries(recsByAlgo)
+    .map(([algo, raw]) => {
+      const row = asRecord(raw) ?? {};
+      return {
+        algo,
+        impressions: toNumber(row.impression) ?? 0,
+        clicks: toNumber(row.click) ?? 0,
+        purchases: toNumber(row.purchase_attributed) ?? 0,
+        ctrPct: toPercent(row.ctr) ?? 0,
+        conversionPct: toPercent(row.conversion) ?? 0,
+      };
+    })
+    .filter((row) => row.impressions > 0 || row.clicks > 0 || row.purchases > 0);
+
+  return {
+    summary: {
+      assignmentsTotal: toNumber(offers.assignments_total),
+      redemptionsTotal: toNumber(offers.redemptions_total),
+      redemptionRatePct: toPercent(offers.redemption_rate),
+      promoEfficiency: toNumber(promoEfficiency.promo_efficiency),
+      budgetLeft: toNumber(budget.weekly_left),
+      earnedPointsTotal: toNumber(loyalty.earned_points_total),
+    },
+    retention: retentionRows,
+    offerEvents,
+    tiers,
+    segments: segmentRows,
+    routines: routineRows,
+    campaigns: campaignRows,
+    recsByAlgo: recsAlgoRowsMapped,
+  };
+};
+
+function MetricsSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((id) => (
+          <div key={id} className="bg-white rounded-xl border border-gray-200 h-24" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((id) => (
+          <div key={id} className="bg-white rounded-xl border border-gray-200 h-64" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminMetricsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [dateFrom, setDateFrom] = useState('2026-02-01');
-  const [dateTo, setDateTo] = useState('2026-03-03');
-  const [category, setCategory] = useState('all');
-  const [offerType, setOfferType] = useState('all');
-  const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState<
-    Array<{ date: string; pageviews: number; sessions: number; orders: number; revenue: number; ctr: number }>
-  >([]);
-  const [channels, setChannels] = useState<Array<{ channel: string; users: number; revenue: number }>>([]);
+
+  const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [metrics, setMetrics] = useState<MetricsViewModel | null>(null);
 
   const loadMetrics = async (notify = false) => {
     if (isAuthLoading) {
@@ -67,53 +291,14 @@ export default function AdminMetricsPage() {
 
     setIsLoading(true);
     setLoadError(null);
+
     try {
-      const response = await getAdminMetrics({
-        date_from: dateFrom,
-        date_to: dateTo,
-        category: category !== 'all' ? category : undefined,
-        offer_type: offerType !== 'all' ? offerType : undefined,
-      });
-
-      const payload = asRecord(response) ?? {};
-      const rawSeries =
-        (Array.isArray(payload.series) && payload.series) ||
-        (Array.isArray(payload.trend) && payload.trend) ||
-        (Array.isArray(payload.timeseries) && payload.timeseries) ||
-        [];
-
-      setData(
-        rawSeries.map((item, idx) => {
-          const row = asRecord(item) ?? {};
-          return {
-            date: String(row.date ?? row.day ?? idx + 1),
-            pageviews: toNumber(row.pageviews ?? row.views) ?? 0,
-            sessions: toNumber(row.sessions) ?? 0,
-            orders: toNumber(row.orders) ?? 0,
-            revenue: toNumber(row.revenue) ?? 0,
-            ctr: toNumber(row.ctr ?? row.ctr_pct) ?? 0,
-          };
-        }),
-      );
-
-      const rawChannels =
-        (Array.isArray(payload.channels) && payload.channels) ||
-        (Array.isArray(payload.by_channel) && payload.by_channel) ||
-        (Array.isArray(payload.channel_breakdown) && payload.channel_breakdown) ||
-        [];
-      setChannels(
-        rawChannels.map((item, idx) => {
-          const row = asRecord(item) ?? {};
-          return {
-            channel: String(row.channel ?? row.name ?? `Канал ${idx + 1}`),
-            users: toNumber(row.users ?? row.sessions) ?? 0,
-            revenue: toNumber(row.revenue) ?? 0,
-          };
-        }),
-      );
+      // Backend currently ignores date_from/date_to/category/offer_type/channel.
+      const response = await getAdminMetrics();
+      setMetrics(adaptMetrics(response));
 
       if (notify) {
-        toast.success('Данные обновлены');
+        toast.success('Метрики обновлены');
       }
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
@@ -121,13 +306,8 @@ export default function AdminMetricsPage() {
         return;
       }
 
-      if (error instanceof Error) {
-        setLoadError(error.message);
-      } else {
-        setLoadError('Не удалось загрузить метрики.');
-      }
-      setData([]);
-      setChannels([]);
+      setMetrics(null);
+      setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить метрики.');
     } finally {
       setIsLoading(false);
     }
@@ -135,24 +315,45 @@ export default function AdminMetricsPage() {
 
   useEffect(() => {
     void loadMetrics();
-  }, [dateFrom, dateTo, category, offerType, isAuthLoading, location.pathname, navigate, user]);
+  }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
+
+  const hasData = useMemo(() => {
+    if (!metrics) {
+      return false;
+    }
+
+    const summary = metrics.summary;
+    return (
+      summary.assignmentsTotal !== null ||
+      summary.redemptionsTotal !== null ||
+      summary.redemptionRatePct !== null ||
+      summary.promoEfficiency !== null ||
+      summary.budgetLeft !== null ||
+      summary.earnedPointsTotal !== null ||
+      metrics.retention.length > 0 ||
+      metrics.offerEvents.length > 0 ||
+      metrics.tiers.length > 0 ||
+      metrics.segments.length > 0 ||
+      metrics.routines.length > 0 ||
+      metrics.campaigns.length > 0 ||
+      metrics.recsByAlgo.length > 0
+    );
+  }, [metrics]);
 
   const handleRefresh = () => {
     void loadMetrics(true);
   };
 
   const handleExport = () => {
-    // TODO: GET /api/admin/metrics/export?format=csv
-    toast.error('Экспорт CSV пока не доступен в API.');
+    toast.error('Экспорт CSV недоступен в текущем API.');
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-semibold text-gray-900 text-xl">Metrics</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Графики и фильтры</p>
+          <h1 className="font-semibold text-gray-900 text-xl">Метрики</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Графики и аналитика (текущая структура ответа бэкенда)</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -172,138 +373,231 @@ export default function AdminMetricsPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex flex-wrap items-end gap-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div className="flex items-center gap-2 text-sm text-gray-500 font-medium mb-3">
           <Filter className="w-4 h-4" />
           Фильтры
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">Дата от</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
           <input
             type="date"
-            value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            value=""
+            disabled
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400"
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">Дата до</label>
           <input
             type="date"
-            value={dateTo}
-            onChange={e => setDateTo(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            value=""
+            disabled
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400"
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">Категория</label>
-          <select
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white"
-          >
-            <option value="all">Все категории</option>
-            <option value="face">Уход за лицом</option>
-            <option value="makeup">Декоративная</option>
-            <option value="body">Уход за телом</option>
+          <select disabled className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400">
+            <option>Категория</option>
+          </select>
+          <select disabled className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400">
+            <option>Тип оффера</option>
+          </select>
+          <select disabled className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400">
+            <option>Канал</option>
           </select>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-500">Тип оффера</label>
-          <select
-            value={offerType}
-            onChange={e => setOfferType(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white"
-          >
-            <option value="all">Все типы</option>
-            <option value="loyalty">Loyalty</option>
-            <option value="promo">Promo</option>
-            <option value="personal">Personal</option>
-          </select>
-        </div>
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          Не поддерживается бэкендом: <code>date_from</code>, <code>date_to</code>, <code>category</code>, <code>offer_type</code>, <code>channel</code>. Текущий{' '}
+          <code>/api/admin/metrics</code> игнорирует эти параметры.
+        </p>
       </div>
 
-      {loadError ? (
+      {isAuthLoading || isLoading ? (
+        <MetricsSkeleton />
+      ) : loadError ? (
         <div className="bg-white rounded-xl border border-gray-200">
           <ErrorState
             title="Не удалось загрузить метрики"
             description={loadError}
-            onRetry={handleRefresh}
+            onRetry={() => setRetryKey((value) => value + 1)}
           />
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Просмотры & Сессии</h3>
-            {data.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="pageviews" stroke="#111827" strokeWidth={2} dot={false} name="Просмотры" />
-                  <Line type="monotone" dataKey="sessions" stroke="#FF4DB8" strokeWidth={2} dot={false} name="Сессии" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-gray-500">В API нет временного ряда для этого графика.</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Заказы</h3>
-            {data.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data.slice(0, 14)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-                  <Bar dataKey="orders" fill="#111827" radius={[4, 4, 0, 0]} name="Заказы" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-gray-500">В API нет временного ряда для этого графика.</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">CTR тренд</h3>
-            {data.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-                  <Line type="monotone" dataKey="ctr" stroke="#FF4DB8" strokeWidth={2} dot={false} name="CTR %" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-gray-500">В API нет временного ряда для этого графика.</p>
-            )}
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Пользователи по каналам</h3>
-            {channels.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={channels} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={60} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
-                  <Bar dataKey="users" fill="#111827" radius={[0, 4, 4, 0]} name="Пользователи" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-gray-500">В API нет разбивки по каналам.</p>
-            )}
-          </div>
+      ) : !hasData || !metrics ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Нет данных по метрикам</h2>
+          <p className="text-sm text-gray-500 mb-4">Бэкенд вернул пустой ответ для отображаемых секций.</p>
+          <button
+            onClick={() => setRetryKey((value) => value + 1)}
+            className="h-10 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Повторить
+          </button>
         </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">Назначения всего</p>
+              <p className="text-xl font-semibold text-gray-900">{formatCount(metrics.summary.assignmentsTotal)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">Погашения всего</p>
+              <p className="text-xl font-semibold text-gray-900">{formatCount(metrics.summary.redemptionsTotal)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">Доля погашений</p>
+              <p className="text-xl font-semibold text-gray-900">{formatPercent(metrics.summary.redemptionRatePct)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">Эффективность промо (30д)</p>
+              <p className="text-xl font-semibold text-gray-900">{formatMultiplier(metrics.summary.promoEfficiency)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Повторные покупки</h3>
+              {metrics.retention.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={metrics.retention}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="window" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="repeatRatePct" stroke="#111827" strokeWidth={2} dot={false} name="Повторные покупки %" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет данных по повторным покупкам.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Воронка офферов (7д/30д)</h3>
+              {metrics.offerEvents.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={metrics.offerEvents}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="window" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="exposed" fill="#111827" name="Показы" />
+                    <Bar dataKey="clicked" fill="#FF4DB8" name="Клики" />
+                    <Bar dataKey="redeemed" fill="#0ea5e9" name="Погашения" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет данных по событиям офферов.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Распределение по тиру лояльности</h3>
+              {metrics.tiers.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={metrics.tiers} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="tier" tick={{ fontSize: 11 }} width={80} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                    <Bar dataKey="users" fill="#111827" radius={[0, 4, 4, 0]} name="Пользователи" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет распределения по тирам.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Распределение сегментов (30д)</h3>
+              {metrics.segments.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={metrics.segments.slice(0, 8)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="segment" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                    <Bar dataKey="count" fill="#111827" radius={[4, 4, 0, 0]} name="Пользователи" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет распределения сегментов.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Топ пропущенных шагов рутины (30д)</h3>
+              {metrics.routines.length > 0 ? (
+                <ul className="space-y-2">
+                  {metrics.routines.slice(0, 8).map((item) => (
+                    <li key={item.step} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{item.step}</span>
+                      <span className="font-medium text-gray-900">{item.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет данных по рутине.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">Рекомендации по алгоритмам (30д)</h3>
+              {metrics.recsByAlgo.length > 0 ? (
+                <div className="space-y-2">
+                  {metrics.recsByAlgo.slice(0, 8).map((item) => (
+                    <div key={item.algo} className="grid grid-cols-4 gap-2 text-sm border-b border-gray-100 pb-2">
+                      <span className="font-medium text-gray-700">{item.algo}</span>
+                      <span className="text-gray-600">показы: {item.impressions}</span>
+                      <span className="text-gray-600">CTR: {item.ctrPct.toFixed(2)}%</span>
+                      <span className="text-gray-600">CVR: {item.conversionPct.toFixed(2)}%</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет данных по рекомендациям.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Эффективность кампаний (30д)</h3>
+            {metrics.campaigns.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Кампания</th>
+                    <th className="text-right px-3 py-2 text-xs font-medium text-gray-500">Назначения</th>
+                    <th className="text-right px-3 py-2 text-xs font-medium text-gray-500">Погашения</th>
+                    <th className="text-right px-3 py-2 text-xs font-medium text-gray-500">Доля погашений</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.campaigns.map((row) => (
+                    <tr key={row.campaign} className="border-t border-gray-100">
+                      <td className="px-3 py-2 text-gray-900">{row.campaign}</td>
+                      <td className="px-3 py-2 text-right text-gray-700">{row.assignments}</td>
+                      <td className="px-3 py-2 text-right text-gray-700">{row.redemptions}</td>
+                      <td className="px-3 py-2 text-right text-gray-700">{row.redemptionRatePct.toFixed(2)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-gray-500">В ответе API нет данных по кампаниям.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">Остаток бюджета (неделя)</p>
+              <p className="text-xl font-semibold text-gray-900">{formatMoney(metrics.summary.budgetLeft)}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">Начислено баллов всего</p>
+              <p className="text-xl font-semibold text-gray-900">{formatCount(metrics.summary.earnedPointsTotal)}</p>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

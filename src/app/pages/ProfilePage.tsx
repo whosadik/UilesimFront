@@ -52,8 +52,8 @@ type RecommendationCard = {
 
 type FavoriteCategoryState = {
   category: string;
-  totalSpent: number;      // TODO: нет в API
-  productsBought: number;  // TODO: нет в API
+  windowDays: number | null;
+  historyItemsConsidered: number | null;
   explain: string;
 };
 
@@ -201,8 +201,8 @@ export default function ProfilePage() {
 
   const [favoriteCategory, setFavoriteCategory] = useState<FavoriteCategoryState>({
     category: '',
-    totalSpent: 0,       // TODO: нет в API
-    productsBought: 0,   // TODO: нет в API
+    windowDays: null,
+    historyItemsConsidered: null,
     explain: '',
   });
 
@@ -263,6 +263,8 @@ export default function ProfilePage() {
 
         const favObj = isRecord(favResp) ? favResp : {};
         const explainObj = isRecord(favObj.explain) ? favObj.explain : null;
+        const windowDaysValue = Number(favObj.window_days);
+        const historyItemsValue = Number(explainObj?.history_items_considered);
 
         // В API explain — объект, в UI у тебя строка, поэтому делаем компактный текст.
         const explainText = explainObj
@@ -275,12 +277,14 @@ export default function ProfilePage() {
               .join(' · ')
           : '';
 
-        setFavoriteCategory((prev) => ({
-          ...prev,
+        setFavoriteCategory({
           category: typeof favObj.favorite_category === 'string' ? favObj.favorite_category : '',
+          windowDays: Number.isFinite(windowDaysValue) ? Math.max(0, Math.round(windowDaysValue)) : null,
+          historyItemsConsidered: Number.isFinite(historyItemsValue)
+            ? Math.max(0, Math.round(historyItemsValue))
+            : null,
           explain: explainText,
-          // totalSpent / productsBought — оставить как есть (нет в API)
-        }));
+        });
 
         // home: { ok, sections:[{key,title,results:[{product,score,...}]}] } :contentReference[oaicite:23]{index=23}
         let results: unknown[] = [];
@@ -410,19 +414,26 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-3">
-              <p className="text-2xl font-bold text-[#FF4DB8]">{favoriteCategory.category}</p>
+              <p className="text-2xl font-bold text-[#FF4DB8]">{favoriteCategory.category || 'нет данных'}</p>
 
-              {/* TODO: totalSpent/productsBought нет в API ответа /api/me/favorite-category :contentReference[oaicite:24]{index=24} */}
               <div className="space-y-1 text-sm text-[#6B7280]">
-                <p>{favoriteCategory.productsBought} покупок</p>
-                <p>{favoriteCategory.totalSpent.toLocaleString()} ₽ потрачено</p>
+                <p>
+                  {favoriteCategory.historyItemsConsidered !== null
+                    ? `${favoriteCategory.historyItemsConsidered} позиций в истории`
+                    : 'Позиции в истории: нет данных'}
+                </p>
+                <p>
+                  {favoriteCategory.windowDays !== null
+                    ? `Окно анализа: ${favoriteCategory.windowDays} дней`
+                    : 'Окно анализа: нет данных'}
+                </p>
               </div>
 
               <details className="text-xs text-[#6B7280] pt-2 border-t border-[#EAE6EF]">
                 <summary className="cursor-pointer hover:text-[#FF4DB8] transition-colors">
                   Как мы считаем?
                 </summary>
-                <p className="mt-2">{favoriteCategory.explain}</p>
+                <p className="mt-2">{favoriteCategory.explain || 'нет данных'}</p>
               </details>
             </div>
           </div>
