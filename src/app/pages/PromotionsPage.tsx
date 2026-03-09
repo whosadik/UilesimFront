@@ -35,7 +35,7 @@ const FALLBACK_PROMOTIONS: PromotionCard[] = [
   {
     id: 'fallback-gift',
     title: 'Подарок к заказу',
-    description: 'Мини-формат при покупке от 3000 ₽',
+    description: 'Мини-формат при покупке от 3000 ₸',
     badge: 'Подарок',
     type: 'gift',
   },

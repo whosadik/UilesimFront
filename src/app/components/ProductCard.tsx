@@ -169,9 +169,9 @@ export function ProductCard({
             <p className="text-xs text-[#6B7280] mb-0.5">{productBrand}</p>
             <h3 className="text-sm font-semibold text-[#111827] mb-1 line-clamp-1">{productName}</h3>
             <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold text-[#111827]">{price} ₽</span>
+              <span className="text-base font-bold text-[#111827]">{price} ₸</span>
               {originalPrice && (
-                <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₽</span>
+                <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₸</span>
               )}
             </div>
           </div>
@@ -225,9 +225,9 @@ export function ProductCard({
             </h3>
 
             <div className="flex items-baseline gap-1.5 mb-2">
-              <span className="text-base font-bold text-[#111827]">{price} ₽</span>
+              <span className="text-base font-bold text-[#111827]">{price} ₸</span>
               {originalPrice && (
-                <span className="text-xs text-[#6B7280] line-through">{originalPrice} ₽</span>
+                <span className="text-xs text-[#6B7280] line-through">{originalPrice} ₸</span>
               )}
             </div>
 
@@ -323,9 +323,9 @@ export function ProductCard({
           )}
 
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-lg font-bold text-[#111827]">{price} ₽</span>
+            <span className="text-lg font-bold text-[#111827]">{price} ₸</span>
             {originalPrice && (
-              <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₽</span>
+              <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₸</span>
             )}
           </div>
 

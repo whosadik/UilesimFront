@@ -391,7 +391,7 @@ export default function TransactionsPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Сумма</span>
                         <span className="text-gray-900 font-semibold">
-                          {selectedTransaction.amount.toLocaleString("ru-RU")} ₽
+                          {selectedTransaction.amount.toLocaleString("ru-RU")} ₸
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -432,7 +432,7 @@ export default function TransactionsPage() {
                           >
                             <p className="text-sm text-gray-900">Товар #{item.productId}</p>
                             <p className="text-sm text-gray-600">
-                              {item.quantity} × {item.unitPrice.toLocaleString("ru-RU")} ₽
+                              {item.quantity} × {item.unitPrice.toLocaleString("ru-RU")} ₸
                             </p>
                           </div>
                         ))}

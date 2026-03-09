@@ -265,11 +265,11 @@ export function ProfileWizard({ onComplete, onClose, options, initialData }: Pro
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-[#6B7280] mb-1">От</p>
-                <p className="text-xl font-bold text-[#111827]">{data.budgetMin} ₽</p>
+                <p className="text-xl font-bold text-[#111827]">{data.budgetMin} ₸</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-[#6B7280] mb-1">До</p>
-                <p className="text-xl font-bold text-[#111827]">{data.budgetMax} ₽</p>
+                <p className="text-xl font-bold text-[#111827]">{data.budgetMax} ₸</p>
               </div>
             </div>
           </div>

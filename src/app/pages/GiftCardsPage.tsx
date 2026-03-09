@@ -4,10 +4,10 @@ import { Gift } from 'lucide-react';
 import { useState } from 'react';
 
 const giftCardOptions = [
-  { value: 1000, label: '1 000 ₽' },
-  { value: 3000, label: '3 000 ₽' },
-  { value: 5000, label: '5 000 ₽' },
-  { value: 10000, label: '10 000 ₽' },
+  { value: 1000, label: '1 000 ₸' },
+  { value: 3000, label: '3 000 ₸' },
+  { value: 5000, label: '5 000 ₸' },
+  { value: 10000, label: '10 000 ₸' },
 ];
 
 export default function GiftCardsPage() {

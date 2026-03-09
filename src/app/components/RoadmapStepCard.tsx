@@ -165,7 +165,7 @@ export function RoadmapStepCard({ step, onProductClick, onStepClick }: RoadmapSt
                 <div className="flex items-center gap-2">
                   {price !== undefined && (
                     <p className="text-sm font-semibold text-gray-900">
-                      {price.toLocaleString('ru-RU')} ₽
+                      {price.toLocaleString('ru-RU')} ₸
                     </p>
                   )}
                   {recommendationScore !== undefined && recommendationScore > 0 && (

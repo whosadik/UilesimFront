@@ -184,7 +184,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
           {pointsChange} б.
         </p>
         {amount !== 0 && (
-          <p className="text-sm text-gray-500 mt-0.5">{amount.toLocaleString('ru-RU')} ₽</p>
+          <p className="text-sm text-gray-500 mt-0.5">{amount.toLocaleString('ru-RU')} ₸</p>
         )}
       </div>
     </div>

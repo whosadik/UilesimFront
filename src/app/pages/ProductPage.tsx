@@ -402,9 +402,9 @@ export default function ProductPage() {
             </div>
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-[#111827]">{product.price} ₽</span>
+              <span className="text-3xl font-bold text-[#111827]">{product.price} ₸</span>
               {product.originalPrice !== undefined && product.originalPrice > 0 && (
-                <span className="text-lg text-[#6B7280] line-through">{product.originalPrice} ₽</span>
+                <span className="text-lg text-[#6B7280] line-through">{product.originalPrice} ₸</span>
               )}
             </div>
 
