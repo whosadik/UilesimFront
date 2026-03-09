@@ -19,6 +19,10 @@ type SlideBase = {
   contentPosition: SlideContentPosition;
   overlayClassName?: string;
   mediaClassName?: string;
+  contentLayoutClassName?: string;
+  contentClassName?: string;
+  titleClassName?: string;
+  descriptionClassName?: string;
   content?: {
     eyebrow?: string;
     title: string;
@@ -44,22 +48,25 @@ type HeroSlide = VideoSlide | ImageSlide;
 const HEADER_HEIGHT = 112;
 
 const slides: HeroSlide[] = [
-{
-  id: 'main-video',
-  type: 'video',
-  src: heroMainVideo,
-  poster: banner1,
-  tone: 'dark',
-  contentPosition: 'right',
-  overlayClassName: 'bg-black/4',
-  mediaClassName: 'object-cover',
-  content: {
-    eyebrow: 'эксклюзивно',
-    title: 'На первый заказ',
-    description: 'Промокод, скидки и специальные предложения для новых покупателей.',
-    buttonText: 'Узнать подробнее',
+  {
+    id: 'main-video',
+    type: 'video',
+    src: heroMainVideo,
+    poster: banner1,
+    tone: 'dark',
+    contentPosition: 'right',
+    overlayClassName: 'bg-black/4',
+    mediaClassName: 'object-cover',
+    contentLayoutClassName: 'items-center justify-end',
+    contentClassName: 'max-w-[480px] mr-4 lg:mr-10 text-left',
+    titleClassName: 'lg:text-[72px]',
+    content: {
+      eyebrow: 'эксклюзивно',
+      title: 'На первый заказ',
+      description: 'Промокод, скидки и специальные предложения для новых покупателей.',
+      buttonText: 'Узнать подробнее',
+    },
   },
-},
   {
     id: 'jpg-video',
     type: 'video',
@@ -68,6 +75,10 @@ const slides: HeroSlide[] = [
     tone: 'light',
     contentPosition: 'right',
     overlayClassName: 'bg-black/8',
+    mediaClassName: 'object-cover brightness-[1.03] saturate-[1.03]',
+    contentLayoutClassName: 'items-center justify-end',
+    contentClassName: 'max-w-[500px] mr-6 lg:mr-14 text-left',
+    titleClassName: 'lg:text-[70px]',
     content: {
       eyebrow: 'Jean Paul Gaultier',
       title: 'Iconic fragrances',
@@ -76,35 +87,45 @@ const slides: HeroSlide[] = [
     },
   },
   {
-    id: 'clarins',
-    type: 'image',
-    src: banner3,
-    durationMs: 8000,
-    tone: 'dark',
-    contentPosition: 'right',
-    overlayClassName: 'bg-white/4',
-    content: {
-      eyebrow: 'Clarins',
-      title: 'Уход, который работает мягко',
-      description: 'Текстуры, комфорт и ежедневные ритуалы для кожи.',
-      buttonText: 'Выбрать уход',
-    },
+  id: 'clarins',
+  type: 'image',
+  src: banner3,
+  durationMs: 8000,
+  tone: 'dark',
+  contentPosition: 'left',
+  overlayClassName: 'bg-gradient-to-r from-white/10 via-transparent to-transparent',
+  mediaClassName: 'object-cover',
+  contentLayoutClassName: 'items-center justify-start',
+  contentClassName: 'max-w-[360px] ml-8 lg:ml-24 mt-16 lg:mt-20 text-left',
+  titleClassName: 'lg:text-[56px] leading-[0.94]',
+  descriptionClassName: 'max-w-[320px]',
+  content: {
+    eyebrow: 'Clarins',
+    title: 'Уход, который работает мягко',
+    description: 'Текстуры, комфорт и ежедневные ритуалы для кожи.',
+    buttonText: 'Выбрать уход',
   },
+},
   {
-    id: 'dalba',
-    type: 'image',
-    src: banner4,
-    durationMs: 8000,
-    tone: 'dark',
-    contentPosition: 'right',
-    overlayClassName: 'bg-white/2',
-    content: {
-      eyebrow: 'd’Alba',
-      title: 'Премиальный glow-уход',
-      description: 'Минималистичная подборка для сияния и увлажнения.',
-      buttonText: 'Смотреть продукты',
-    },
+  id: 'dalba',
+  type: 'image',
+  src: banner4,
+  durationMs: 8000,
+  tone: 'dark',
+  contentPosition: 'right',
+  overlayClassName: 'bg-white/2',
+  mediaClassName: 'object-cover',
+  contentLayoutClassName: 'items-center justify-end',
+  contentClassName: 'max-w-[430px] mr-10 lg:mr-24 mt-24 lg:mt-28 text-left',
+  titleClassName: 'lg:text-[62px] leading-[0.94]',
+  descriptionClassName: 'max-w-[360px]',
+  content: {
+    eyebrow: 'd’Alba',
+    title: 'Премиальный glow-уход',
+    description: 'Минималистичная подборка для сияния и увлажнения.',
+    buttonText: 'Смотреть продукты',
   },
+},
   {
     id: 'darling',
     type: 'image',
@@ -112,7 +133,12 @@ const slides: HeroSlide[] = [
     durationMs: 8000,
     tone: 'dark',
     contentPosition: 'center',
-    overlayClassName: 'bg-black/4',
+    overlayClassName: 'bg-gradient-to-r from-white/28 via-white/10 to-transparent',
+    mediaClassName: 'object-cover',
+    contentLayoutClassName: 'items-center justify-start',
+    contentClassName: 'max-w-[380px] ml-4 lg:ml-16 text-left',
+    titleClassName: 'lg:text-[60px] leading-[0.95]',
+    descriptionClassName: 'max-w-[340px]',
     content: {
       eyebrow: 'Darling',
       title: 'Summer essentials',
@@ -231,33 +257,37 @@ export function Hero() {
       <div className="relative z-20 h-full">
         <div className="mx-auto flex h-full max-w-[1440px] px-6 lg:px-10">
           <div
-            className={`flex w-full items-center ${getContentAlignment(
-              activeSlide.contentPosition,
-            )}`}
+            className={`flex w-full ${
+              activeSlide.contentLayoutClassName ?? 'items-center justify-end'
+            }`}
           >
             {activeSlide.content ? (
               <div
-                className={`${getContentWidth(
-                  activeSlide.contentPosition,
-                )} ${textColorClass}`}
+                className={`${
+                  activeSlide.contentClassName ?? 'max-w-[520px] text-left'
+                } ${textColorClass}`}
               >
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {activeSlide.content.eyebrow ? (
                     <p className="text-sm font-medium uppercase tracking-[0.14em] opacity-80">
                       {activeSlide.content.eyebrow}
                     </p>
                   ) : null}
 
-                  <h1 className="text-4xl font-semibold leading-[0.95] tracking-[-0.04em] sm:text-5xl lg:text-[72px]">
+                  <h1
+  className={`text-4xl font-semibold tracking-[-0.04em] sm:text-5xl ${
+    activeSlide.titleClassName ?? 'lg:text-[72px] leading-[0.95]'
+  }`}
+>
                     {activeSlide.content.title}
                   </h1>
 
                   {activeSlide.content.description ? (
                     <p
-                      className={`max-w-[480px] text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
-                        activeSlide.contentPosition === 'center' ? 'mx-auto' : ''
-                      }`}
-                    >
+  className={`text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
+    activeSlide.descriptionClassName ?? 'max-w-[480px]'
+  }`}
+>
                       {activeSlide.content.description}
                     </p>
                   ) : null}
