@@ -1,85 +1,298 @@
-import { Gift, Truck, Sparkles } from 'lucide-react';
-import { Badge } from './Badge';
-import { Button } from './Button';
-import { StatMini } from './StatMini';
-import { PromoCard } from './PromoCard';
-import heroBgImage from '../../assets/bannerimage.jpeg'
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+
+import heroMainVideo from '../../assets/banner.mp4';
+import jpgBrandVideo from '../../assets/jpgbanner.mp4';
+
+import banner1 from '../../assets/bannerimage.jpeg';
+import banner2 from '../../assets/jpgbannerimage.png';
+import banner3 from '../../assets/clarins.png';
+import banner4 from '../../assets/dalba.png';
+import banner5 from '../../assets/darling.png';
+
+type SlideContentPosition = 'left' | 'center' | 'right';
+type SlideTone = 'dark' | 'light';
+
+type SlideBase = {
+  id: string;
+  tone: SlideTone;
+  contentPosition: SlideContentPosition;
+  overlayClassName?: string;
+  mediaClassName?: string;
+  content?: {
+    eyebrow?: string;
+    title: string;
+    description?: string;
+    buttonText?: string;
+  };
+};
+
+type VideoSlide = SlideBase & {
+  type: 'video';
+  src: string;
+  poster?: string;
+};
+
+type ImageSlide = SlideBase & {
+  type: 'image';
+  src: string;
+  durationMs: number;
+};
+
+type HeroSlide = VideoSlide | ImageSlide;
+
+const HEADER_HEIGHT = 112;
+
+const slides: HeroSlide[] = [
+{
+  id: 'main-video',
+  type: 'video',
+  src: heroMainVideo,
+  poster: banner1,
+  tone: 'dark',
+  contentPosition: 'right',
+  overlayClassName: 'bg-black/4',
+  mediaClassName: 'object-cover',
+  content: {
+    eyebrow: 'эксклюзивно',
+    title: 'На первый заказ',
+    description: 'Промокод, скидки и специальные предложения для новых покупателей.',
+    buttonText: 'Узнать подробнее',
+  },
+},
+  {
+    id: 'jpg-video',
+    type: 'video',
+    src: jpgBrandVideo,
+    poster: banner2,
+    tone: 'light',
+    contentPosition: 'right',
+    overlayClassName: 'bg-black/8',
+    content: {
+      eyebrow: 'Jean Paul Gaultier',
+      title: 'Iconic fragrances',
+      description: 'Легендарные ароматы и эффектная бренд-зона с динамичным видео.',
+      buttonText: 'Смотреть бренд',
+    },
+  },
+  {
+    id: 'clarins',
+    type: 'image',
+    src: banner3,
+    durationMs: 8000,
+    tone: 'dark',
+    contentPosition: 'right',
+    overlayClassName: 'bg-white/4',
+    content: {
+      eyebrow: 'Clarins',
+      title: 'Уход, который работает мягко',
+      description: 'Текстуры, комфорт и ежедневные ритуалы для кожи.',
+      buttonText: 'Выбрать уход',
+    },
+  },
+  {
+    id: 'dalba',
+    type: 'image',
+    src: banner4,
+    durationMs: 8000,
+    tone: 'dark',
+    contentPosition: 'right',
+    overlayClassName: 'bg-white/2',
+    content: {
+      eyebrow: 'd’Alba',
+      title: 'Премиальный glow-уход',
+      description: 'Минималистичная подборка для сияния и увлажнения.',
+      buttonText: 'Смотреть продукты',
+    },
+  },
+  {
+    id: 'darling',
+    type: 'image',
+    src: banner5,
+    durationMs: 8000,
+    tone: 'dark',
+    contentPosition: 'center',
+    overlayClassName: 'bg-black/4',
+    content: {
+      eyebrow: 'Darling',
+      title: 'Summer essentials',
+      description: 'Легкий летний акцент в каталоге ухода и body care.',
+      buttonText: 'Открыть подборку',
+    },
+  },
+];
+
+function getContentAlignment(position: SlideContentPosition) {
+  if (position === 'left') return 'justify-start text-left';
+  if (position === 'center') return 'justify-center text-center';
+  return 'justify-end text-left';
+}
+
+function getContentWidth(position: SlideContentPosition) {
+  if (position === 'center') return 'max-w-[680px] mx-auto';
+  return 'max-w-[520px]';
+}
 
 export function Hero() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const timerRef = useRef<number | null>(null);
+
+  const activeSlide = useMemo(() => slides[activeIndex], [activeIndex]);
+
+  const goToNext = () => {
+    setActiveIndex((prev) => (prev + 1) % slides.length);
+  };
+
+  const goToSlide = (index: number) => {
+    setActiveIndex(index);
+  };
+
+  useEffect(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (activeSlide.type === 'image') {
+      timerRef.current = window.setTimeout(() => {
+        goToNext();
+      }, activeSlide.durationMs);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+      }
+    };
+  }, [activeSlide]);
+
+  const textColorClass =
+    activeSlide.tone === 'light' ? 'text-white' : 'text-neutral-950';
+
+  const subTextColorClass =
+    activeSlide.tone === 'light' ? 'text-white/85' : 'text-neutral-700';
+
+  const buttonClass =
+    activeSlide.tone === 'light'
+      ? 'bg-white text-black hover:bg-white/90'
+      : 'bg-black text-white hover:bg-black/90';
+
   return (
-    <section className="relative min-h-screen lg:min-h-[100vh] flex items-center overflow-hidden">
-      {/* Background with image */}
+    <section
+      className="relative overflow-hidden"
+      style={{
+        marginTop: HEADER_HEIGHT,
+        height: `calc(100vh - ${HEADER_HEIGHT}px)`,
+        minHeight: 620,
+      }}
+    >
       <div className="absolute inset-0">
-        {/* Hero Image */}
-        <img 
-          src={heroBgImage} 
-          alt="" 
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        
-        {/* Soft gradient overlay - stronger for better readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/30 to-white/80"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-white/50 via-transparent to-transparent"></div>
+        {slides.map((slide, index) => {
+          const isActive = index === activeIndex;
+
+          return (
+            <div
+              key={slide.id}
+              className={`absolute inset-0 transition-opacity duration-700 ${
+                isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+              }`}
+            >
+              {slide.type === 'video' ? (
+                <video
+                  key={`${slide.id}-${isActive ? 'active' : 'inactive'}`}
+                  className={`absolute inset-0 h-full w-full ${slide.mediaClassName ?? 'object-cover'}`}
+                  src={slide.src}
+                  poster={slide.poster}
+                  autoPlay={isActive}
+                  muted
+                  playsInline
+                  preload="metadata"
+                  onEnded={() => {
+                    if (isActive) goToNext();
+                  }}
+                />
+              ) : (
+                <img
+                  src={slide.src}
+                  alt=""
+                  className={`absolute inset-0 h-full w-full ${slide.mediaClassName ?? 'object-cover'}`}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                />
+              )}
+
+              <div className={`absolute inset-0 ${slide.overlayClassName ?? ''}`} />
+              <div className="absolute inset-0 bg-gradient-to-r from-white/6 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/3 via-transparent to-transparent" />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Content */}
-      <div className="relative max-w-[1160px] mx-auto px-6 lg:px-[140px] w-full py-32 lg:py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left Content */}
-          <div className="space-y-6">
-            {/* Badges */}
-            <div className="flex flex-wrap gap-2">
-              <Badge>Новые поступления</Badge>
-              <Badge>Скидки до −50%</Badge>
-            </div>
+      <div className="relative z-20 h-full">
+        <div className="mx-auto flex h-full max-w-[1440px] px-6 lg:px-10">
+          <div
+            className={`flex w-full items-center ${getContentAlignment(
+              activeSlide.contentPosition,
+            )}`}
+          >
+            {activeSlide.content ? (
+              <div
+                className={`${getContentWidth(
+                  activeSlide.contentPosition,
+                )} ${textColorClass}`}
+              >
+                <div className="space-y-5">
+                  {activeSlide.content.eyebrow ? (
+                    <p className="text-sm font-medium uppercase tracking-[0.14em] opacity-80">
+                      {activeSlide.content.eyebrow}
+                    </p>
+                  ) : null}
 
-            {/* Heading */}
-            <div className="space-y-4">
-              <h1 className="text-5xl lg:text-[56px] font-bold text-gray-900 leading-[110%] tracking-[-0.01em]">
-                Новинки недели
-              </h1>
-              <p className="text-base text-gray-700 leading-relaxed max-w-lg">
-                Уход, косметика, ароматы и товары для дома — свежие релизы и лимитки в одном месте.
-              </p>
-            </div>
+                  <h1 className="text-4xl font-semibold leading-[0.95] tracking-[-0.04em] sm:text-5xl lg:text-[72px]">
+                    {activeSlide.content.title}
+                  </h1>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button variant="primary">Смотреть новинки</Button>
-              <Button variant="ghost">Открыть каталог</Button>
-            </div>
+                  {activeSlide.content.description ? (
+                    <p
+                      className={`max-w-[480px] text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
+                        activeSlide.contentPosition === 'center' ? 'mx-auto' : ''
+                      }`}
+                    >
+                      {activeSlide.content.description}
+                    </p>
+                  ) : null}
 
-            {/* Mini Stats */}
-            <div className="grid sm:grid-cols-3 gap-3 pt-4">
-              <StatMini
-                icon={<Gift className="w-5 h-5" />}
-                title="Бонусы"
-                description="до 7%"
-              />
-              <StatMini
-                icon={<Truck className="w-5 h-5" />}
-                title="Доставка"
-                description="день-в-день"
-              />
-              <StatMini
-                icon={<Sparkles className="w-5 h-5" />}
-                title="Подбор"
-                description="по типу кожи"
-              />
-            </div>
+                  {activeSlide.content.buttonText ? (
+                    <div>
+                      <button
+                        type="button"
+                        className={`inline-flex items-center gap-2 rounded-none px-6 py-4 text-sm font-semibold uppercase tracking-[0.08em] transition-colors ${buttonClass}`}
+                      >
+                        {activeSlide.content.buttonText}
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
+        </div>
 
-          {/* Right Promo Card */}
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-md">
-              <PromoCard
-                title="Персональный оффер"
-                description="Ответь на 5 вопросов и получи скидку/множитель баллов под твои предпочтения."
-                buttonText="Получить оффер"
-                hint="Займёт ~30 секунд"
-              />
-            </div>
-          </div>
+        <div className="absolute bottom-8 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
+          {slides.map((slide, index) => (
+            <button
+              key={slide.id}
+              type="button"
+              onClick={() => goToSlide(index)}
+              aria-label={`Перейти к баннеру ${index + 1}`}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                index === activeIndex
+                  ? 'w-8 bg-black'
+                  : 'w-2 bg-black/30 hover:bg-black/50'
+              }`}
+            />
+          ))}
         </div>
       </div>
     </section>
