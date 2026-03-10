@@ -5,6 +5,9 @@ export type OwnedProductRecord = {
   product?: Record<string, unknown> | null;
   quantity_total?: number;
   is_active?: boolean;
+  notes?: string;
+  opened_at?: string | null;
+  finish_date?: string | null;
   acquired_at?: string;
   last_acquired_at?: string;
   source?: string;
@@ -54,5 +57,22 @@ export function activateOwnedProduct(id: string | number): Promise<Record<string
 export function deactivateOwnedProduct(id: string | number): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>(`/api/me/owned-products/${id}/deactivate/`, {
     method: 'POST',
+  });
+}
+
+export type UpdateOwnedProductPayload = {
+  is_active?: boolean;
+  notes?: string;
+  opened_at?: string | null;
+  finish_date?: string | null;
+};
+
+export function updateOwnedProduct(
+  id: string | number,
+  payload: UpdateOwnedProductPayload,
+): Promise<OwnedProductRecord> {
+  return apiFetch<OwnedProductRecord>(`/api/me/owned-products/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
   });
 }

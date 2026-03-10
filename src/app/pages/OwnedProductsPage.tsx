@@ -12,6 +12,7 @@ import {
   activateOwnedProduct,
   deactivateOwnedProduct,
   listOwnedProducts,
+  updateOwnedProduct,
   type OwnedProductRecord,
 } from "../../shared/api/ownedProducts";
 
@@ -83,8 +84,10 @@ function mapOwnedProduct(item: OwnedProductRecord, index: number): OwnedProduct 
       (typeof item.last_acquired_at === "string" && item.last_acquired_at) ||
       (typeof item.acquired_at === "string" && item.acquired_at) ||
       "",
+    opened_at: typeof item.opened_at === "string" ? item.opened_at : undefined,
+    finish_date: typeof item.finish_date === "string" ? item.finish_date : undefined,
     is_active: item.is_active === undefined ? true : Boolean(item.is_active),
-    notes: undefined,
+    notes: typeof item.notes === "string" ? item.notes : undefined,
   };
 }
 
@@ -99,6 +102,7 @@ export default function OwnedProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [pendingNotesId, setPendingNotesId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,15 +181,38 @@ export default function OwnedProductsPage() {
     setEditNotes(product.notes || "");
   };
 
-  const handleSaveNotes = (productId: string) => {
-    setOwnedProducts((prev) =>
-      prev.map((product) =>
-        product.id === productId ? { ...product, notes: editNotes } : product,
-      ),
-    );
+  const handleSaveNotes = async (productId: string) => {
+    setPendingNotesId(productId);
 
-    setEditingId(null);
-    toast.success("Заметки сохранены локально");
+    try {
+      const response = await updateOwnedProduct(productId, { notes: editNotes });
+
+      setOwnedProducts((prev) =>
+        prev.map((product) =>
+          product.id === productId
+            ? {
+                ...product,
+                notes: typeof response.notes === "string" ? response.notes : editNotes,
+                opened_at: typeof response.opened_at === "string" ? response.opened_at : product.opened_at,
+                finish_date:
+                  typeof response.finish_date === "string" ? response.finish_date : product.finish_date,
+              }
+            : product,
+        ),
+      );
+
+      setEditingId(null);
+      toast.success("Заметки сохранены");
+    } catch (saveError) {
+      if (saveError instanceof ApiError && (saveError.status === 401 || saveError.status === 403)) {
+        navigate("/login", { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      toast.error("Не удалось сохранить заметки");
+    } finally {
+      setPendingNotesId(null);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -248,6 +275,7 @@ export default function OwnedProductsPage() {
           <div className="space-y-4">
             {ownedProducts.map((product) => {
               const isPending = pendingToggleId === product.id;
+              const isSavingNotes = pendingNotesId === product.id;
 
               return (
                 <div
@@ -320,12 +348,18 @@ export default function OwnedProductsPage() {
                               <Button
                                 variant="primary"
                                 size="sm"
+                                disabled={isSavingNotes}
                                 onClick={() => handleSaveNotes(product.id)}
                               >
                                 <Check className="w-4 h-4 mr-1" />
-                                Сохранить
+                                {isSavingNotes ? "Сохраняем..." : "Сохранить"}
                               </Button>
-                              <Button variant="secondary" size="sm" onClick={handleCancelEdit}>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={isSavingNotes}
+                                onClick={handleCancelEdit}
+                              >
                                 <X className="w-4 h-4 mr-1" />
                                 Отмена
                               </Button>

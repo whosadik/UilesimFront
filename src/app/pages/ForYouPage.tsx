@@ -141,7 +141,20 @@ const mockTrendingRecs = [
   },
 ];
 
-type RecommendationCard = typeof mockRecommendations[number];
+type RecommendationCard = {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  pointsEarned: number;
+  recommendationScore: number;
+  whyRecommended: string;
+  whatImproves: string;
+  expectedBenefit: string;
+  section: string;
+};
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -244,7 +257,8 @@ const extractHomeResults = (response: HomeRecsResponse): HomeResultItem[] => {
 };
 
 const normalizeRec = (item: unknown, index: number, sectionKey?: string): RecommendationCard => {
-  const fallback = mockRecommendations[index % mockRecommendations.length];
+  const fallbackPool = sectionKey === 'trending' ? mockTrendingRecs : mockRecommendations;
+  const fallback = fallbackPool[index % fallbackPool.length];
   const source = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
   const product = (
     source.product && typeof source.product === 'object' ? source.product : source
@@ -345,9 +359,9 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
 }
 
 interface EnhancedRecCardProps {
-  product: typeof mockRecommendations[0];
+  product: RecommendationCard;
   onAdd: (id: string) => void;
-  onProductClick?: (product: typeof mockRecommendations[0]) => void;
+  onProductClick?: (product: RecommendationCard) => void;
 }
 
 function EnhancedRecCard({ product, onAdd, onProductClick }: EnhancedRecCardProps) {
@@ -648,8 +662,8 @@ export default function ForYouPage() {
   const [skinType, setSkinType] = useState('Жирная');
   const [goals, setGoals] = useState(['Увлажнение', 'Сияние']);
   const [isSaving, setIsSaving] = useState(false);
-  const [recommendations, setRecommendations] = useState(mockRecommendations);
-  const [trendingRecommendations, setTrendingRecommendations] = useState(mockTrendingRecs);
+  const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
+  const [trendingRecommendations, setTrendingRecommendations] = useState<RecommendationCard[]>([]);
   const [offerSavingAmount, setOfferSavingAmount] = useState(195);
   const [offerCartAmount, setOfferCartAmount] = useState(1299);
   const [offerExpiry, setOfferExpiry] = useState(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000));
@@ -739,17 +753,21 @@ export default function ForYouPage() {
 
         if (normalized.length > 0) {
           const forYou = normalized.filter((item) => item.section === 'for_you');
+          const becauseYouBought = normalized.filter((item) => item.section === 'because_you_bought');
           const trending = normalized.filter((item) => item.section === 'trending');
-          setRecommendations((forYou.length > 0 ? forYou : normalized).slice(0, 6));
-          setTrendingRecommendations(
-            (
-              trending.length > 0
-                ? trending
-                : normalized.slice(6, 10).length > 0
-                  ? normalized.slice(6, 10)
-                  : normalized
-            ).slice(0, 4),
-          );
+          const primaryPool = forYou.length > 0 ? [...forYou, ...becauseYouBought] : normalized;
+          const primary = primaryPool.slice(0, 6);
+          const primaryIds = new Set(primary.map((item) => item.id));
+          const secondaryPool =
+            trending.length > 0
+              ? trending.filter((item) => !primaryIds.has(item.id))
+              : normalized.filter((item) => !primaryIds.has(item.id));
+
+          setRecommendations(primary);
+          setTrendingRecommendations(secondaryPool.slice(0, 4));
+        } else {
+          setRecommendations([]);
+          setTrendingRecommendations([]);
         }
 
         const homeNextOffer =
@@ -823,7 +841,7 @@ export default function ForYouPage() {
     };
   }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
 
-  const handleRecommendationClick = (product: typeof mockRecommendations[0]) => {
+  const handleRecommendationClick = (product: RecommendationCard) => {
     const productId = Number(product.id);
     if (!Number.isFinite(productId)) {
       return;

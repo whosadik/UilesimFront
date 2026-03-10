@@ -130,6 +130,82 @@ const formatMoney = (value: number | null): string =>
 const formatMultiplier = (value: number | null): string =>
   value === null ? 'нет данных' : `${value.toFixed(2)}x`;
 
+const csvEscape = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const stringified = String(value);
+  if (/[;"\n]/.test(stringified)) {
+    return `"${stringified.replace(/"/g, '""')}"`;
+  }
+
+  return stringified;
+};
+
+const buildMetricsCsv = (model: MetricsViewModel): string => {
+  const lines: string[] = [];
+  const push = (...cells: unknown[]) => {
+    lines.push(cells.map(csvEscape).join(';'));
+  };
+
+  push('section', 'metric', 'value');
+  push('summary', 'assignments_total', model.summary.assignmentsTotal);
+  push('summary', 'redemptions_total', model.summary.redemptionsTotal);
+  push('summary', 'redemption_rate_pct', model.summary.redemptionRatePct);
+  push('summary', 'promo_efficiency_30d', model.summary.promoEfficiency);
+  push('summary', 'budget_left', model.summary.budgetLeft);
+  push('summary', 'earned_points_total', model.summary.earnedPointsTotal);
+
+  for (const row of model.retention) {
+    push('retention', `repeat_rate_pct_${row.window}`, row.repeatRatePct);
+    push('retention', `active_users_${row.window}`, row.activeUsers);
+    push('retention', `repeat_users_${row.window}`, row.repeatUsers);
+  }
+
+  for (const row of model.offerEvents) {
+    push('offer_events', `exposed_${row.window}`, row.exposed);
+    push('offer_events', `clicked_${row.window}`, row.clicked);
+    push('offer_events', `redeemed_${row.window}`, row.redeemed);
+    push('offer_events', `ctr_pct_${row.window}`, row.ctrPct);
+    push('offer_events', `redemption_rate_pct_${row.window}`, row.redemptionRatePct);
+  }
+
+  for (const row of model.tiers) {
+    push('tiers', row.tier, row.users);
+  }
+
+  for (const row of model.segments) {
+    push('segments', row.segment, row.count);
+  }
+
+  for (const row of model.routines) {
+    push('routines_top_missing_30d', row.step, row.count);
+  }
+
+  for (const row of model.campaigns) {
+    push('campaigns_30d', `${row.campaign}_assignments`, row.assignments);
+    push('campaigns_30d', `${row.campaign}_redemptions`, row.redemptions);
+    push('campaigns_30d', `${row.campaign}_redemption_rate_pct`, row.redemptionRatePct);
+  }
+
+  for (const row of model.recsByAlgo) {
+    push('recs_by_algo_30d', `${row.algo}_impressions`, row.impressions);
+    push('recs_by_algo_30d', `${row.algo}_clicks`, row.clicks);
+    push('recs_by_algo_30d', `${row.algo}_purchases`, row.purchases);
+    push('recs_by_algo_30d', `${row.algo}_ctr_pct`, row.ctrPct);
+    push('recs_by_algo_30d', `${row.algo}_conversion_pct`, row.conversionPct);
+  }
+
+  return lines.join('\n');
+};
+
+const createExportFileName = () => {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `admin_metrics_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.csv`;
+};
+
 const adaptMetrics = (response: unknown): MetricsViewModel => {
   const payload = asRecord(response) ?? {};
 
@@ -356,7 +432,22 @@ export default function AdminMetricsPage() {
   };
 
   const handleExport = () => {
-    toast.error('Экспорт CSV недоступен в текущем API.');
+    if (!metrics) {
+      toast.error('Нет данных для экспорта.');
+      return;
+    }
+
+    const csv = buildMetricsCsv(metrics);
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.download = createExportFileName();
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(href);
+    toast.success('CSV экспортирован');
   };
 
   return (
