@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type TransitionEvent } from 'react';
 import { ArrowRight } from 'lucide-react';
 
 import heroMainVideo from '../../assets/banner.mp4';
@@ -54,6 +54,8 @@ type ImageSlide = SlideBase & {
 type HeroSlide = VideoSlide | ImageSlide;
 
 const HEADER_HEIGHT = 112;
+const SLIDE_TRANSITION_MS = 1450;
+const SLIDE_TRANSITION_EASING = 'cubic-bezier(0.42, 0, 0.22, 1)';
 
 const slides: HeroSlide[] = [
   {
@@ -190,17 +192,80 @@ function getContentWidth(position: SlideContentPosition) {
 
 export function Hero() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [isSliding, setIsSliding] = useState(false);
+  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
   const timerRef = useRef<number | null>(null);
+  const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
 
   const activeSlide = useMemo(() => slides[activeIndex], [activeIndex]);
+  const slidesWithLoop = useMemo(() => [...slides, slides[0]], []);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
+    if (isSliding) {
+      return;
+    }
+
+    setIsSliding(true);
     setActiveIndex((prev) => (prev + 1) % slides.length);
-  };
+    setTrackIndex((prev) => prev + 1);
+  }, [isSliding]);
 
-  const goToSlide = (index: number) => {
-    setActiveIndex(index);
-  };
+  const goToSlide = useCallback(
+    (index: number) => {
+      if (isSliding || index === activeIndex) {
+        return;
+      }
+
+      setIsSliding(true);
+      setActiveIndex(index);
+      setTrackIndex(index);
+    },
+    [activeIndex, isSliding],
+  );
+
+  const handleTrackTransitionEnd = useCallback(
+    (event: TransitionEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget || event.propertyName !== 'transform') {
+        return;
+      }
+
+      if (trackIndex === slides.length) {
+        setIsTransitionEnabled(false);
+        setTrackIndex(0);
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setIsTransitionEnabled(true);
+            setIsSliding(false);
+          });
+        });
+        return;
+      }
+
+      setIsSliding(false);
+    },
+    [trackIndex],
+  );
+
+  useEffect(() => {
+    videoRefs.current.forEach((video, index) => {
+      if (!video) {
+        return;
+      }
+
+      if (index === trackIndex) {
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {
+            // keep slider alive via fallback timer below
+          });
+        }
+      } else {
+        video.pause();
+      }
+    });
+  }, [trackIndex]);
 
   useEffect(() => {
     if (timerRef.current) {
@@ -208,39 +273,31 @@ export function Hero() {
       timerRef.current = null;
     }
 
-    if (activeSlide.type === 'image') {
-      timerRef.current = window.setTimeout(() => {
-        goToNext();
-      }, activeSlide.durationMs);
-    } 
+    if (!isSliding) {
+      if (activeSlide.type === 'image') {
+        timerRef.current = window.setTimeout(() => {
+          goToNext();
+        }, activeSlide.durationMs);
+      } else {
+        const activeVideo = videoRefs.current[trackIndex];
+        const durationMs =
+          activeVideo && Number.isFinite(activeVideo.duration) && activeVideo.duration > 0
+            ? activeVideo.duration * 1000
+            : 12000;
+
+        timerRef.current = window.setTimeout(() => {
+          goToNext();
+        }, durationMs);
+      }
+    }
 
     return () => {
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
       }
     };
-  }, [activeSlide]);
+  }, [activeSlide, goToNext, isSliding, trackIndex]);
 
-  const isLightTone = activeSlide.tone === 'light';
-
-  const textColorClass = isLightTone ? 'text-white' : 'text-[#111827]';
-  const subTextColorClass = isLightTone ? 'text-white/80' : 'text-[#6B7280]';
-  const eyebrowClass = isLightTone ? 'text-white/85' : 'text-[#111827]/75';
-  const buttonClass = isLightTone
-    ? 'bg-white text-[#111827] border border-white/80 hover:bg-white/90'
-    : 'bg-[#111827] text-white border border-[#111827] hover:bg-[#0B1220]';
-  const textBox = activeSlide.textBox;
-  const contentWidthClass = getContentWidth(activeSlide.contentPosition);
-  const textAlignClass = textBox?.align
-    ? textBox.align === 'center'
-      ? 'text-center'
-      : textBox.align === 'right'
-      ? 'text-right'
-      : 'text-left'
-    : getContentAlignment(activeSlide.contentPosition);
-
-  const contentLayoutClass =
-    activeSlide.contentLayoutClassName ?? `items-center ${getContentLayout(activeSlide.contentPosition)}`;
   return (
     <section
       className="relative overflow-hidden"
@@ -250,120 +307,146 @@ export function Hero() {
         minHeight: 620,
       }}
     >
-      <div className="absolute inset-0">
-        {slides.map((slide, index) => {
-          const isActive = index === activeIndex;
+      <div className="absolute inset-0 overflow-hidden">
+        <div
+          className="flex h-full w-full"
+          style={{
+            transform: `translateX(-${trackIndex * 100}%)`,
+            transition: isTransitionEnabled
+              ? `transform ${SLIDE_TRANSITION_MS}ms ${SLIDE_TRANSITION_EASING}`
+              : 'none',
+            willChange: 'transform',
+          }}
+          onTransitionEnd={handleTrackTransitionEnd}
+        >
+          {slidesWithLoop.map((slide, index) => {
+            const logicalIndex = index === slides.length ? 0 : index;
+            const isTrackActive = index === trackIndex;
+            const isLightTone = slide.tone === 'light';
 
-          return (
-            <div
-              key={slide.id}
-              className={`absolute inset-0 transition-opacity duration-700 ${
-                isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-              }`}
-            >
-              {slide.type === 'video' ? (
-                <video
-                  key={`${slide.id}-${isActive ? 'active' : 'inactive'}`}
-                  className={`absolute inset-0 h-full w-full ${slide.mediaClassName ?? 'object-cover'}`}
-                  src={slide.src}
-                  poster={slide.poster}
-                  autoPlay={isActive}
-                  muted
-                  playsInline
-                  preload="metadata"
-                  onEnded={() => {
-                    if (isActive) goToNext();
-                  }}
-                />
-              ) : (
-                <img
-                  src={slide.src}
-                  alt=""
-                  className={`absolute inset-0 h-full w-full ${slide.mediaClassName ?? 'object-cover'}`}
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                />
-              )}
+            const textColorClass = isLightTone ? 'text-white' : 'text-[#111827]';
+            const subTextColorClass = isLightTone ? 'text-white/80' : 'text-[#6B7280]';
+            const eyebrowClass = isLightTone ? 'text-white/85' : 'text-[#111827]/75';
+            const buttonClass = isLightTone
+              ? 'bg-white text-[#111827] border border-white/80 hover:bg-white/90'
+              : 'bg-[#111827] text-white border border-[#111827] hover:bg-[#0B1220]';
+            const textBox = slide.textBox;
+            const contentWidthClass = getContentWidth(slide.contentPosition);
+            const textAlignClass = textBox?.align
+              ? textBox.align === 'center'
+                ? 'text-center'
+                : textBox.align === 'right'
+                ? 'text-right'
+                : 'text-left'
+              : getContentAlignment(slide.contentPosition);
+            const contentLayoutClass =
+              slide.contentLayoutClassName ?? `items-center ${getContentLayout(slide.contentPosition)}`;
 
-              <div className={`absolute inset-0 ${slide.overlayClassName ?? ''}`} />
-              <div className="absolute inset-0 bg-gradient-to-r from-white/6 via-transparent to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/3 via-transparent to-transparent" />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="relative z-20 h-full">
-        <div className="mx-auto flex h-full max-w-[1440px] px-6 lg:px-10">
-          <div
-            className={`flex w-full ${contentLayoutClass}`}
-          >
-            {activeSlide.content ? (
+            return (
               <div
-                className={`${contentWidthClass} ${activeSlide.contentClassName ?? ''} ${textColorClass} ${textAlignClass}`}
-                style={{
-                  maxWidth: textBox?.maxWidth ? `${textBox.maxWidth}px` : undefined,
-                  transform: `translate(${textBox?.x ?? 0}px, ${textBox?.y ?? 0}px)`,
-                }}
+                key={`${slide.id}-${index === slides.length ? 'loop' : 'slide'}`}
+                className="relative h-full w-full shrink-0"
               >
-                <div className="space-y-4 sm:space-y-5">
-                  {activeSlide.content.eyebrow ? (
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-[0.14em] ${eyebrowClass}`}
-                    >
-                      {activeSlide.content.eyebrow}
-                    </p>
-                  ) : null}
+                {slide.type === 'video' ? (
+                  <video
+                    ref={(node) => {
+                      videoRefs.current[index] = node;
+                    }}
+                    className={`absolute inset-0 h-full w-full ${slide.mediaClassName ?? 'object-cover'}`}
+                    src={slide.src}
+                    poster={slide.poster}
+                    autoPlay={isTrackActive}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    onEnded={() => {
+                      if (isTrackActive) goToNext();
+                    }}
+                  />
+                ) : (
+                  <img
+                    src={slide.src}
+                    alt=""
+                    className={`absolute inset-0 h-full w-full ${slide.mediaClassName ?? 'object-cover'}`}
+                    loading={logicalIndex === 0 ? 'eager' : 'lazy'}
+                  />
+                )}
 
-                  <h1
-                    className={`text-4xl font-semibold tracking-[-0.04em] sm:text-5xl ${
-                      activeSlide.titleClassName ?? 'lg:text-[72px] leading-[0.95]'
-                    }`}
-                  >
-                    {activeSlide.content.title}
-                  </h1>
+                <div className={`absolute inset-0 ${slide.overlayClassName ?? ''}`} />
+                <div className="absolute inset-0 bg-gradient-to-r from-white/6 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/3 via-transparent to-transparent" />
 
-                  {activeSlide.content.description ? (
-                    <p
-                      className={`text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
-                        activeSlide.descriptionClassName ?? 'max-w-[480px]'
-                      }`}
-                    >
-                      {activeSlide.content.description}
-                    </p>
-                  ) : null}
+                <div className="absolute inset-0 z-20 h-full">
+                  <div className="mx-auto flex h-full max-w-[1440px] px-6 lg:px-10">
+                    <div className={`flex w-full ${contentLayoutClass}`}>
+                      {slide.content ? (
+                        <div
+                          className={`${contentWidthClass} ${slide.contentClassName ?? ''} ${textColorClass} ${textAlignClass}`}
+                          style={{
+                            maxWidth: textBox?.maxWidth ? `${textBox.maxWidth}px` : undefined,
+                            transform: `translate(${textBox?.x ?? 0}px, ${textBox?.y ?? 0}px)`,
+                          }}
+                        >
+                          <div className="space-y-4 sm:space-y-5">
+                            {slide.content.eyebrow ? (
+                              <p className={`text-xs font-semibold uppercase tracking-[0.14em] ${eyebrowClass}`}>
+                                {slide.content.eyebrow}
+                              </p>
+                            ) : null}
 
-                  {activeSlide.content.buttonText ? (
-                    <div>
-                      <button
-                        type="button"
-                        className={`group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-colors duration-200 ${buttonClass}`}
-                      >
-                        <span>{activeSlide.content.buttonText}</span>
-                        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                      </button>
+                            <h1
+                              className={`text-4xl font-semibold tracking-[-0.04em] sm:text-5xl ${
+                                slide.titleClassName ?? 'lg:text-[72px] leading-[0.95]'
+                              }`}
+                            >
+                              {slide.content.title}
+                            </h1>
+
+                            {slide.content.description ? (
+                              <p
+                                className={`text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
+                                  slide.descriptionClassName ?? 'max-w-[480px]'
+                                }`}
+                              >
+                                {slide.content.description}
+                              </p>
+                            ) : null}
+
+                            {slide.content.buttonText ? (
+                              <div>
+                                <button
+                                  type="button"
+                                  className={`group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-colors duration-200 ${buttonClass}`}
+                                >
+                                  <span>{slide.content.buttonText}</span>
+                                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
+                  </div>
                 </div>
               </div>
-            ) : null}
-          </div>
+            );
+          })}
         </div>
+      </div>
 
-        <div className="absolute bottom-8 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
-          {slides.map((slide, index) => (
-            <button
-              key={slide.id}
-              type="button"
-              onClick={() => goToSlide(index)}
-              aria-label={`Перейти к баннеру ${index + 1}`}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                index === activeIndex
-                  ? 'w-8 bg-black'
-                  : 'w-2 bg-black/30 hover:bg-black/50'
-              }`}
-            />
-          ))}
-        </div>
+      <div className="absolute bottom-8 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
+        {slides.map((slide, index) => (
+          <button
+            key={slide.id}
+            type="button"
+            onClick={() => goToSlide(index)}
+            aria-label={`Go to banner ${index + 1}`}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              index === activeIndex ? 'w-8 bg-black' : 'w-2 bg-black/30 hover:bg-black/50'
+            }`}
+          />
+        ))}
       </div>
     </section>
   );
