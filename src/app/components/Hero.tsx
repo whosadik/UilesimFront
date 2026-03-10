@@ -13,6 +13,13 @@ import banner5 from '../../assets/darling.png';
 type SlideContentPosition = 'left' | 'center' | 'right';
 type SlideTone = 'dark' | 'light';
 
+type SlideTextBox = {
+  x?: number;         // сдвиг по X в px
+  y?: number;         // сдвиг по Y в px
+  maxWidth?: number;  // ширина блока
+  align?: 'left' | 'center' | 'right';
+};
+
 type SlideBase = {
   id: string;
   tone: SlideTone;
@@ -23,6 +30,7 @@ type SlideBase = {
   contentClassName?: string;
   titleClassName?: string;
   descriptionClassName?: string;
+  textBox?: SlideTextBox;
   content?: {
     eyebrow?: string;
     title: string;
@@ -95,8 +103,12 @@ const slides: HeroSlide[] = [
   contentPosition: 'left',
   overlayClassName: 'bg-gradient-to-r from-white/10 via-transparent to-transparent',
   mediaClassName: 'object-cover',
-  contentLayoutClassName: 'items-center justify-start',
-  contentClassName: 'max-w-[360px] ml-8 lg:ml-24 mt-16 lg:mt-20 text-left',
+  textBox: {
+    x: -1000,
+    y: 0,
+    maxWidth: 360,
+    align: 'left',
+  },
   titleClassName: 'lg:text-[56px] leading-[0.94]',
   descriptionClassName: 'max-w-[320px]',
   content: {
@@ -117,6 +129,12 @@ const slides: HeroSlide[] = [
   mediaClassName: 'object-cover',
   contentLayoutClassName: 'items-center justify-end',
   contentClassName: 'max-w-[430px] mr-10 lg:mr-24 mt-24 lg:mt-28 text-left',
+  textBox: {
+    x: -100,
+    y: -100,
+    maxWidth: 360,
+    align: 'left',
+  },
   titleClassName: 'lg:text-[62px] leading-[0.94]',
   descriptionClassName: 'max-w-[360px]',
   content: {
@@ -138,6 +156,12 @@ const slides: HeroSlide[] = [
     contentLayoutClassName: 'items-center justify-start',
     contentClassName: 'max-w-[380px] ml-4 lg:ml-16 text-left',
     titleClassName: 'lg:text-[60px] leading-[0.95]',
+    textBox: {
+      x: -100,
+      y: -50,
+      maxWidth: 360,
+      align: 'left',
+  },
     descriptionClassName: 'max-w-[340px]',
     content: {
       eyebrow: 'Darling',
@@ -183,7 +207,7 @@ export function Hero() {
       timerRef.current = window.setTimeout(() => {
         goToNext();
       }, activeSlide.durationMs);
-    }
+    } 
 
     return () => {
       if (timerRef.current) {
@@ -202,7 +226,14 @@ export function Hero() {
     activeSlide.tone === 'light'
       ? 'bg-white text-black hover:bg-white/90'
       : 'bg-black text-white hover:bg-black/90';
+  const textBox = activeSlide.textBox;
 
+const textAlignClass =
+  textBox?.align === 'center'
+    ? 'text-center'
+    : textBox?.align === 'right'
+    ? 'text-right'
+    : 'text-left';
   return (
     <section
       className="relative overflow-hidden"
@@ -263,10 +294,12 @@ export function Hero() {
           >
             {activeSlide.content ? (
               <div
-                className={`${
-                  activeSlide.contentClassName ?? 'max-w-[520px] text-left'
-                } ${textColorClass}`}
-              >
+  className={`${activeSlide.contentClassName ?? ''} ${textColorClass} ${textAlignClass}`}
+  style={{
+    maxWidth: textBox?.maxWidth ? `${textBox.maxWidth}px` : '520px',
+    transform: `translate(${textBox?.x ?? 0}px, ${textBox?.y ?? 0}px)`,
+  }}
+>
                 <div className="space-y-4">
                   {activeSlide.content.eyebrow ? (
                     <p className="text-sm font-medium uppercase tracking-[0.14em] opacity-80">
