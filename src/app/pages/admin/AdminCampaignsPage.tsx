@@ -18,7 +18,7 @@ import { listCampaigns } from '../../../shared/api/adminCampaigns';
 interface Campaign {
   id: string;
   name: string;
-  status: 'active' | 'draft' | 'paused' | 'ended';
+  status: 'active' | 'paused';
   start: string;
   end: string;
   budget: number;
@@ -144,7 +144,7 @@ export default function AdminCampaignsPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 mb-4">
         <Filter className="w-4 h-4 text-gray-400" />
-        {['all', 'active', 'draft', 'paused', 'ended'].map((s) => (
+        {['all', 'active', 'paused'].map((s) => (
           <button
             key={s}
             onClick={() => setStatus(s)}

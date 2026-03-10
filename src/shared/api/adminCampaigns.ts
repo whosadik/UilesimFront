@@ -83,3 +83,12 @@ export function patchCampaign(id: number | string, payload: Record<string, unkno
     },
   );
 }
+
+export function publishCampaign(id: number | string) {
+  return apiFetch<Campaign | { ok?: boolean; campaign?: Campaign; [k: string]: unknown }>(
+    `/api/admin/campaigns/${id}/publish`,
+    {
+      method: 'POST',
+    },
+  );
+}

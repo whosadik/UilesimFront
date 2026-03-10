@@ -4,7 +4,7 @@ import { ChevronLeft, Save, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
-import { createCampaign, getCampaign, patchCampaign } from '../../../shared/api/adminCampaigns';
+import { createCampaign, getCampaign, patchCampaign, publishCampaign } from '../../../shared/api/adminCampaigns';
 
 /**
  * DEV NOTES:
@@ -177,7 +177,35 @@ export default function AdminCampaignDetailPage() {
   };
 
   const handlePublish = () => {
-    toast.error('Публикация пока не доступна в API.');
+    if (!id || id === 'new') {
+      toast.error('Сначала сохраните кампанию, затем публикуйте.');
+      return;
+    }
+
+    setSaving(true);
+    setValidationError('');
+
+    void (async () => {
+      try {
+        const response = await publishCampaign(id);
+        if (response && typeof response === 'object') {
+          setForm(parseCampaign(response as Record<string, unknown>));
+        }
+        toast.success('Кампания опубликована');
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (error instanceof Error) {
+          setValidationError(error.message);
+          toast.error(error.message);
+        }
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
 
   const update = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));

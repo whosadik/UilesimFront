@@ -26,13 +26,20 @@ const actionColors: Record<string, string> = {
   publish: 'bg-blue-50 text-blue-700',
   start: 'bg-blue-50 text-blue-700',
   update: 'bg-amber-50 text-amber-700',
+  checkout: 'bg-blue-50 text-blue-700',
+  offer: 'bg-purple-50 text-purple-700',
+  next: 'bg-indigo-50 text-indigo-700',
+  cache: 'bg-orange-50 text-orange-700',
   ban: 'bg-red-50 text-red-700',
   invalidate: 'bg-orange-50 text-orange-700',
   retrain: 'bg-purple-50 text-purple-700',
 };
 
 function getActionColor(action: string) {
-  const verb = action.split('.')[1] || '';
+  const verb =
+    action.split('.')[1] ||
+    action.split('_')[0] ||
+    '';
   return actionColors[verb] || 'bg-gray-100 text-gray-600';
 }
 
