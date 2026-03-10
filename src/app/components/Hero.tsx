@@ -104,7 +104,7 @@ const slides: HeroSlide[] = [
   overlayClassName: 'bg-gradient-to-r from-white/10 via-transparent to-transparent',
   mediaClassName: 'object-cover',
   textBox: {
-    x: -1000,
+    x: -36,
     y: 0,
     maxWidth: 360,
     align: 'left',
@@ -130,8 +130,8 @@ const slides: HeroSlide[] = [
   contentLayoutClassName: 'items-center justify-end',
   contentClassName: 'max-w-[430px] mr-10 lg:mr-24 mt-24 lg:mt-28 text-left',
   textBox: {
-    x: -100,
-    y: -100,
+    x: -28,
+    y: -26,
     maxWidth: 360,
     align: 'left',
   },
@@ -157,8 +157,8 @@ const slides: HeroSlide[] = [
     contentClassName: 'max-w-[380px] ml-4 lg:ml-16 text-left',
     titleClassName: 'lg:text-[60px] leading-[0.95]',
     textBox: {
-      x: -100,
-      y: -50,
+      x: -20,
+      y: -14,
       maxWidth: 360,
       align: 'left',
   },
@@ -172,15 +172,20 @@ const slides: HeroSlide[] = [
   },
 ];
 
+function getContentLayout(position: SlideContentPosition) {
+  if (position === 'left') return 'justify-start';
+  if (position === 'center') return 'justify-center';
+  return 'justify-end';
+}
+
 function getContentAlignment(position: SlideContentPosition) {
-  if (position === 'left') return 'justify-start text-left';
-  if (position === 'center') return 'justify-center text-center';
-  return 'justify-end text-left';
+  if (position === 'center') return 'text-center';
+  return 'text-left';
 }
 
 function getContentWidth(position: SlideContentPosition) {
-  if (position === 'center') return 'max-w-[680px] mx-auto';
-  return 'max-w-[520px]';
+  if (position === 'center') return 'max-w-[720px]';
+  return 'max-w-[560px]';
 }
 
 export function Hero() {
@@ -216,24 +221,26 @@ export function Hero() {
     };
   }, [activeSlide]);
 
-  const textColorClass =
-    activeSlide.tone === 'light' ? 'text-white' : 'text-neutral-950';
+  const isLightTone = activeSlide.tone === 'light';
 
-  const subTextColorClass =
-    activeSlide.tone === 'light' ? 'text-white/85' : 'text-neutral-700';
-
-  const buttonClass =
-    activeSlide.tone === 'light'
-      ? 'bg-white text-black hover:bg-white/90'
-      : 'bg-black text-white hover:bg-black/90';
+  const textColorClass = isLightTone ? 'text-white' : 'text-[#111827]';
+  const subTextColorClass = isLightTone ? 'text-white/80' : 'text-[#6B7280]';
+  const eyebrowClass = isLightTone ? 'text-white/85' : 'text-[#111827]/75';
+  const buttonClass = isLightTone
+    ? 'bg-white text-[#111827] border border-white/80 hover:bg-white/90'
+    : 'bg-[#111827] text-white border border-[#111827] hover:bg-[#0B1220]';
   const textBox = activeSlide.textBox;
+  const contentWidthClass = getContentWidth(activeSlide.contentPosition);
+  const textAlignClass = textBox?.align
+    ? textBox.align === 'center'
+      ? 'text-center'
+      : textBox.align === 'right'
+      ? 'text-right'
+      : 'text-left'
+    : getContentAlignment(activeSlide.contentPosition);
 
-const textAlignClass =
-  textBox?.align === 'center'
-    ? 'text-center'
-    : textBox?.align === 'right'
-    ? 'text-right'
-    : 'text-left';
+  const contentLayoutClass =
+    activeSlide.contentLayoutClassName ?? `items-center ${getContentLayout(activeSlide.contentPosition)}`;
   return (
     <section
       className="relative overflow-hidden"
@@ -288,39 +295,39 @@ const textAlignClass =
       <div className="relative z-20 h-full">
         <div className="mx-auto flex h-full max-w-[1440px] px-6 lg:px-10">
           <div
-            className={`flex w-full ${
-              activeSlide.contentLayoutClassName ?? 'items-center justify-end'
-            }`}
+            className={`flex w-full ${contentLayoutClass}`}
           >
             {activeSlide.content ? (
               <div
-  className={`${activeSlide.contentClassName ?? ''} ${textColorClass} ${textAlignClass}`}
-  style={{
-    maxWidth: textBox?.maxWidth ? `${textBox.maxWidth}px` : '520px',
-    transform: `translate(${textBox?.x ?? 0}px, ${textBox?.y ?? 0}px)`,
-  }}
->
-                <div className="space-y-4">
+                className={`${contentWidthClass} ${activeSlide.contentClassName ?? ''} ${textColorClass} ${textAlignClass}`}
+                style={{
+                  maxWidth: textBox?.maxWidth ? `${textBox.maxWidth}px` : undefined,
+                  transform: `translate(${textBox?.x ?? 0}px, ${textBox?.y ?? 0}px)`,
+                }}
+              >
+                <div className="space-y-4 sm:space-y-5">
                   {activeSlide.content.eyebrow ? (
-                    <p className="text-sm font-medium uppercase tracking-[0.14em] opacity-80">
+                    <p
+                      className={`text-xs font-semibold uppercase tracking-[0.14em] ${eyebrowClass}`}
+                    >
                       {activeSlide.content.eyebrow}
                     </p>
                   ) : null}
 
                   <h1
-  className={`text-4xl font-semibold tracking-[-0.04em] sm:text-5xl ${
-    activeSlide.titleClassName ?? 'lg:text-[72px] leading-[0.95]'
-  }`}
->
+                    className={`text-4xl font-semibold tracking-[-0.04em] sm:text-5xl ${
+                      activeSlide.titleClassName ?? 'lg:text-[72px] leading-[0.95]'
+                    }`}
+                  >
                     {activeSlide.content.title}
                   </h1>
 
                   {activeSlide.content.description ? (
                     <p
-  className={`text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
-    activeSlide.descriptionClassName ?? 'max-w-[480px]'
-  }`}
->
+                      className={`text-base leading-relaxed lg:text-lg ${subTextColorClass} ${
+                        activeSlide.descriptionClassName ?? 'max-w-[480px]'
+                      }`}
+                    >
                       {activeSlide.content.description}
                     </p>
                   ) : null}
@@ -329,10 +336,10 @@ const textAlignClass =
                     <div>
                       <button
                         type="button"
-                        className={`inline-flex items-center gap-2 rounded-none px-6 py-4 text-sm font-semibold uppercase tracking-[0.08em] transition-colors ${buttonClass}`}
+                        className={`group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-colors duration-200 ${buttonClass}`}
                       >
-                        {activeSlide.content.buttonText}
-                        <ArrowRight className="h-4 w-4" />
+                        <span>{activeSlide.content.buttonText}</span>
+                        <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                       </button>
                     </div>
                   ) : null}
