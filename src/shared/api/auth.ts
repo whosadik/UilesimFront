@@ -3,6 +3,12 @@ import { apiFetch } from './httpClient';
 export interface AuthUser {
   id: number;
   username: string;
+  role?: string | null;
+  staff_role?: string | null;
+  roles?: string[] | null;
+  is_admin?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export function csrf(): Promise<{ ok: boolean; csrfToken: string }> {

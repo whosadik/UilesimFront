@@ -75,7 +75,7 @@ export function Navbar({
 }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const [megaMenuOpen, setMegaMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -113,13 +113,15 @@ export function Navbar({
               <Link to="/about" className="hover:text-[#FF4DB8] transition-colors">
                 О нас
               </Link>
-              <Link
-                to="/admin"
-                className="flex items-center gap-1 hover:text-[#FF4DB8] transition-colors font-medium text-[#111827]"
-              >
-                <Shield className="w-3 h-3" />
-                Админ
-              </Link>
+              {isAdmin ? (
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-1 hover:text-[#FF4DB8] transition-colors font-medium text-[#111827]"
+                >
+                  <Shield className="w-3 h-3" />
+                  Админ
+                </Link>
+              ) : null}
             </div>
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
               <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">

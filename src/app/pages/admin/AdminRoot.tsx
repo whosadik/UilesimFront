@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Toaster } from 'sonner';
 import {
@@ -32,15 +32,34 @@ const navItems = [
 export default function AdminRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, isLoading: isAuthLoading, logout } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userDisplayName = user?.username || 'admin';
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    if (!isAdmin) {
+      navigate('/', { replace: true });
+    }
+  }, [isAdmin, isAuthLoading, location.pathname, navigate, user]);
 
   const isActive = (item: { href: string; exact?: boolean }) => {
     if (item.exact) return location.pathname === item.href;
     return location.pathname.startsWith(item.href);
   };
+
+  if (isAuthLoading || !user || !isAdmin) {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

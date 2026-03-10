@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { Button } from "../components/Button";
 import { AlertBanner } from "../components/AlertBanner";
@@ -22,6 +22,7 @@ import { useAuth } from "../../shared/auth/AuthContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -42,9 +43,18 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(username, password);
+      const { isAdmin } = await login(username, password);
+      const state = location.state as { from?: string } | null;
+      const returnPath = typeof state?.from === "string" ? state.from : null;
+      const targetPath = isAdmin
+        ? returnPath && returnPath.startsWith("/admin")
+          ? returnPath
+          : "/admin"
+        : returnPath && !returnPath.startsWith("/admin")
+          ? returnPath
+          : "/for-you";
       toast.success("Добро пожаловать!");
-      navigate("/for-you");
+      navigate(targetPath, { replace: true });
     } catch (requestError) {
       if (requestError instanceof Error) {
         setError(requestError.message);
