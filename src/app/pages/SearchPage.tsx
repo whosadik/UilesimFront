@@ -16,13 +16,14 @@ const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672
 const NEW_PRODUCT_WINDOW_DAYS = 60;
 const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
 const MAX_RECENT_SEARCHES = 5;
+const SEARCH_DEBOUNCE_MS = 2000;
 
 const SUGGESTED_QUERIES = [
-  'Увлажняющий крем',
-  'Сыворотка с витамином C',
-  'SPF крем',
-  'Очищающий гель',
-  'Тональный крем',
+  'skincare',
+  'makeup',
+  'serum',
+  'lipstick',
+  'spf',
 ] as const;
 
 const toNumber = (value: unknown): number | undefined => {
@@ -121,6 +122,19 @@ const mapApiProductToGrid = (item: ApiProduct, index: number): Product => {
   };
 };
 
+const matchesQuery = (product: Product, rawQuery: string): boolean => {
+  const query = rawQuery.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+
+  return (
+    product.name.toLowerCase().includes(query) ||
+    product.brand.toLowerCase().includes(query) ||
+    product.category.toLowerCase().includes(query)
+  );
+};
+
 const readRecentSearches = (): string[] => {
   if (typeof window === 'undefined') {
     return [];
@@ -172,10 +186,22 @@ export default function SearchPage() {
       setLoadError(null);
 
       try {
-        const response = await listProducts(
-          query ? { search: query } : undefined,
-        );
-        const mapped = extractProducts(response).map(mapApiProductToGrid);
+        let mapped: Product[] = [];
+
+        if (query) {
+          const response = await listProducts({ search: query });
+          mapped = extractProducts(response).map(mapApiProductToGrid);
+
+          // Fallback: if backend search returned empty, try local filtering of full catalog.
+          if (mapped.length === 0) {
+            const fallbackResponse = await listProducts();
+            const allProducts = extractProducts(fallbackResponse).map(mapApiProductToGrid);
+            mapped = allProducts.filter((product) => matchesQuery(product, query));
+          }
+        } else {
+          const response = await listProducts();
+          mapped = extractProducts(response).map(mapApiProductToGrid);
+        }
 
         if (!cancelled) {
           setProducts(mapped);
@@ -223,18 +249,27 @@ export default function SearchPage() {
     setRecentSearches(updated);
   }, [query]);
 
-  const filteredProducts = useMemo(() => {
-    if (!query) {
-      return products;
+  useEffect(() => {
+    const normalized = searchInput.trim();
+    if (normalized === query) {
+      return;
     }
 
-    const lowerQuery = query.toLowerCase();
-    return products.filter((product) => {
-      const nameMatched = product.name.toLowerCase().includes(lowerQuery);
-      const brandMatched = product.brand.toLowerCase().includes(lowerQuery);
-      return nameMatched || brandMatched;
-    });
-  }, [products, query]);
+    const timeoutId = window.setTimeout(() => {
+      if (!normalized) {
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      setSearchParams({ q: normalized }, { replace: true });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [query, searchInput, setSearchParams]);
+
+  const filteredProducts = useMemo(
+    () => products.filter((product) => matchesQuery(product, query)),
+    [products, query],
+  );
 
   const popularProducts = useMemo(() => products.slice(0, 8), [products]);
 
@@ -268,7 +303,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="pt-20 lg:pt-28 min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
