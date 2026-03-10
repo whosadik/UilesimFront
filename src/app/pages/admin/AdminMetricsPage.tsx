@@ -274,6 +274,12 @@ export default function AdminMetricsPage() {
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
 
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [category, setCategory] = useState('');
+  const [offerType, setOfferType] = useState('');
+  const [channel, setChannel] = useState('');
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -293,8 +299,13 @@ export default function AdminMetricsPage() {
     setLoadError(null);
 
     try {
-      // Backend currently ignores date_from/date_to/category/offer_type/channel.
-      const response = await getAdminMetrics();
+      const response = await getAdminMetrics({
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        category: category || undefined,
+        offer_type: offerType || undefined,
+        channel: channel || undefined,
+      });
       setMetrics(adaptMetrics(response));
 
       if (notify) {
@@ -315,7 +326,7 @@ export default function AdminMetricsPage() {
 
   useEffect(() => {
     void loadMetrics();
-  }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
+  }, [category, channel, dateFrom, dateTo, isAuthLoading, location.pathname, navigate, offerType, retryKey, user]);
 
   const hasData = useMemo(() => {
     if (!metrics) {
@@ -381,29 +392,50 @@ export default function AdminMetricsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
           <input
             type="date"
-            value=""
-            disabled
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
           />
           <input
             type="date"
-            value=""
-            disabled
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
           />
-          <select disabled className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400">
-            <option>Категория</option>
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
+          >
+            <option value="">Категория</option>
+            <option value="skincare">Skincare</option>
+            <option value="makeup">Makeup</option>
+            <option value="haircare">Haircare</option>
+            <option value="fragrance">Fragrance</option>
           </select>
-          <select disabled className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400">
-            <option>Тип оффера</option>
+          <select
+            value={offerType}
+            onChange={(event) => setOfferType(event.target.value)}
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
+          >
+            <option value="">Тип оффера</option>
+            <option value="discount">Discount</option>
+            <option value="points_multiplier">Points multiplier</option>
+            <option value="gift">Gift</option>
           </select>
-          <select disabled className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-400">
-            <option>Канал</option>
+          <select
+            value={channel}
+            onChange={(event) => setChannel(event.target.value)}
+            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
+          >
+            <option value="">Канал</option>
+            <option value="offline">Offline</option>
+            <option value="online">Online</option>
+            <option value="import_synthetic">Synthetic import</option>
           </select>
         </div>
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          Не поддерживается бэкендом: <code>date_from</code>, <code>date_to</code>, <code>category</code>, <code>offer_type</code>, <code>channel</code>. Текущий{' '}
-          <code>/api/admin/metrics</code> игнорирует эти параметры.
+        <p className="text-xs text-gray-500">
+          Фильтры применяются на сервере к <code>/api/admin/metrics</code>.
         </p>
       </div>
 

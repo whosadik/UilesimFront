@@ -172,7 +172,9 @@ export default function SearchPage() {
       setLoadError(null);
 
       try {
-        const response = await listProducts();
+        const response = await listProducts(
+          query ? { search: query } : undefined,
+        );
         const mapped = extractProducts(response).map(mapApiProductToGrid);
 
         if (!cancelled) {
