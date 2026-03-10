@@ -1,11 +1,14 @@
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthProvider } from '../shared/auth/AuthContext';
+import { CommerceProvider } from '../shared/commerce/CommerceContext';
 
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <CommerceProvider>
+        <RouterProvider router={router} />
+      </CommerceProvider>
     </AuthProvider>
   );
 }

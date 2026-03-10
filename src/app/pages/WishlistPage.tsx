@@ -5,21 +5,10 @@ import { ProductGrid, type Product } from "../components/ProductGrid";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { FilterBar } from "../components/FilterBar";
-import { products } from "../data/products";
-import { listProducts } from "../../shared/api/catalog";
 import { ApiError } from "../../shared/api/ApiError";
-
-/**
- * DEV NOTES:
- * - В OpenAPI и backend routes нет /api/me/wishlist.
- * - Для карточек на странице используем GET /api/products/ как временный источник данных.
- * - Реальные операции wishlist (list/add/remove) остаются fallback до появления API-контракта.
- */
+import { getWishlist, type WishlistItem } from "../../shared/api/wishlist";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
-const FALLBACK_WISHLIST: Product[] = products.slice(0, 6);
-
-type ApiProduct = Record<string, unknown>;
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -36,28 +25,29 @@ const toNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-const mapApiProduct = (item: ApiProduct, index: number): Product => {
-  const id = item.id !== undefined && item.id !== null ? String(item.id) : `wishlist-${index}`;
-  const price = toNumber(item.price) ?? 0;
+const mapWishlistItem = (item: WishlistItem, index: number): Product => {
+  const product = item.product ?? {};
+  const id = product.id !== undefined && product.id !== null ? String(product.id) : `wishlist-${index}`;
+  const price = toNumber(product.price) ?? 0;
 
   return {
     id,
-    name: typeof item.name === "string" && item.name.trim() ? item.name : `Товар #${id}`,
-    brand: typeof item.brand === "string" && item.brand.trim() ? item.brand : "Uilesim",
+    name: typeof product.name === "string" && product.name.trim() ? product.name : `Товар #${id}`,
+    brand: typeof product.brand === "string" && product.brand.trim() ? product.brand : "Uilesim",
     price,
-    originalPrice: toNumber(item.original_price),
+    originalPrice: undefined,
     image:
-      (typeof item.image_url === "string" && item.image_url) ||
-      (typeof item.image === "string" && item.image) ||
+      (typeof product.image_url === "string" && product.image_url) ||
+      (Array.isArray(product.image_urls) && typeof product.image_urls[0] === "string" && product.image_urls[0]) ||
       FALLBACK_IMAGE,
     category:
-      (typeof item.category === "string" && item.category) ||
-      (typeof item.product_type === "string" && item.product_type) ||
+      (typeof product.category === "string" && product.category) ||
+      (typeof product.product_type === "string" && product.product_type) ||
       "skincare",
-    discount: toNumber(item.discount),
-    isNew: Boolean(item.is_new),
-    inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
-    pointsEarned: toNumber(item.points_earned),
+    discount: undefined,
+    isNew: false,
+    inStock: product.in_stock === undefined ? true : Boolean(product.in_stock),
+    pointsEarned: toNumber(product.points_earned),
   };
 };
 
@@ -68,7 +58,7 @@ export default function WishlistPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const [wishlistProducts, setWishlistProducts] = useState<Product[]>(FALLBACK_WISHLIST);
+  const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,18 +68,11 @@ export default function WishlistPage() {
       setError(null);
 
       try {
-        const response = await listProducts();
-        const items = Array.isArray(response)
-          ? response
-          : Array.isArray(response.results)
-            ? response.results
-            : [];
+        const response = await getWishlist();
+        const items = Array.isArray(response.items) ? response.items : [];
+        const mapped = items.map((item, index) => mapWishlistItem(item, index));
 
-        const mapped = items
-          .map((item, index) => mapApiProduct(item as ApiProduct, index))
-          .slice(0, 6);
-
-        if (!cancelled && mapped.length > 0) {
+        if (!cancelled) {
           setWishlistProducts(mapped);
         }
       } catch (loadError) {
@@ -102,7 +85,7 @@ export default function WishlistPage() {
           return;
         }
 
-        setWishlistProducts(FALLBACK_WISHLIST);
+        setWishlistProducts([]);
         setError(
           loadError instanceof Error
             ? loadError.message
@@ -165,7 +148,17 @@ export default function WishlistPage() {
               <FilterBar />
             </div>
 
-            <ProductGrid products={wishlistProducts} />
+            <ProductGrid
+              products={wishlistProducts}
+              onWishlistChange={(productId, isWishlisted) => {
+                if (isWishlisted) {
+                  return;
+                }
+                setWishlistProducts((current) =>
+                  current.filter((product) => String(product.id) !== String(productId)),
+                );
+              }}
+            />
 
             <div className="mt-12 p-6 bg-white rounded-xl border border-gray-100">
               <h3 className="font-semibold text-gray-900 mb-3">Совет</h3>

@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Trash2, Sparkles, ShoppingBag, ArrowRight, ChevronRight, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '../../shared/api/ApiError';
+import {
+  getCart,
+  type CartItem as ApiCartItem,
+} from '../../shared/api/cart';
 import { preview } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
+import { useCommerce } from '../../shared/commerce/CommerceContext';
 
 /**
  * DEV NOTES:
@@ -16,7 +22,7 @@ import { nextOffer } from '../../shared/api/offers';
  * - GET /api/me/next-offer
  * - POST /api/checkout/preview
  * - POST /api/checkout
- * Cart items пока остаются локальным fallback: /api/me/cart отсутствует в OpenAPI/schema-map.
+ * Cart items загружаются из /api/me/cart.
  */
 
 interface CartItem {
@@ -47,6 +53,7 @@ interface ActiveOffer {
 }
 
 const POINTS_RATE = 0.1; // 10 баллов за 100 ₸
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&q=80';
 
 const LOYALTY_TIERS = [
   { name: 'Bronze', min: 0, color: '#CD7F32' },
@@ -95,6 +102,39 @@ const parseActiveOffer = (value: unknown): ActiveOffer | null => {
     scope,
     targetValue,
     targetProductId: scope === 'product_id' ? targetValue : undefined,
+  };
+};
+
+const mapApiCartItem = (item: ApiCartItem, index: number): CartItem => {
+  const product =
+    item && typeof item.product === 'object' && item.product !== null
+      ? (item.product as Record<string, unknown>)
+      : {};
+  const productId = product.id;
+  const id =
+    (typeof productId === 'number' || typeof productId === 'string')
+      ? String(productId)
+      : `cart-${index}`;
+
+  const imageUrls = Array.isArray(product.image_urls)
+    ? product.image_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : [];
+
+  return {
+    id,
+    name:
+      (typeof product.name === 'string' && product.name.trim()) ||
+      `Товар #${id}`,
+    brand:
+      (typeof product.brand === 'string' && product.brand.trim()) ||
+      'Uilesim',
+    price: Math.max(0, Math.round(toNumber(product.price) ?? 0)),
+    quantity: Math.max(1, Math.round(toNumber(item.quantity) ?? 1)),
+    image:
+      (typeof product.image_url === 'string' && product.image_url) ||
+      imageUrls[0] ||
+      FALLBACK_IMAGE,
+    pointsEarned: Math.max(0, Math.round(toNumber(product.points_earned) ?? 0)),
   };
 };
 
@@ -171,26 +211,12 @@ function LoyaltyCartWidget({
 export default function CartPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: '1',
-      name: 'Vitamin C Serum',
-      brand: 'The Ordinary',
-      price: 1299,
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=200&q=80',
-      pointsEarned: 130,
-    },
-    {
-      id: '2',
-      name: 'Ceramide Moisturizer',
-      brand: 'CeraVe',
-      price: 1450,
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=200&q=80',
-      pointsEarned: 145,
-    },
-  ]);
+  const { removeFromCart, setCartQuantity } = useCommerce();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCartLoading, setIsCartLoading] = useState(true);
+  const [cartError, setCartError] = useState<string | null>(null);
+  const [cartRetryKey, setCartRetryKey] = useState(0);
+  const [pendingCartActionId, setPendingCartActionId] = useState<string | null>(null);
   const [pointsToUse, setPointsToUse] = useState(0);
   const [previewTotals, setPreviewTotals] = useState<CheckoutTotals | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -201,14 +227,54 @@ export default function CartPage() {
   const [metaError, setMetaError] = useState<string | null>(null);
   const [metaRetryKey, setMetaRetryKey] = useState(0);
 
-  const updateQuantity = (id: string, newQty: number) => {
-    setCartItems(items =>
-      items.map(item => (item.id === id ? { ...item, quantity: Math.max(1, newQty) } : item))
-    );
+  const updateQuantity = async (id: string, newQty: number) => {
+    const productId = Number(id);
+    if (!Number.isFinite(productId)) {
+      return;
+    }
+
+    if (newQty <= 0) {
+      await removeItem(id);
+      return;
+    }
+
+    setPendingCartActionId(id);
+    try {
+      const quantity = await setCartQuantity(productId, newQty);
+
+      setCartItems((items) =>
+        items.map((item) => (item.id === id ? { ...item, quantity } : item)),
+      );
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+      toast.error('Не удалось обновить количество в корзине');
+    } finally {
+      setPendingCartActionId(null);
+    }
   };
 
-  const removeItem = (id: string) => {
-    setCartItems(items => items.filter(item => item.id !== id));
+  const removeItem = async (id: string) => {
+    const productId = Number(id);
+    if (!Number.isFinite(productId)) {
+      return;
+    }
+
+    setPendingCartActionId(id);
+    try {
+      await removeFromCart(productId);
+      setCartItems((items) => items.filter((item) => item.id !== id));
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+      toast.error('Не удалось удалить товар из корзины');
+    } finally {
+      setPendingCartActionId(null);
+    }
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -222,6 +288,46 @@ export default function CartPage() {
   const summaryPointsDiscount = previewTotals?.pointsDiscount ?? pointsDiscount;
   const summaryTotal = previewTotals?.total ?? total;
   const summaryPointsEarned = previewTotals?.pointsEarned ?? totalPointsEarned;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCart = async () => {
+      setIsCartLoading(true);
+      setCartError(null);
+
+      try {
+        const response = await getCart();
+        const items = Array.isArray(response.items) ? response.items : [];
+        const mapped = items.map((item, index) => mapApiCartItem(item, index));
+        if (!cancelled) {
+          setCartItems(mapped);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        setCartItems([]);
+        setCartError('Не удалось загрузить корзину. Попробуйте еще раз.');
+      } finally {
+        if (!cancelled) {
+          setIsCartLoading(false);
+        }
+      }
+    };
+
+    loadCart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cartRetryKey, location.pathname, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -427,7 +533,21 @@ export default function CartPage() {
 
         <h1 className="text-3xl font-semibold text-[#111827] mb-8">Корзина</h1>
 
-        {cartItems.length === 0 ? (
+        {isCartLoading ? (
+          <div className="py-16">
+            <LoadingSpinner size="lg" text="Загружаем корзину..." />
+          </div>
+        ) : cartError ? (
+          <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-6">
+            <p className="text-sm text-[#B42318]">{cartError}</p>
+            <button
+              onClick={() => setCartRetryKey((value) => value + 1)}
+              className="mt-3 text-sm font-medium text-[#111827] underline underline-offset-2"
+            >
+              Повторить
+            </button>
+          </div>
+        ) : cartItems.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
               <ShoppingBag className="w-8 h-8 text-[#6B7280]" />
@@ -465,6 +585,7 @@ export default function CartPage() {
                   <div className="flex flex-col items-end gap-3 flex-shrink-0">
                     <button
                       onClick={() => removeItem(item.id)}
+                      disabled={pendingCartActionId === item.id}
                       className="text-[#6B7280] hover:text-red-400 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -473,6 +594,7 @@ export default function CartPage() {
                     <div className="flex items-center border border-[#EAE6EF] rounded-lg overflow-hidden">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        disabled={pendingCartActionId === item.id}
                         className="px-3 py-1.5 text-[#6B7280] hover:bg-gray-50 text-sm"
                       >
                         −
@@ -480,6 +602,7 @@ export default function CartPage() {
                       <span className="px-3 py-1.5 text-sm font-semibold text-[#111827]">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        disabled={pendingCartActionId === item.id}
                         className="px-3 py-1.5 text-[#6B7280] hover:bg-gray-50 text-sm"
                       >
                         +

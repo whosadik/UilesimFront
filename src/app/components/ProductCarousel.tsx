@@ -7,9 +7,18 @@ interface ProductCarouselProps {
   loading?: boolean;
   onAddToCart?: ProductCardProps['onAddToCart'];
   onEvent?: ProductCardProps['onEvent'];
+  onWishlistChange?: ProductCardProps['onWishlistChange'];
+  onCartChange?: ProductCardProps['onCartChange'];
 }
 
-export function ProductCarousel({ products, loading, onAddToCart, onEvent }: ProductCarouselProps) {
+export function ProductCarousel({
+  products,
+  loading,
+  onAddToCart,
+  onEvent,
+  onWishlistChange,
+  onCartChange,
+}: ProductCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -53,6 +62,8 @@ export function ProductCarousel({ products, loading, onAddToCart, onEvent }: Pro
                 variant="carousel"
                 onAddToCart={onAddToCart}
                 onEvent={onEvent}
+                onWishlistChange={onWishlistChange}
+                onCartChange={onCartChange}
               />
             </div>
           ))

@@ -1,6 +1,9 @@
 import { Heart, ShoppingCart, Plus, Minus, Sparkles } from 'lucide-react';
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { toast } from 'sonner';
+import { ApiError } from '../../shared/api/ApiError';
+import { useCommerce } from '../../shared/commerce/CommerceContext';
 import { Badge } from './Badge';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
@@ -38,6 +41,8 @@ export interface ProductCardProps {
   variant?: 'grid' | 'carousel' | 'list';
   onAddToCart?: (id: string, quantity: number) => void;
   onEvent?: (eventType: string, data: any) => void;
+  onWishlistChange?: (id: string, isWishlisted: boolean) => void;
+  onCartChange?: (id: string, quantity: number) => void;
 }
 
 const toNumber = (value: unknown): number | undefined => {
@@ -79,14 +84,22 @@ export function ProductCard({
   variant = 'grid',
   onAddToCart,
   onEvent,
+  onWishlistChange,
+  onCartChange,
 }: ProductCardProps) {
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [inCart, setInCart] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { addToCart, getCartQuantity, isInWishlist, setCartQuantity, toggleWishlist } = useCommerce();
   const [quantity, setQuantity] = useState(1);
+  const [isWishlistPending, setIsWishlistPending] = useState(false);
+  const [isCartPending, setIsCartPending] = useState(false);
 
   const productId = String(product.id);
   const numericId = toNumber(product.id);
   const eventProductId = numericId !== undefined ? numericId : productId;
+  const favorite = isInWishlist(productId);
+  const cartQuantity = getCartQuantity(productId);
+  const inCart = cartQuantity > 0;
 
   const productName =
     typeof product.name === 'string' && product.name.trim() ? product.name : `Товар #${productId}`;
@@ -127,31 +140,92 @@ export function ProductCard({
       ? Math.max(0, Math.min(100, Math.round(recommendationScoreRaw)))
       : undefined;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setInCart(true);
-    onAddToCart?.(productId, quantity);
-    onEvent?.('add_to_cart', { product_id: eventProductId, quantity });
-  };
+  useEffect(() => {
+    if (cartQuantity > 0) {
+      setQuantity(cartQuantity);
+      return;
+    }
+    setQuantity(1);
+  }, [cartQuantity]);
 
-  const handleQuantityChange = (newQty: number, e: React.MouseEvent) => {
+  const isAuthError = (error: unknown): error is ApiError =>
+    error instanceof ApiError && (error.status === 401 || error.status === 403);
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (newQty === 0) {
-      setInCart(false);
-      setQuantity(1);
-    } else {
-      setQuantity(newQty);
-      onAddToCart?.(productId, newQty);
+
+    if (isCartPending || inStock === false) {
+      return;
+    }
+
+    setIsCartPending(true);
+    try {
+      const nextQuantity = await addToCart(productId, quantity);
+      setQuantity(nextQuantity > 0 ? nextQuantity : quantity);
+      onAddToCart?.(productId, quantity);
+      onCartChange?.(productId, nextQuantity);
+      onEvent?.('add_to_cart', { product_id: eventProductId, quantity });
+    } catch (error) {
+      if (isAuthError(error)) {
+        navigate('/login', { replace: true, state: { from: `${location.pathname}${location.search}` } });
+        return;
+      }
+      toast.error('Не удалось добавить товар в корзину');
+    } finally {
+      setIsCartPending(false);
     }
   };
 
-  const toggleFavorite = (e: React.MouseEvent) => {
+  const handleQuantityChange = async (newQty: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
-    onEvent?.('wishlist_toggle', { product_id: eventProductId, added: !isFavorite });
+
+    if (isCartPending) {
+      return;
+    }
+
+    setIsCartPending(true);
+    try {
+      const nextQuantity = await setCartQuantity(productId, newQty);
+      setQuantity(nextQuantity > 0 ? nextQuantity : 1);
+      if (nextQuantity > 0) {
+        onAddToCart?.(productId, nextQuantity);
+      }
+      onCartChange?.(productId, nextQuantity);
+    } catch (error) {
+      if (isAuthError(error)) {
+        navigate('/login', { replace: true, state: { from: `${location.pathname}${location.search}` } });
+        return;
+      }
+      toast.error('Не удалось обновить корзину');
+    } finally {
+      setIsCartPending(false);
+    }
+  };
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isWishlistPending) {
+      return;
+    }
+
+    setIsWishlistPending(true);
+    try {
+      const nextWishlisted = await toggleWishlist(productId);
+      onWishlistChange?.(productId, nextWishlisted);
+      onEvent?.('wishlist_toggle', { product_id: eventProductId, added: nextWishlisted });
+    } catch (error) {
+      if (isAuthError(error)) {
+        navigate('/login', { replace: true, state: { from: `${location.pathname}${location.search}` } });
+        return;
+      }
+      toast.error('Не удалось обновить избранное');
+    } finally {
+      setIsWishlistPending(false);
+    }
   };
 
   if (variant === 'list') {
@@ -178,7 +252,8 @@ export function ProductCard({
 
           <button
             onClick={handleAddToCart}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-[#111827] text-white hover:bg-[#0B1220] transition-colors"
+            disabled={isCartPending}
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-[#111827] text-white hover:bg-[#0B1220] transition-colors disabled:opacity-60"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -211,10 +286,11 @@ export function ProductCard({
             </div>
 
             <button
-              onClick={toggleFavorite}
-              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white hover:scale-110 transition-all"
+              onClick={handleWishlistToggle}
+              disabled={isWishlistPending}
+              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white hover:scale-110 transition-all disabled:opacity-60"
             >
-              <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'}`} />
+              <Heart className={`w-3.5 h-3.5 ${favorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'}`} />
             </button>
           </div>
 
@@ -240,7 +316,7 @@ export function ProductCard({
 
             <button
               onClick={handleAddToCart}
-              disabled={inStock === false}
+              disabled={inStock === false || isCartPending}
               className="w-full h-9 flex items-center justify-center rounded-lg bg-[#111827] text-white text-xs font-medium hover:bg-[#0B1220] transition-colors disabled:bg-gray-100 disabled:text-[#6B7280] disabled:cursor-not-allowed"
             >
               {inStock === false ? 'Нет' : <Plus className="w-4 h-4" />}
@@ -283,12 +359,13 @@ export function ProductCard({
           </div>
 
           <button
-            onClick={toggleFavorite}
-            className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white hover:scale-110 transition-all"
+            onClick={handleWishlistToggle}
+            disabled={isWishlistPending}
+            className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white hover:scale-110 transition-all disabled:opacity-60"
           >
             <Heart
               className={`w-4 h-4 transition-colors ${
-                isFavorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'
+                favorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'
               }`}
             />
           </button>
@@ -347,14 +424,16 @@ export function ProductCard({
             <div className="flex items-center justify-between h-11 rounded-xl border-2 border-[#111827] overflow-hidden">
               <button
                 onClick={(e) => handleQuantityChange(quantity - 1, e)}
-                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors"
+                disabled={isCartPending}
+                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors disabled:opacity-60"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <span className="px-4 font-semibold text-[#111827]">{quantity}</span>
               <button
                 onClick={(e) => handleQuantityChange(quantity + 1, e)}
-                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors"
+                disabled={isCartPending}
+                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors disabled:opacity-60"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -362,6 +441,7 @@ export function ProductCard({
           ) : (
             <button
               onClick={handleAddToCart}
+              disabled={isCartPending}
               className="w-full h-11 rounded-xl bg-[#111827] text-white text-sm font-medium hover:bg-[#0B1220] hover:shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <ShoppingCart className="w-4 h-4" />В корзину

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
+import { toast } from 'sonner';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
@@ -9,6 +10,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { getProduct } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { bundle as getBundleRecommendations, type BundleRecsResponse, type RecItem } from '../../shared/api/recommendations';
+import { useCommerce } from '../../shared/commerce/CommerceContext';
 
 interface ProductViewModel {
   id: string;
@@ -195,11 +197,14 @@ export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { addToCart, getCartQuantity, isInWishlist, toggleWishlist } = useCommerce();
 
   const [product, setProduct] = useState<ProductViewModel | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [isWishlistPending, setIsWishlistPending] = useState(false);
+  const [isCartPending, setIsCartPending] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRecommendationsLoading, setIsRecommendationsLoading] = useState(true);
@@ -292,9 +297,54 @@ export default function ProductPage() {
     };
   }, [id, location.pathname, navigate, retryKey]);
 
-  const handleAddToCart = () => {
-    // /api/me/cart отсутствует в текущем backend-контракте, сохраняем fallback-навигацию.
-    navigate('/cart');
+  const cartQuantity = product ? getCartQuantity(product.id) : 0;
+  const isProductInWishlist = product ? isInWishlist(product.id) : false;
+
+  useEffect(() => {
+    if (cartQuantity > 0) {
+      setQuantity(cartQuantity);
+      return;
+    }
+    setQuantity(1);
+  }, [cartQuantity]);
+
+  const handleAddToCart = async () => {
+    if (!product || isCartPending) {
+      return;
+    }
+
+    setIsCartPending(true);
+    try {
+      await addToCart(product.id, quantity);
+      navigate('/cart');
+    } catch (error) {
+      if (isAuthError(error)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+      toast.error('Не удалось добавить товар в корзину');
+    } finally {
+      setIsCartPending(false);
+    }
+  };
+
+  const handleWishlistToggle = async () => {
+    if (!product || isWishlistPending) {
+      return;
+    }
+
+    setIsWishlistPending(true);
+    try {
+      await toggleWishlist(product.id);
+    } catch (error) {
+      if (isAuthError(error)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+      toast.error('Не удалось обновить избранное');
+    } finally {
+      setIsWishlistPending(false);
+    }
   };
 
   if (isLoading && !product) {
@@ -427,13 +477,17 @@ export default function ProductPage() {
                 </button>
               </div>
 
-              <Button variant="primary" className="flex-1" onClick={handleAddToCart}>
+              <Button variant="primary" className="flex-1" onClick={handleAddToCart} disabled={isCartPending}>
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                В корзину
+                {isCartPending ? 'Добавляем...' : 'В корзину'}
               </Button>
 
-              <button className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#EAE6EF] text-[#6B7280] hover:border-[#FF4DB8] hover:text-[#FF4DB8] transition-colors">
-                <Heart className="w-5 h-5" />
+              <button
+                onClick={handleWishlistToggle}
+                disabled={isWishlistPending}
+                className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#EAE6EF] text-[#6B7280] hover:border-[#FF4DB8] hover:text-[#FF4DB8] transition-colors disabled:opacity-60"
+              >
+                <Heart className={`w-5 h-5 ${isProductInWishlist ? 'fill-[#FF4DB8] text-[#FF4DB8]' : ''}`} />
               </button>
             </div>
 
