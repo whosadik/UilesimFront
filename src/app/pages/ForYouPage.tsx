@@ -11,6 +11,19 @@ import { ApiError } from '../../shared/api/ApiError';
 import { getLoyalty, getProfile, updateProfile } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
+import {
+  clickRoadmapStep,
+  getRoadmap,
+  type RoadmapPlanApi,
+  type RoadmapStepApi,
+  type RoadmapStepSnapshotApi,
+  type RoadmapSummaryApi,
+} from '../../shared/api/roadmap';
+import {
+  DEFAULT_ROADMAP_STEP_META,
+  ROADMAP_CATEGORY_LABELS,
+  getRoadmapStepMeta,
+} from '../../shared/roadmap/presentation';
 
 /**
  * DEV NOTES:
@@ -181,6 +194,387 @@ const toStringArray = (value: unknown): string[] => {
   }
 
   return [];
+};
+
+const toTextList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const firstString = (...values: unknown[]): string | undefined => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && item.trim().length > 0) {
+          return item.trim();
+        }
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const ROADMAP_CATEGORIES = new Set(['skincare', 'haircare', 'makeup', 'fragrance']);
+
+const normalizeRoadmapCategory = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return ROADMAP_CATEGORIES.has(normalized) ? normalized : undefined;
+};
+
+const formatCategoryLabel = (value: unknown): string | undefined => {
+  const normalized = normalizeRoadmapCategory(value);
+  if (normalized) {
+    return ROADMAP_CATEGORY_LABELS[normalized] ?? normalized;
+  }
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const prepared = value.trim().replace(/_/g, ' ');
+  return prepared[0].toUpperCase() + prepared.slice(1);
+};
+
+const formatProductTypeLabel = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const prepared = value.trim().replace(/_/g, ' ');
+  return prepared[0].toUpperCase() + prepared.slice(1);
+};
+
+const formatOfferValueLabel = (value: number): string => {
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value.toFixed(1);
+};
+
+const isAuthError = (error: unknown): error is ApiError =>
+  error instanceof ApiError && (error.status === 401 || error.status === 403);
+
+type PersonalOfferCard = {
+  assignmentId?: number;
+  title: string;
+  description: string;
+  highlight: string;
+  expiresAt: Date | null;
+};
+
+type RoadmapLikeStep = RoadmapStepApi | RoadmapStepSnapshotApi;
+
+type RoadmapOverview = {
+  nextStepId?: number;
+  nextStepTitle: string;
+  nextStepDescription: string;
+  nextStepWhy: string;
+  nextStepPoints?: number;
+  currentStepIndex: number;
+  totalSteps: number;
+  progressPercent: number;
+  steps: Array<{
+    key: string;
+    title: string;
+    state: 'completed' | 'current' | 'pending';
+    stepIndex: number;
+  }>;
+};
+
+const createFallbackPersonalOffer = (): PersonalOfferCard => ({
+  title: 'Скидка 15% на уход',
+  description: 'Применяется автоматически при покупке от 1 000 ₸.',
+  highlight: 'На корзине 1 299 ₸ вы сэкономите 195 ₸',
+  expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000),
+});
+
+const FALLBACK_ROADMAP_OVERVIEW: RoadmapOverview = {
+  nextStepTitle: 'Добавьте тоник в рутину',
+  nextStepDescription: 'Вы завершили очищение. Следующий шаг поможет сбалансировать кожу и подготовить её к увлажнению.',
+  nextStepWhy: 'Этот этап логично следует за очищением и помогает быстрее увидеть результат рутины.',
+  nextStepPoints: 89,
+  currentStepIndex: 2,
+  totalSteps: 5,
+  progressPercent: 20,
+  steps: [
+    { key: 'roadmap-cleanser', title: 'Очищение', state: 'completed', stepIndex: 1 },
+    { key: 'roadmap-toner', title: 'Тоник', state: 'current', stepIndex: 2 },
+    { key: 'roadmap-moisturizer', title: 'Увлажнение', state: 'pending', stepIndex: 3 },
+    { key: 'roadmap-spf', title: 'SPF', state: 'pending', stepIndex: 4 },
+    { key: 'roadmap-special', title: 'Спецуход', state: 'pending', stepIndex: 5 },
+  ],
+};
+
+const buildPersonalOfferCard = (value: Record<string, unknown>): PersonalOfferCard => {
+  const offer = isRecord(value.offer) ? value.offer : {};
+  const target = isRecord(value.target) ? value.target : {};
+  const reason = isRecord(value.reason) ? value.reason : {};
+
+  const offerType = firstString(offer.type);
+  const offerName = firstString(offer.name);
+  const offerValue = toNumber(offer.value);
+  const assignmentId = toNumber(value.assignment_id);
+  const categoryLabel = formatCategoryLabel(target.category);
+  const productTypeLabel = formatProductTypeLabel(target.product_type);
+  const scope = firstString(target.scope);
+  const minBasketAmount = toNumber(
+    value.base_amount ??
+      value.min_basket_amount ??
+      target.min_basket_amount,
+  );
+  const savingAmount = toNumber(value.saving_amount ?? value.discount_amount);
+  const roadmapReason = isRecord(reason.roadmap) ? reason.roadmap : null;
+
+  let title = offerName ?? 'Персональный оффер';
+  if (offerType === 'discount' && offerValue !== undefined) {
+    const valueLabel = formatOfferValueLabel(offerValue);
+    if (productTypeLabel) {
+      title = `Скидка ${valueLabel}% на ${productTypeLabel.toLowerCase()}`;
+    } else if (categoryLabel) {
+      title = `Скидка ${valueLabel}% на ${categoryLabel.toLowerCase()}`;
+    } else {
+      title = `Скидка ${valueLabel}% для вас`;
+    }
+  } else if (offerType === 'points_multiplier' && offerValue !== undefined) {
+    title = `x${formatOfferValueLabel(offerValue)} баллы на следующую покупку`;
+  } else if (offerType === 'gift') {
+    title = offerName ?? 'Подарок к заказу';
+  }
+
+  let description = 'Персональное предложение доступно прямо сейчас.';
+  if (scope === 'cart' && minBasketAmount !== undefined) {
+    description = `Применяется автоматически к следующей корзине от ${minBasketAmount.toLocaleString('ru')} ₸.`;
+  } else if (scope === 'category' && categoryLabel) {
+    description = `Предложение действует на категорию «${categoryLabel}».`;
+  } else if (scope === 'product_type' && productTypeLabel) {
+    description = `Предложение действует на товары типа «${productTypeLabel}».`;
+  } else if (scope === 'product_id' && productTypeLabel) {
+    description = `Сработает на рекомендованный товар типа «${productTypeLabel}».`;
+  } else if (roadmapReason && productTypeLabel) {
+    description = `Оффер связан с roadmap и поддерживает шаг «${productTypeLabel}».`;
+  }
+
+  let highlight = 'Предложение уже закреплено за вашим профилем.';
+  if (savingAmount !== undefined && minBasketAmount !== undefined) {
+    highlight = `На корзине ${minBasketAmount.toLocaleString('ru')} ₸ вы сэкономите ${savingAmount.toLocaleString('ru')} ₸`;
+  } else if (offerType === 'discount' && offerValue !== undefined) {
+    highlight = `Скидка ${formatOfferValueLabel(offerValue)}% применится автоматически на подходящую покупку`;
+  } else if (offerType === 'points_multiplier' && offerValue !== undefined) {
+    highlight = `Получите x${formatOfferValueLabel(offerValue)} баллы на следующую подходящую покупку`;
+  } else if (offerType === 'gift') {
+    highlight = 'Подарок добавится автоматически при выполнении условий оффера';
+  }
+
+  const expiresAtRaw = firstString(value.expires_at);
+  const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
+
+  return {
+    assignmentId: assignmentId !== undefined ? Math.round(assignmentId) : undefined,
+    title,
+    description,
+    highlight,
+    expiresAt: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
+  };
+};
+
+const isCompletedRoadmapStatus = (value: unknown): boolean =>
+  value === 'completed' || value === 'owned' || value === 'skipped';
+
+const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapLikeStep | null => {
+  const steps = Array.isArray(plan.steps) ? plan.steps : [];
+  const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null;
+  const summaryNextStep = summary && isRecord(summary.next_step)
+    ? (summary.next_step as RoadmapStepSnapshotApi)
+    : null;
+
+  const nextStepId =
+    typeof summaryNextStep?.id === 'number'
+      ? summaryNextStep.id
+      : typeof summaryNextStep?.step_id === 'number'
+        ? summaryNextStep.step_id
+        : undefined;
+  const nextStepIndex = toNumber(summaryNextStep?.step_index);
+
+  if (steps.length > 0 && (nextStepId !== undefined || nextStepIndex !== undefined)) {
+    const matchedStep = steps.find((step) =>
+      isRecord(step) &&
+      (
+        (nextStepId !== undefined && (step.id === nextStepId || step.step_id === nextStepId)) ||
+        (nextStepId === undefined && nextStepIndex !== undefined && step.step_index === nextStepIndex)
+      ),
+    );
+
+    if (matchedStep && isRecord(matchedStep)) {
+      return matchedStep as RoadmapStepApi;
+    }
+  }
+
+  if (summaryNextStep) {
+    return summaryNextStep;
+  }
+
+  const fallbackStep = steps.find(
+    (step) =>
+      isRecord(step) &&
+      (step.status === 'missing' || step.status === 'recommended'),
+  );
+
+  return fallbackStep && isRecord(fallbackStep) ? (fallbackStep as RoadmapStepApi) : null;
+};
+
+const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | null => {
+  if (!plan) {
+    return null;
+  }
+
+  const rawSteps = Array.isArray(plan.steps)
+    ? plan.steps.filter((step): step is RoadmapStepApi => isRecord(step))
+    : [];
+  const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null;
+  const nextStep = pickRoadmapNextStep(plan);
+
+  if (!nextStep && rawSteps.length === 0) {
+    return null;
+  }
+
+  const totalSteps = Math.max(0, Math.round(toNumber(summary?.total_steps) ?? rawSteps.length));
+  const missingStepsCount = toNumber(summary?.missing_steps_count);
+  const completedCount = missingStepsCount !== undefined && totalSteps > 0
+    ? Math.max(0, totalSteps - Math.round(missingStepsCount))
+    : rawSteps.filter((step) => isCompletedRoadmapStatus(step.status)).length;
+
+  const nextStepId =
+    typeof nextStep?.id === 'number'
+      ? nextStep.id
+      : typeof nextStep?.step_id === 'number'
+        ? nextStep.step_id
+        : undefined;
+  const currentStepIndex = Math.max(
+    1,
+    Math.round(
+      toNumber(nextStep?.step_index) ??
+        (completedCount < totalSteps ? completedCount + 1 : totalSteps || 1),
+    ),
+  );
+  const currentProductType = firstString(nextStep?.product_type);
+  const stepMeta = currentProductType
+    ? getRoadmapStepMeta(currentProductType)
+    : DEFAULT_ROADMAP_STEP_META;
+  const recommendedProduct = nextStep && isRecord(nextStep.recommended_product)
+    ? nextStep.recommended_product
+    : null;
+
+  const stepsForUi = rawSteps.slice(0, 5).map((step, index) => {
+    const stepIndex = Math.max(1, Math.round(toNumber(step.step_index) ?? index + 1));
+    const stepId = typeof step.id === 'number' ? step.id : undefined;
+    const isCurrent =
+      (nextStepId !== undefined && stepId === nextStepId) ||
+      (nextStepId === undefined && stepIndex === currentStepIndex && !isCompletedRoadmapStatus(step.status));
+
+    return {
+      key: stepId !== undefined ? `roadmap-step-${stepId}` : `roadmap-step-${stepIndex}`,
+      title: firstString(step.title, formatProductTypeLabel(step.product_type), `Шаг ${stepIndex}`) ?? `Шаг ${stepIndex}`,
+      state: isCurrent ? 'current' : isCompletedRoadmapStatus(step.status) ? 'completed' : 'pending',
+      stepIndex,
+    };
+  });
+
+  return {
+    nextStepId,
+    nextStepTitle:
+      firstString(nextStep?.title, formatProductTypeLabel(nextStep?.product_type)) ??
+      'Следующий шаг roadmap',
+    nextStepDescription:
+      firstString(nextStep?.description) ??
+      'Откройте roadmap, чтобы увидеть следующий шаг.',
+    nextStepWhy:
+      firstString(toTextList(nextStep?.why), stepMeta.why) ??
+      stepMeta.why,
+    nextStepPoints:
+      toNumber(recommendedProduct?.points_earned) ??
+      stepMeta.points,
+    currentStepIndex,
+    totalSteps,
+    progressPercent:
+      totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0,
+    steps: stepsForUi.length > 0 ? stepsForUi : FALLBACK_ROADMAP_OVERVIEW.steps,
+  };
+};
+
+const inferRoadmapCategories = (
+  response: HomeRecsResponse | null,
+  effectiveOffer: Record<string, unknown> | null,
+): string[] => {
+  const categories: string[] = [];
+  const pushCategory = (value: unknown) => {
+    const normalized = normalizeRoadmapCategory(value);
+    if (normalized && !categories.includes(normalized)) {
+      categories.push(normalized);
+    }
+  };
+
+  if (effectiveOffer) {
+    const target = isRecord(effectiveOffer.target) ? effectiveOffer.target : null;
+    pushCategory(target?.category);
+  }
+
+  if (response) {
+    for (const { item } of extractHomeResults(response)) {
+      const source = isRecord(item) ? item : null;
+      const product = source && isRecord(source.product) ? source.product : source;
+      pushCategory(product?.category);
+    }
+  }
+
+  return categories;
+};
+
+const loadForYouRoadmap = async (
+  response: HomeRecsResponse | null,
+  effectiveOffer: Record<string, unknown> | null,
+): Promise<RoadmapPlanApi | null> => {
+  const categories = inferRoadmapCategories(response, effectiveOffer);
+  const candidates = categories.length > 0 ? [...categories, undefined] : [undefined];
+  let fallbackPlan: RoadmapPlanApi | null = null;
+
+  for (const category of candidates) {
+    try {
+      const plan = category ? await getRoadmap(category) : await getRoadmap();
+      if (Array.isArray(plan.steps) && plan.steps.length > 0) {
+        return plan;
+      }
+
+      if (!fallbackPlan) {
+        fallbackPlan = plan;
+      }
+    } catch (error) {
+      if (isAuthError(error)) {
+        throw error;
+      }
+
+      if (!(error instanceof ApiError && error.status === 400)) {
+        continue;
+      }
+    }
+  }
+
+  return fallbackPlan;
 };
 
 const mapApiSkinTypeToUi = (value: unknown): string | null => {
@@ -664,15 +1058,22 @@ export default function ForYouPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
   const [trendingRecommendations, setTrendingRecommendations] = useState<RecommendationCard[]>([]);
-  const [offerSavingAmount, setOfferSavingAmount] = useState(195);
-  const [offerCartAmount, setOfferCartAmount] = useState(1299);
-  const [offerExpiry, setOfferExpiry] = useState(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000));
-  const [offerAssignmentId, setOfferAssignmentId] = useState<number | undefined>(undefined);
+  const [personalOffer, setPersonalOffer] = useState<PersonalOfferCard>(() => createFallbackPersonalOffer());
+  const [roadmapPlan, setRoadmapPlan] = useState<RoadmapPlanApi | null>(null);
   const [loyaltyPoints, setLoyaltyPoints] = useState(1247);
   const [loyaltyTier, setLoyaltyTier] = useState('gold');
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+
+  const roadmapOverview = buildRoadmapOverview(roadmapPlan) ?? FALLBACK_ROADMAP_OVERVIEW;
+  const roadmapHeading = roadmapOverview.totalSteps > 0
+    ? `Шаг ${Math.min(roadmapOverview.currentStepIndex, roadmapOverview.totalSteps)} из ${roadmapOverview.totalSteps}: ${roadmapOverview.nextStepTitle}`
+    : roadmapOverview.nextStepTitle;
+  const offerCountdownMs = personalOffer.expiresAt
+    ? personalOffer.expiresAt.getTime() - Date.now()
+    : null;
+  const hasOfferCountdown = offerCountdownMs !== null && offerCountdownMs > 0;
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -782,32 +1183,21 @@ export default function ForYouPage() {
               : null;
 
         if (effectiveOffer) {
-          const assignmentIdValue = toNumber(effectiveOffer.assignment_id);
-          const assignmentId = assignmentIdValue !== undefined ? Math.round(assignmentIdValue) : undefined;
-          if (assignmentId !== undefined) {
-            setOfferAssignmentId(assignmentId);
-          }
+          setPersonalOffer(buildPersonalOfferCard(effectiveOffer));
+        } else {
+          setPersonalOffer(createFallbackPersonalOffer());
+        }
 
-          const savingAmount = toNumber(effectiveOffer.saving_amount ?? effectiveOffer.discount_amount);
-          if (savingAmount !== undefined) {
-            setOfferSavingAmount(Math.max(0, Math.round(savingAmount)));
+        try {
+          const nextRoadmapPlan = await loadForYouRoadmap(homeResponse, effectiveOffer);
+          if (cancelled) {
+            return;
           }
-
-          const cartAmount = toNumber(
-            effectiveOffer.base_amount ??
-              effectiveOffer.min_basket_amount ??
-              (effectiveOffer.target as Record<string, unknown> | undefined)?.min_basket_amount,
-          );
-          if (cartAmount !== undefined) {
-            setOfferCartAmount(Math.max(0, Math.round(cartAmount)));
-          }
-
-          const expiresAt = effectiveOffer.expires_at;
-          if (typeof expiresAt === 'string') {
-            const parsed = new Date(expiresAt);
-            if (!Number.isNaN(parsed.getTime())) {
-              setOfferExpiry(parsed);
-            }
+          setRoadmapPlan(nextRoadmapPlan);
+        } catch (error) {
+          if (isAuthError(error)) {
+            navigate('/login', { replace: true, state: { from: location.pathname } });
+            return;
           }
         }
 
@@ -852,7 +1242,7 @@ export default function ForYouPage() {
       product_id: productId,
       page: 'for_you',
       section_key: product.section,
-      context: { assignment_id: offerAssignmentId },
+      context: { assignment_id: personalOffer.assignmentId },
     }).catch(() => undefined);
   };
 
@@ -869,10 +1259,18 @@ export default function ForYouPage() {
           product_id: productId,
           page: 'for_you',
           section_key: selected.section,
-          context: { assignment_id: offerAssignmentId },
+          context: { assignment_id: personalOffer.assignmentId },
         }).catch(() => undefined);
       }
     }
+  };
+
+  const handleRoadmapClick = () => {
+    if (roadmapOverview.nextStepId === undefined) {
+      return;
+    }
+
+    void clickRoadmapStep(roadmapOverview.nextStepId).catch(() => undefined);
   };
 
   const handleSavePrefs = async () => {
@@ -991,30 +1389,33 @@ export default function ForYouPage() {
                 </div>
 
                 <h2 className="text-xl font-semibold text-white mb-2">
-                  Шаг 2 Roadmap: добавьте тоник в рутину
+                  {roadmapHeading}
                 </h2>
                 <p className="text-sm text-white/70 mb-1">
-                  Вы завершили Очищение 3 дня назад. Тоник — следующий шаг для жирной кожи.
+                  {roadmapOverview.nextStepDescription}
                 </p>
 
                 {/* Relevance tag */}
                 <p className="text-xs text-[#FF4DB8] mb-5 flex items-center gap-1">
                   <Star className="w-3 h-3" />
-                  Почему сейчас: 94% пользователей с похожим профилем видят результат уже через 2 недели
+                  Почему сейчас: {roadmapOverview.nextStepWhy}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <Link
                     to="/me/roadmap"
+                    onClick={handleRoadmapClick}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-[#111827] text-sm font-semibold hover:bg-gray-50 transition-colors"
                   >
                     Перейти к шагу
                     <ArrowRight className="w-4 h-4" />
                   </Link>
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-white text-sm">
-                    <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
-                    <span>+89 баллов после покупки</span>
-                  </div>
+                  {roadmapOverview.nextStepPoints ? (
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-white text-sm">
+                      <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
+                      <span>+{roadmapOverview.nextStepPoints} баллов после покупки</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1075,29 +1476,32 @@ export default function ForYouPage() {
             <LoyaltyProgressMini points={loyaltyPoints} tier={loyaltyTier} />
 
             {/* Roadmap Progress */}
-            <Link to="/me/roadmap" className="block group">
+            <Link to="/me/roadmap" className="block group" onClick={handleRoadmapClick}>
               <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF] hover:shadow-md transition-all">
                 <div className="flex items-center gap-2 mb-3">
                   <Map className="w-4 h-4 text-[#6B7280]" />
                   <span className="text-sm font-semibold text-[#111827]">Мой Roadmap</span>
                   <span className="ml-auto text-[10px] text-[#FF4DB8] font-semibold flex items-center gap-1">
-                    Шаг 2/5 <ChevronRight className="w-3 h-3" />
+                    Шаг {Math.min(roadmapOverview.currentStepIndex, Math.max(1, roadmapOverview.totalSteps))}/{Math.max(1, roadmapOverview.totalSteps)} <ChevronRight className="w-3 h-3" />
                   </span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                  <div className="h-full bg-[#111827] rounded-full" style={{ width: '20%' }} />
+                  <div
+                    className="h-full bg-[#111827] rounded-full"
+                    style={{ width: `${Math.min(100, Math.max(0, roadmapOverview.progressPercent))}%` }}
+                  />
                 </div>
                 <div className="flex gap-1 mt-3">
-                  {['Очищение', 'Тоник', 'Увлажнение', 'SPF', 'Спецуход'].map((s, i) => (
-                    <div key={s} className="flex-1 flex flex-col items-center gap-1">
+                  {roadmapOverview.steps.map((step) => (
+                    <div key={step.key} className="flex-1 flex flex-col items-center gap-1">
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                        i === 0 ? 'bg-[#111827] text-white' :
-                        i === 1 ? 'bg-[#FF4DB8] text-white' :
+                        step.state === 'completed' ? 'bg-[#111827] text-white' :
+                        step.state === 'current' ? 'bg-[#FF4DB8] text-white' :
                         'bg-gray-100 text-[#6B7280]'
                       }`}>
-                        {i === 0 ? <Check className="w-3 h-3" /> : i + 1}
+                        {step.state === 'completed' ? <Check className="w-3 h-3" /> : step.stepIndex}
                       </div>
-                      <span className="text-[8px] text-[#6B7280] text-center hidden sm:block">{s}</span>
+                      <span className="text-[8px] text-[#6B7280] text-center hidden sm:block">{step.title}</span>
                     </div>
                   ))}
                 </div>
@@ -1110,26 +1514,28 @@ export default function ForYouPage() {
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">ОФФЕР</span>
                 <span className="text-xs text-[#6B7280]">Персональный</span>
               </div>
-              <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">Скидка 15% на уход</h3>
-              <p className="text-xs text-[#6B7280] mb-3">Применяется автоматически при покупке от 1 000 ₸</p>
+              <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">{personalOffer.title}</h3>
+              <p className="text-xs text-[#6B7280] mb-3">{personalOffer.description}</p>
 
               {/* Saving highlight */}
               <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
                 <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
                 <p className="text-xs text-[#111827]">
-                  На корзине {offerCartAmount.toLocaleString('ru')} ₸ вы сэкономите <strong>{offerSavingAmount.toLocaleString('ru')} ₸</strong>
+                  {personalOffer.highlight}
                 </p>
               </div>
 
               {/* Countdown */}
-              <div className="flex items-center gap-2 text-xs text-[#6B7280]">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Истекает через:</span>
-                <span className="font-semibold text-[#111827]">
-                  {Math.floor((offerExpiry.getTime() - Date.now()) / 3600000)}ч{' '}
-                  {Math.floor(((offerExpiry.getTime() - Date.now()) % 3600000) / 60000)}мин
-                </span>
-              </div>
+              {hasOfferCountdown ? (
+                <div className="flex items-center gap-2 text-xs text-[#6B7280]">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Истекает через:</span>
+                  <span className="font-semibold text-[#111827]">
+                    {Math.floor((offerCountdownMs ?? 0) / 3600000)}ч{' '}
+                    {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}мин
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             {/* Quick Preferences */}

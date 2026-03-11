@@ -17,11 +17,13 @@ interface ProductViewModel {
   id: string;
   name: string;
   brand: string;
+  brandSlug?: string;
   price: number;
   originalPrice?: number;
   discount?: number;
   rating: number;
   reviews: number;
+  pointsEarned?: number;
   inStock: boolean;
   images: string[];
   description: string;
@@ -37,6 +39,7 @@ interface RecommendationCard {
   price: number;
   originalPrice?: number;
   discount?: number;
+  pointsEarned?: number;
   inStock?: boolean;
   category?: string;
 }
@@ -128,16 +131,19 @@ const mapApiProductToView = (payload: Record<string, unknown>, fallbackId: strin
     attrs?.reviews_count,
     attrs?.reviews,
   );
+  const pointsEarnedRaw = firstNumber(payload.points_earned, rawMeta?.points_earned, attrs?.points_earned);
 
   return {
     id: String(payload.id ?? fallbackId),
     name: firstString(payload.name) ?? `Товар #${fallbackId}`,
     brand: firstString(payload.brand) ?? 'Uilesim',
+    brandSlug: firstString(payload.brand_slug),
     price,
     originalPrice,
     discount: discount !== undefined ? toRoundedNonNegative(discount) : undefined,
     rating: Math.max(0, Math.min(5, Math.round((ratingRaw ?? 0) * 10) / 10)),
     reviews: toRoundedNonNegative(reviewsRaw),
+    pointsEarned: pointsEarnedRaw !== undefined ? toRoundedNonNegative(pointsEarnedRaw) : undefined,
     inStock: payload.in_stock === undefined ? true : Boolean(payload.in_stock),
     images: normalizedImages.length > 0 ? normalizedImages : [FALLBACK_IMAGE],
     description: firstString(payload.description) ?? FALLBACK_DESCRIPTION,
@@ -177,15 +183,21 @@ const mapBundleItemToCard = (item: RecItem, index: number): RecommendationCard =
   if (discount === undefined && originalPrice && originalPrice > price) {
     discount = ((originalPrice - price) / originalPrice) * 100;
   }
+  const imageUrls = [...toStringArray(product.image_urls), ...toStringArray(rawMeta?.image_urls)];
+  const pointsEarnedRaw = firstNumber(product.points_earned, rawMeta?.points_earned, attrs?.points_earned);
 
   return {
     id: product.id !== undefined && product.id !== null ? String(product.id) : `bundle-${index}`,
-    image: firstString(product.image_url, product.image, rawMeta?.image_url, rawMeta?.image) ?? FALLBACK_IMAGE,
+    image:
+      firstString(product.image_url, product.image, rawMeta?.image_url, rawMeta?.image) ??
+      imageUrls[0] ??
+      FALLBACK_IMAGE,
     brand: firstString(product.brand) ?? 'Uilesim',
     name: firstString(product.name) ?? `Рекомендация #${index + 1}`,
     price,
     originalPrice,
     discount: discount !== undefined ? toRoundedNonNegative(discount) : undefined,
+    pointsEarned: pointsEarnedRaw !== undefined ? toRoundedNonNegative(pointsEarnedRaw) : undefined,
     inStock: product.in_stock === undefined ? true : Boolean(product.in_stock),
     category: firstString(product.category, product.product_type),
   };
@@ -377,7 +389,7 @@ export default function ProductPage() {
   }
 
   const currentImage = product.images[selectedImage] ?? product.images[0] ?? FALLBACK_IMAGE;
-  const brandSlug = toBrandSlug(product.brand);
+  const brandSlug = product.brandSlug || toBrandSlug(product.brand);
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen">
@@ -430,7 +442,8 @@ export default function ProductPage() {
               <p className="text-sm text-[#6B7280] mb-2">{product.brand}</p>
               <h1 className="text-3xl font-bold text-[#111827] mb-3">{product.name}</h1>
 
-              <div className="flex items-center gap-2 mb-4">
+              {product.reviews > 0 && product.rating > 0 ? (
+                <div className="flex items-center gap-2 mb-4">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -444,7 +457,10 @@ export default function ProductPage() {
                 <span className="text-sm text-[#6B7280]">
                   {product.rating} ({product.reviews} отзывов)
                 </span>
-              </div>
+                </div>
+              ) : (
+                <p className="mb-4 text-sm text-[#6B7280]">РћС‚Р·С‹РІРѕРІ РїРѕРєР° РЅРµС‚</p>
+              )}
 
               <div className="flex items-center gap-2">
                 {product.discount !== undefined && product.discount > 0 && <Badge>−{product.discount}%</Badge>}
@@ -458,6 +474,10 @@ export default function ProductPage() {
                 <span className="text-lg text-[#6B7280] line-through">{product.originalPrice} ₸</span>
               )}
             </div>
+
+            {product.pointsEarned !== undefined && product.pointsEarned > 0 && (
+              <p className="text-sm font-medium text-[#FF4DB8]">+{product.pointsEarned} Р±Р°Р»Р»РѕРІ Р·Р° РїРѕРєСѓРїРєСѓ</p>
+            )}
 
             <p className="text-base text-[#6B7280] leading-relaxed">{product.description}</p>
 

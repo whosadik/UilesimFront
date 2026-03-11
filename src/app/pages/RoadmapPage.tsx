@@ -19,7 +19,6 @@ import {
 } from "../../shared/api/roadmap";
 import {
   DEFAULT_ROADMAP_STEP_META,
-  ROADMAP_CATEGORY_OPTIONS,
   getRoadmapStepMeta,
   getRoadmapStepPresentation,
   mapRoadmapStatusToUiStatus,
@@ -174,13 +173,13 @@ export default function RoadmapPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [selectedCategory, setSelectedCategory] = useState("skincare");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [steps, setSteps] = useState<UiRoadmapStep[]>([]);
   const [summary, setSummary] = useState<RoadmapSummaryApi | null>(null);
+  const [planCategory, setPlanCategory] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,12 +189,13 @@ export default function RoadmapPage() {
       setError(null);
 
       try {
-        const plan = await getRoadmap(selectedCategory);
+        const plan = await getRoadmap();
         const mappedSteps = buildUiSteps(plan);
 
         if (!cancelled) {
           setSteps(mappedSteps);
           setSummary(isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null);
+          setPlanCategory(typeof plan.category === "string" && plan.category ? plan.category : null);
         }
       } catch (loadError) {
         if (cancelled) {
@@ -209,6 +209,7 @@ export default function RoadmapPage() {
 
         setSteps([]);
         setSummary(null);
+        setPlanCategory(null);
         setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить roadmap");
       } finally {
         if (!cancelled) {
@@ -222,16 +223,17 @@ export default function RoadmapPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey, selectedCategory]);
+  }, [location.pathname, navigate, retryKey]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
 
     try {
-      const plan = await refreshRoadmap({ category: selectedCategory });
+      const plan = await refreshRoadmap(planCategory ? { category: planCategory } : {});
       const mappedSteps = buildUiSteps(plan);
       setSteps(mappedSteps);
       setSummary(isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null);
+      setPlanCategory(typeof plan.category === "string" && plan.category ? plan.category : null);
       toast.success("Roadmap обновлен с учетом ваших предпочтений");
     } catch (refreshError) {
       if (refreshError instanceof ApiError && (refreshError.status === 401 || refreshError.status === 403)) {
@@ -365,20 +367,6 @@ export default function RoadmapPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-2 flex-wrap mb-6">
-          {ROADMAP_CATEGORY_OPTIONS.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setSelectedCategory(category.id)}
-            >
-              <span className="mr-2">{category.icon}</span>
-              {category.label}
-            </Button>
-          ))}
-        </div>
-
         <div className="mb-6">
           <AlertBanner
             variant="info"

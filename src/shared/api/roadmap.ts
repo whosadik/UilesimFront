@@ -59,7 +59,7 @@ export type RoadmapPlanApi = {
 };
 
 type RoadmapRefreshPayload = {
-  category: string;
+  category?: string;
 };
 
 export function getRoadmap(category?: string): Promise<RoadmapPlanApi> {
