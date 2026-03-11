@@ -13,6 +13,12 @@ import {
 import { commit, preview } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
+import {
+  getRoadmap,
+  type RoadmapPlanApi,
+  type RoadmapStepApi,
+  type RoadmapStepSnapshotApi,
+} from '../../shared/api/roadmap';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
 
 /**
@@ -55,6 +61,14 @@ interface ActiveOffer {
   targetCategory?: string;
   targetProductType?: string;
   targetProductId?: string;
+  minBasketAmount?: number;
+}
+
+interface UpsellSuggestion {
+  title: string;
+  description: string;
+  actionHref: string;
+  actionLabel: string;
 }
 
 const POINTS_RATE = 0.1; // 10 баллов за 100 ₸
@@ -85,6 +99,25 @@ const toNumber = (value: unknown): number | undefined => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+const firstString = (...values: unknown[]): string | undefined => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+};
+
+const formatLabel = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined;
+  }
+
+  const prepared = value.trim().replace(/_/g, ' ');
+  return prepared[0].toUpperCase() + prepared.slice(1);
+};
+
 const parseActiveOffer = (value: unknown): ActiveOffer | null => {
   if (!isRecord(value) || !isRecord(value.offer)) {
     return null;
@@ -112,6 +145,97 @@ const parseActiveOffer = (value: unknown): ActiveOffer | null => {
     targetProductType:
       targetData && typeof targetData.product_type === 'string' ? targetData.product_type : undefined,
     targetProductId: scope === 'product_id' ? targetValue : undefined,
+    minBasketAmount: targetData ? toNumber(targetData.min_basket_amount) : undefined,
+  };
+};
+
+const isCompletedRoadmapStatus = (value: unknown): boolean =>
+  value === 'completed' || value === 'owned' || value === 'skipped';
+
+const pickRoadmapNextStep = (
+  plan: RoadmapPlanApi | null,
+): RoadmapStepApi | RoadmapStepSnapshotApi | null => {
+  if (!plan) {
+    return null;
+  }
+
+  const steps = Array.isArray(plan.steps)
+    ? plan.steps.filter((step): step is RoadmapStepApi => isRecord(step))
+    : [];
+  const summary = isRecord(plan.summary) ? plan.summary : null;
+  const summaryNextStep = summary && isRecord(summary.next_step)
+    ? (summary.next_step as RoadmapStepSnapshotApi)
+    : null;
+
+  const nextStepId =
+    typeof summaryNextStep?.id === 'number'
+      ? summaryNextStep.id
+      : typeof summaryNextStep?.step_id === 'number'
+        ? summaryNextStep.step_id
+        : undefined;
+  const nextStepIndex = toNumber(summaryNextStep?.step_index);
+
+  if (steps.length > 0 && (nextStepId !== undefined || nextStepIndex !== undefined)) {
+    const matchedStep = steps.find((step) =>
+      (nextStepId !== undefined && (step.id === nextStepId || step.step_id === nextStepId)) ||
+      (nextStepId === undefined && nextStepIndex !== undefined && step.step_index === nextStepIndex),
+    );
+
+    if (matchedStep) {
+      return matchedStep;
+    }
+  }
+
+  if (summaryNextStep) {
+    return summaryNextStep;
+  }
+
+  return (
+    steps.find((step) => !isCompletedRoadmapStatus(step.status)) ??
+    null
+  );
+};
+
+const buildRoadmapUpsell = (plan: RoadmapPlanApi | null): UpsellSuggestion | null => {
+  const nextStep = pickRoadmapNextStep(plan);
+  if (!nextStep) {
+    return null;
+  }
+
+  const title =
+    firstString(nextStep.title, formatLabel(nextStep.product_type)) ??
+    'Следующий шаг roadmap';
+  const description =
+    firstString(nextStep.description) ??
+    'Откройте roadmap, чтобы посмотреть следующий шаг вашей рутины.';
+
+  if (!isRecord(nextStep.recommended_product)) {
+    return {
+      title,
+      description,
+      actionHref: '/me/roadmap',
+      actionLabel: 'Roadmap',
+    };
+  }
+
+  const product = nextStep.recommended_product;
+  const productId =
+    typeof product.id === 'number' || typeof product.id === 'string'
+      ? String(product.id)
+      : undefined;
+  const price = toNumber(product.price);
+  const productName = firstString(product.name);
+  const productDescription = productName && price !== undefined
+    ? `${productName} • ${price.toLocaleString('ru')} ₸`
+    : productName
+      ? `${productName} рекомендован для следующего шага.`
+      : description;
+
+  return {
+    title,
+    description: productDescription,
+    actionHref: productId ? `/product/${productId}` : '/me/roadmap',
+    actionLabel: productId ? 'Открыть' : 'Roadmap',
   };
 };
 
@@ -277,6 +401,7 @@ export default function CartPage() {
   const [availablePoints, setAvailablePoints] = useState(1247);
   const [currentTier, setCurrentTier] = useState('gold');
   const [activeOffer, setActiveOffer] = useState<ActiveOffer | null>(null);
+  const [roadmapPlan, setRoadmapPlan] = useState<RoadmapPlanApi | null>(null);
   const [isMetaLoading, setIsMetaLoading] = useState(true);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [metaRetryKey, setMetaRetryKey] = useState(0);
@@ -391,7 +516,11 @@ export default function CartPage() {
       setIsMetaLoading(true);
       setMetaError(null);
 
-      const [loyaltyResult, offerResult] = await Promise.allSettled([getLoyalty(), nextOffer()]);
+      const [loyaltyResult, offerResult, roadmapResult] = await Promise.allSettled([
+        getLoyalty(),
+        nextOffer(),
+        getRoadmap(),
+      ]);
 
       if (cancelled) {
         return;
@@ -424,7 +553,18 @@ export default function CartPage() {
         setActiveOffer(parseActiveOffer(offerResult.value));
       }
 
-      if (loyaltyResult.status === 'rejected' && offerResult.status === 'rejected') {
+      if (roadmapResult.status === 'rejected') {
+        const roadmapError = roadmapResult.reason;
+        if (roadmapError instanceof ApiError && (roadmapError.status === 401 || roadmapError.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+        setRoadmapPlan(null);
+      } else {
+        setRoadmapPlan(roadmapResult.value);
+      }
+
+      if (loyaltyResult.status === 'rejected' && offerResult.status === 'rejected' && roadmapResult.status === 'rejected') {
         setMetaError('Не удалось загрузить данные лояльности. Попробуйте еще раз.');
       }
 
@@ -567,30 +707,53 @@ export default function CartPage() {
   };
 
   const fallbackOfferTitle = 'Персональный оффер';
+  const roadmapUpsell = buildRoadmapUpsell(roadmapPlan);
+  const offerScopedLabel =
+    formatLabel(activeOffer?.targetProductType) ??
+    formatLabel(activeOffer?.targetCategory);
   const offerTitle =
-    activeOffer && activeOffer.type === 'discount' && activeOffer.value !== undefined
+    !activeOffer
+      ? 'Сейчас персонального оффера нет'
+      : activeOffer.type === 'discount' && activeOffer.value !== undefined
       ? `Активный оффер: ${activeOffer.value}%`
-      : activeOffer && activeOffer.type === 'points_multiplier' && activeOffer.value !== undefined
+      : activeOffer.type === 'points_multiplier' && activeOffer.value !== undefined
         ? `Активный оффер: x${activeOffer.value} баллов`
-      : activeOffer?.name || fallbackOfferTitle;
+      : activeOffer.name || fallbackOfferTitle;
 
   const offerDescription =
-    summaryDiscount > 0
+    !activeOffer
+      ? 'Когда для вас появится новый оффер, он автоматически отобразится здесь.'
+      : summaryDiscount > 0 && offerApplicable
       ? `Выгода по расчету: ${summaryDiscount.toLocaleString('ru')} ₸`
-      : activeOffer?.scope === 'cart'
-        ? 'Оффер будет применен ко всей корзине при оформлении.'
-        : activeOffer?.scope === 'product_id' && activeOffer.targetValue
-          ? `Оффер действует на товар #${activeOffer.targetValue}.`
-          : 'Оффер будет применен к подходящим товарам.';
+      : activeOffer.scope === 'cart' && activeOffer.minBasketAmount !== undefined
+        ? `Оффер применится к корзине от ${activeOffer.minBasketAmount.toLocaleString('ru')} ₸.`
+        : activeOffer.scope === 'cart'
+          ? 'Оффер будет применен ко всей корзине при оформлении.'
+          : activeOffer.scope === 'product_id' && roadmapUpsell
+            ? `Оффер связан с вашим следующим шагом roadmap: ${roadmapUpsell.title}.`
+            : activeOffer.scope === 'product_id' && activeOffer.targetValue
+              ? `Оффер действует на товар #${activeOffer.targetValue}.`
+              : activeOffer.scope === 'category' && offerScopedLabel
+                ? `Оффер действует на категорию «${offerScopedLabel}».`
+                : activeOffer.scope === 'product_type' && offerScopedLabel
+                  ? `Оффер действует на товары типа «${offerScopedLabel}».`
+                  : 'Оффер будет применен к подходящим товарам.';
 
-  const upsellProductId = activeOffer?.targetProductId;
-  const upsellActionProductId = upsellProductId || '4';
-  const upsellTitle = upsellProductId
-    ? `Добавьте товар #${upsellProductId} и используйте персональный оффер`
-    : 'Добавьте еще на 201 ₸ и получите Platinum!';
-  const upsellDescription = upsellProductId
-    ? 'Этот товар отмечен в рамках активного оффера.'
-    : 'SPF-крем за 890 ₸ - шаг 4 вашего Roadmap';
+  const upsellSuggestion: UpsellSuggestion =
+    roadmapUpsell ??
+    (activeOffer?.targetProductId
+      ? {
+          title: activeOffer.name || 'Товар из персонального оффера',
+          description: 'Добавьте этот товар в корзину, чтобы использовать текущий оффер на checkout.',
+          actionHref: `/product/${activeOffer.targetProductId}`,
+          actionLabel: 'Открыть',
+        }
+      : {
+          title: 'Следите за roadmap и персональными офферами',
+          description: 'Когда появится следующий рекомендованный товар, он отобразится здесь.',
+          actionHref: '/me/roadmap',
+          actionLabel: 'Roadmap',
+        });
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen bg-gray-50">
@@ -686,14 +849,14 @@ export default function CartPage() {
                   <TrendingUp className="w-4 h-4 text-[#6B7280]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[#111827]">{upsellTitle}</p>
-                  <p className="text-xs text-[#6B7280]">{upsellDescription}</p>
+                  <p className="text-xs font-medium text-[#111827]">{upsellSuggestion.title}</p>
+                  <p className="text-xs text-[#6B7280]">{upsellSuggestion.description}</p>
                 </div>
                 <button
-                  onClick={() => navigate(`/product/${upsellActionProductId}`)}
+                  onClick={() => navigate(upsellSuggestion.actionHref)}
                   className="flex-shrink-0 flex items-center gap-1 text-xs text-[#111827] font-medium hover:text-[#FF4DB8] transition-colors"
                 >
-                  Добавить <ChevronRight className="w-3.5 h-3.5" />
+                  {upsellSuggestion.actionLabel} <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

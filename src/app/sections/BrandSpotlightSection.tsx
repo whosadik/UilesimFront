@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { ProductCard, ProductCardSkeleton } from '../components/ProductCard';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
+import { getBrand, listBrands } from '../../shared/api/brands';
 import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 
@@ -24,8 +25,12 @@ type BrandProduct = {
 type ApiProduct = Record<string, unknown>;
 
 type BrandData = {
+  slug: string;
   name: string;
+  description: string;
   productCount: number;
+  newProductsCount: number;
+  saleProductsCount: number;
   products: BrandProduct[];
 };
 
@@ -89,50 +94,6 @@ function extractItems(payload: unknown): ApiProduct[] {
   return rawItems.filter((item): item is ApiProduct => Boolean(item) && typeof item === 'object');
 }
 
-function getBrandData(payload: unknown): BrandData | null {
-  const items = extractItems(payload);
-  if (items.length === 0) {
-    return null;
-  }
-
-  const byBrand = new Map<string, { name: string; items: ApiProduct[] }>();
-
-  for (const item of items) {
-    const brandValue = item.brand;
-    if (typeof brandValue !== 'string') {
-      continue;
-    }
-
-    const normalized = brandValue.trim();
-    if (!normalized) {
-      continue;
-    }
-
-    const key = normalized.toLowerCase();
-    const current = byBrand.get(key);
-
-    if (current) {
-      current.items.push(item);
-    } else {
-      byBrand.set(key, { name: normalized, items: [item] });
-    }
-  }
-
-  if (byBrand.size === 0) {
-    return null;
-  }
-
-  const topBrand = Array.from(byBrand.values()).sort(
-    (a, b) => (b.items.length - a.items.length) || a.name.localeCompare(b.name),
-  )[0];
-
-  return {
-    name: topBrand.name,
-    productCount: topBrand.items.length,
-    products: topBrand.items.slice(0, 4).map((item, index) => mapApiProduct(item, index)),
-  };
-}
-
 export function BrandSpotlightSection() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -149,12 +110,36 @@ export function BrandSpotlightSection() {
       setError(null);
 
       try {
-        const response = await listProducts();
-        const data = getBrandData(response);
+        const brands = await listBrands();
+        const featuredBrand = Array.isArray(brands) ? brands[0] : null;
 
-        if (!cancelled) {
-          setBrandData(data);
+        if (!featuredBrand) {
+          if (!cancelled) {
+            setBrandData(null);
+          }
+          return;
         }
+
+        const [brandDetail, productsResponse] = await Promise.all([
+          getBrand(featuredBrand.slug),
+          listProducts({ brand: featuredBrand.name }),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setBrandData({
+          slug: brandDetail.slug,
+          name: brandDetail.name,
+          description: brandDetail.description,
+          productCount: brandDetail.product_count,
+          newProductsCount: brandDetail.new_products_count,
+          saleProductsCount: brandDetail.sale_products_count,
+          products: extractItems(productsResponse)
+            .slice(0, 4)
+            .map((item, index) => mapApiProduct(item, index)),
+        });
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -188,7 +173,7 @@ export function BrandSpotlightSection() {
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">Бренд недели</h2>
           <ErrorState
             title="Не удалось загрузить бренд недели"
-            description="Произошла ошибка при загрузке данных бренда. Попробуйте ещё раз."
+            description="Произошла ошибка при загрузке данных бренда. Попробуйте еще раз."
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         </div>
@@ -214,8 +199,10 @@ export function BrandSpotlightSection() {
     );
   }
 
-  const brandName = brandData?.name ?? 'Drunk Elephant';
+  const brandName = brandData?.name ?? 'Brand';
   const productCount = brandData?.productCount ?? 0;
+  const newProductsCount = brandData?.newProductsCount ?? 0;
+  const saleProductsCount = brandData?.saleProductsCount ?? 0;
   const products = brandData?.products ?? [];
 
   return (
@@ -235,20 +222,33 @@ export function BrandSpotlightSection() {
 
               <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#111827] mb-2 md:mb-3">{brandName}</h3>
               <p className="text-[#6B7280] text-sm leading-relaxed mb-6 md:mb-8 max-w-md">
-                Подборка товаров бренда на основе актуального каталога. Описание бренда не приходит из API,
-                поэтому здесь показан базовый текст.
+                {brandData?.description ?? 'Описание бренда пока недоступно.'}
               </p>
 
-              <Button variant="primary" className="w-full sm:w-auto">Смотреть бренд</Button>
+              <Button
+                variant="primary"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  if (brandData?.slug) {
+                    navigate(`/brands/${brandData.slug}`);
+                  }
+                }}
+              >
+                Смотреть бренд
+              </Button>
 
               <div className="mt-6 md:mt-8 pt-6 border-t border-pink-200/50 flex gap-6 md:gap-8">
                 <div>
                   <div className="text-xl md:text-2xl font-bold text-[#111827]">{productCount}</div>
-                  <div className="text-xs text-[#6B7280]">Продуктов</div>
+                  <div className="text-xs text-[#6B7280]">Товаров</div>
                 </div>
                 <div>
-                  <div className="text-xl md:text-2xl font-bold text-[#111827]">4.8</div>
-                  <div className="text-xs text-[#6B7280]">Рейтинг</div>
+                  <div className="text-xl md:text-2xl font-bold text-[#111827]">{newProductsCount}</div>
+                  <div className="text-xs text-[#6B7280]">Новинок</div>
+                </div>
+                <div>
+                  <div className="text-xl md:text-2xl font-bold text-[#111827]">{saleProductsCount}</div>
+                  <div className="text-xs text-[#6B7280]">Со скидкой</div>
                 </div>
               </div>
             </div>

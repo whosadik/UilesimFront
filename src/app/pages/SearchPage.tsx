@@ -24,19 +24,6 @@ const SUGGESTED_QUERIES = [
   'spf',
 ] as const;
 
-const matchesQuery = (product: Product, rawQuery: string): boolean => {
-  const query = rawQuery.trim().toLowerCase();
-  if (!query) {
-    return true;
-  }
-
-  return (
-    product.name.toLowerCase().includes(query) ||
-    product.brand.toLowerCase().includes(query) ||
-    product.category.toLowerCase().includes(query)
-  );
-};
-
 const readRecentSearches = (): string[] => {
   if (typeof window === 'undefined') {
     return [];
@@ -98,18 +85,6 @@ export default function SearchPage() {
               fallbackImageUrl: FALLBACK_IMAGE_URL,
             }),
           );
-
-          // Fallback: if backend search returned empty, try local filtering of full catalog.
-          if (mapped.length === 0) {
-            const fallbackResponse = await listProducts();
-            const allProducts = extractProducts(fallbackResponse).map((item, index) =>
-              mapApiProductToGrid(item, index, {
-                fallbackIdPrefix: 'search-product',
-                fallbackImageUrl: FALLBACK_IMAGE_URL,
-              }),
-            );
-            mapped = allProducts.filter((product) => matchesQuery(product, query));
-          }
         } else {
           const response = await listProducts();
           mapped = extractProducts(response).map((item, index) =>
@@ -183,10 +158,7 @@ export default function SearchPage() {
     return () => window.clearTimeout(timeoutId);
   }, [query, searchInput, setSearchParams]);
 
-  const filteredProducts = useMemo(
-    () => products.filter((product) => matchesQuery(product, query)),
-    [products, query],
-  );
+  const filteredProducts = useMemo(() => products, [products]);
 
   const popularProducts = useMemo(() => products.slice(0, 8), [products]);
 

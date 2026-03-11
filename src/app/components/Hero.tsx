@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type TransitionEvent } from 'react';
+import { useNavigate } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 
 import heroMainVideo from '../../assets/banner.mp4';
@@ -36,6 +37,7 @@ type SlideBase = {
     title: string;
     description?: string;
     buttonText?: string;
+    buttonTo?: string;
   };
 };
 
@@ -174,6 +176,14 @@ const slides: HeroSlide[] = [
   },
 ];
 
+const HERO_CTA_ROUTES: Record<string, string> = {
+  'main-video': '/promotions',
+  'jpg-video': '/search?q=Jean%20Paul%20Gaultier',
+  clarins: '/search?q=Clarins',
+  dalba: '/search?q=d%27Alba',
+  darling: '/search?q=Darling',
+};
+
 function getContentLayout(position: SlideContentPosition) {
   if (position === 'left') return 'justify-start';
   if (position === 'center') return 'justify-center';
@@ -191,6 +201,7 @@ function getContentWidth(position: SlideContentPosition) {
 }
 
 export function Hero() {
+  const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
   const [trackIndex, setTrackIndex] = useState(0);
   const [isSliding, setIsSliding] = useState(false);
@@ -330,6 +341,7 @@ export function Hero() {
             const buttonClass = isLightTone
               ? 'bg-white text-[#111827] border border-white/80 hover:bg-white/90'
               : 'bg-[#111827] text-white border border-[#111827] hover:bg-[#0B1220]';
+            const buttonTo = HERO_CTA_ROUTES[slide.id];
             const textBox = slide.textBox;
             const contentWidthClass = getContentWidth(slide.contentPosition);
             const textAlignClass = textBox?.align
@@ -417,6 +429,11 @@ export function Hero() {
                                 <button
                                   type="button"
                                   className={`group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-colors duration-200 ${buttonClass}`}
+                                  onClick={() => {
+                                    if (buttonTo) {
+                                      navigate(buttonTo);
+                                    }
+                                  }}
                                 >
                                   <span>{slide.content.buttonText}</span>
                                   <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />

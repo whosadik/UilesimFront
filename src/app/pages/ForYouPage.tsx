@@ -11,6 +11,7 @@ import { ApiError } from '../../shared/api/ApiError';
 import { getLoyalty, getProfile, updateProfile } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
+import { useCommerce } from '../../shared/commerce/CommerceContext';
 import {
   clickRoadmapStep,
   getRoadmap,
@@ -169,6 +170,8 @@ type RecommendationCard = {
   section: string;
 };
 
+const FALLBACK_RECOMMENDATION_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -321,8 +324,12 @@ const FALLBACK_ROADMAP_OVERVIEW: RoadmapOverview = {
   ],
 };
 
-const buildPersonalOfferCard = (value: Record<string, unknown>): PersonalOfferCard => {
-  const offer = isRecord(value.offer) ? value.offer : {};
+const buildPersonalOfferCard = (value: Record<string, unknown>): PersonalOfferCard | null => {
+  const offer = isRecord(value.offer) ? value.offer : null;
+  if (!offer) {
+    return null;
+  }
+
   const target = isRecord(value.target) ? value.target : {};
   const reason = isRecord(value.reason) ? value.reason : {};
 
@@ -602,55 +609,171 @@ const extractHomeResults = (response: HomeRecsResponse): HomeResultItem[] => {
   return [];
 };
 
+const formatFreeTextLabel = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const prepared = value.trim().replace(/_/g, ' ');
+  return prepared[0].toUpperCase() + prepared.slice(1);
+};
+
+const resolveRecommendationSection = (source: Record<string, unknown>, sectionKey?: string): string => {
+  if (sectionKey) {
+    return sectionKey;
+  }
+
+  if (typeof source.section === 'string' && source.section.trim().length > 0) {
+    return source.section.trim();
+  }
+
+  return 'for_you';
+};
+
+const buildRecommendationWhy = (
+  source: Record<string, unknown>,
+  product: Record<string, unknown>,
+  section: string,
+): string => {
+  const whySource = source.why;
+  const whyList = Array.isArray(whySource)
+    ? whySource.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : [];
+
+  if (typeof whySource === 'string' && whySource.trim().length > 0) {
+    return whySource.trim();
+  }
+  if (whyList.length > 0) {
+    return whyList.slice(0, 2).join(' · ');
+  }
+  if (typeof source.whyRecommended === 'string' && source.whyRecommended.trim().length > 0) {
+    return source.whyRecommended.trim();
+  }
+
+  const supportedSkinType = toStringArray(product.supported_skin_types)[0];
+  const supportedSkinTypeLabel =
+    typeof supportedSkinType === 'string'
+      ? SKIN_TYPE_API_TO_UI[supportedSkinType] ?? formatFreeTextLabel(supportedSkinType)
+      : undefined;
+  const productTypeLabel = formatProductTypeLabel(product.product_type);
+  const categoryLabel = formatCategoryLabel(product.category);
+
+  if (supportedSkinTypeLabel) {
+    return `Подходит для ${supportedSkinTypeLabel.toLowerCase()} кожи`;
+  }
+  if (section === 'because_you_bought') {
+    return 'Дополняет прошлые покупки';
+  }
+  if (section === 'trending') {
+    return 'Популярно среди похожих профилей';
+  }
+  if (productTypeLabel) {
+    return `Подбор по типу ${productTypeLabel.toLowerCase()}`;
+  }
+  if (categoryLabel) {
+    return `Подбор по категории ${categoryLabel.toLowerCase()}`;
+  }
+  return 'Персональная рекомендация';
+};
+
+const buildRecommendationImprovement = (
+  source: Record<string, unknown>,
+  product: Record<string, unknown>,
+): string => {
+  if (typeof source.whatImproves === 'string' && source.whatImproves.trim().length > 0) {
+    return source.whatImproves.trim();
+  }
+
+  const firstConcern = formatFreeTextLabel(toStringArray(product.concerns)[0]);
+  if (firstConcern) {
+    return firstConcern;
+  }
+
+  const firstActive = formatFreeTextLabel(toStringArray(product.actives)[0]);
+  if (firstActive) {
+    return firstActive;
+  }
+
+  const productTypeLabel = formatProductTypeLabel(product.product_type);
+  if (productTypeLabel) {
+    return productTypeLabel;
+  }
+
+  const categoryLabel = formatCategoryLabel(product.category);
+  return categoryLabel ?? 'Под ваш профиль';
+};
+
+const buildRecommendationBenefit = (
+  source: Record<string, unknown>,
+  product: Record<string, unknown>,
+  section: string,
+): string => {
+  if (typeof source.expectedBenefit === 'string' && source.expectedBenefit.trim().length > 0) {
+    return source.expectedBenefit.trim();
+  }
+
+  const strengthLabel = formatFreeTextLabel(product.strength);
+  if (strengthLabel) {
+    return `Интенсивность: ${strengthLabel.toLowerCase()}`;
+  }
+
+  const actives = toStringArray(product.actives).slice(0, 2);
+  if (actives.length > 0) {
+    return `Активы: ${actives.join(', ')}`;
+  }
+
+  if (section === 'because_you_bought') {
+    return 'Хорошо сочетается с вашими предыдущими покупками';
+  }
+  if (section === 'trending') {
+    return 'Часто выбирают пользователи с похожим профилем';
+  }
+
+  return 'Откройте карточку товара для деталей и способа применения';
+};
+
 const normalizeRec = (item: unknown, index: number, sectionKey?: string): RecommendationCard => {
-  const fallbackPool = sectionKey === 'trending' ? mockTrendingRecs : mockRecommendations;
-  const fallback = fallbackPool[index % fallbackPool.length];
   const source = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
   const product = (
     source.product && typeof source.product === 'object' ? source.product : source
   ) as Record<string, unknown>;
+  const section = resolveRecommendationSection(source, sectionKey);
+  const fallbackId = `rec-${section}-${index + 1}`;
 
-  const id = String(product.id ?? source.id ?? fallback.id);
-  const price = toNumber(product.price ?? source.price) ?? fallback.price;
+  const id = String(product.id ?? source.id ?? fallbackId);
+  const price = toNumber(product.price ?? source.price) ?? 0;
   const originalPrice = toNumber(product.original_price ?? source.original_price ?? source.originalPrice);
-  const score = toNumber(source.score ?? source.recommendationScore) ?? fallback.recommendationScore;
-  const pointsEarned = toNumber(source.points_earned ?? source.pointsEarned) ?? Math.max(1, Math.round(price * 0.1));
-  const whySource = source.why;
-  const whyRecommended =
-    (typeof whySource === 'string' && whySource) ||
-    (Array.isArray(whySource) && whySource.filter((v): v is string => typeof v === 'string').join(' · ')) ||
-    (typeof source.whyRecommended === 'string' && source.whyRecommended) ||
-    fallback.whyRecommended;
+  const score = toNumber(source.score ?? source.recommendationScore ?? product.recommendation_score) ?? 0;
+  const pointsEarned =
+    toNumber(product.points_earned ?? source.points_earned ?? source.pointsEarned) ??
+    Math.max(0, Math.round(price * 0.1));
+  const whyRecommended = buildRecommendationWhy(source, product, section);
 
   return {
     id,
     name:
       (typeof product.name === 'string' && product.name) ||
       (typeof source.name === 'string' && source.name) ||
-      fallback.name,
+      `Товар #${id}`,
     brand:
       (typeof product.brand === 'string' && product.brand) ||
       (typeof source.brand === 'string' && source.brand) ||
-      fallback.brand,
+      'Uilesim',
     price,
     originalPrice: originalPrice && originalPrice > price ? originalPrice : undefined,
     image:
       (typeof product.image_url === 'string' && product.image_url) ||
+      (Array.isArray(product.image_urls) && typeof product.image_urls[0] === 'string' ? product.image_urls[0] : undefined) ||
       (typeof product.image === 'string' && product.image) ||
       (typeof source.image_url === 'string' && source.image_url) ||
       (typeof source.image === 'string' && source.image) ||
-      fallback.image,
+      FALLBACK_RECOMMENDATION_IMAGE,
     pointsEarned: Math.max(0, Math.round(pointsEarned)),
     recommendationScore: Math.max(0, Math.min(100, Math.round(score))),
     whyRecommended,
-    whatImproves:
-      (typeof source.whatImproves === 'string' && source.whatImproves) ||
-      (typeof source.components === 'string' && source.components) ||
-      fallback.whatImproves,
-    expectedBenefit:
-      (typeof source.expectedBenefit === 'string' && source.expectedBenefit) ||
-      fallback.expectedBenefit,
-    section: sectionKey || (typeof source.section === 'string' && source.section) || fallback.section,
+    whatImproves: buildRecommendationImprovement(source, product),
+    expectedBenefit: buildRecommendationBenefit(source, product, section),
+    section,
   };
 };
 
@@ -706,18 +829,43 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
 
 interface EnhancedRecCardProps {
   product: RecommendationCard;
-  onAdd: (id: string) => void;
+  cartQuantity: number;
+  onAdd: (product: RecommendationCard, quantity: number) => Promise<void>;
+  onSetQuantity: (product: RecommendationCard, quantity: number) => Promise<void>;
   onProductClick?: (product: RecommendationCard) => void;
 }
 
-function EnhancedRecCard({ product, onAdd, onProductClick }: EnhancedRecCardProps) {
-  const [inCart, setInCart] = useState(false);
-  const [qty, setQty] = useState(1);
+function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProductClick }: EnhancedRecCardProps) {
+  const [isCartPending, setIsCartPending] = useState(false);
+  const inCart = cartQuantity > 0;
+  const qty = inCart ? cartQuantity : 1;
 
-  const handleAdd = (e: React.MouseEvent) => {
+  const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
-    setInCart(true);
-    onAdd(product.id);
+    if (isCartPending) {
+      return;
+    }
+
+    setIsCartPending(true);
+    try {
+      await onAdd(product, 1);
+    } finally {
+      setIsCartPending(false);
+    }
+  };
+
+  const handleQuantityChange = async (nextQuantity: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isCartPending) {
+      return;
+    }
+
+    setIsCartPending(true);
+    try {
+      await onSetQuantity(product, nextQuantity);
+    } finally {
+      setIsCartPending(false);
+    }
   };
 
   return (
@@ -773,14 +921,16 @@ function EnhancedRecCard({ product, onAdd, onProductClick }: EnhancedRecCardProp
               className="flex items-center justify-between h-10 rounded-xl border-2 border-[#111827] overflow-hidden"
             >
               <button
-                onClick={e => { e.preventDefault(); if (qty === 1) setInCart(false); else setQty(q => q - 1); }}
+                onClick={(e) => handleQuantityChange(qty - 1, e)}
+                disabled={isCartPending}
                 className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <span className="px-3 font-semibold text-[#111827] text-sm">{qty}</span>
               <button
-                onClick={e => { e.preventDefault(); setQty(q => q + 1); }}
+                onClick={(e) => handleQuantityChange(qty + 1, e)}
+                disabled={isCartPending}
                 className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -789,6 +939,7 @@ function EnhancedRecCard({ product, onAdd, onProductClick }: EnhancedRecCardProp
           ) : (
             <button
               onClick={handleAdd}
+              disabled={isCartPending}
               className="w-full h-10 rounded-xl bg-[#111827] text-white text-xs font-medium hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
@@ -1002,6 +1153,7 @@ export default function ForYouPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { addToCart, getCartQuantity, setCartQuantity } = useCommerce();
 
   // Simulate states
   const [isNewUser, setIsNewUser] = useState(false);
@@ -1010,7 +1162,7 @@ export default function ForYouPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
   const [trendingRecommendations, setTrendingRecommendations] = useState<RecommendationCard[]>([]);
-  const [personalOffer, setPersonalOffer] = useState<PersonalOfferCard>(() => createFallbackPersonalOffer());
+  const [personalOffer, setPersonalOffer] = useState<PersonalOfferCard | null>(null);
   const [roadmapPlan, setRoadmapPlan] = useState<RoadmapPlanApi | null>(null);
   const [loyaltyPoints, setLoyaltyPoints] = useState(1247);
   const [loyaltyTier, setLoyaltyTier] = useState('gold');
@@ -1022,7 +1174,7 @@ export default function ForYouPage() {
   const roadmapHeading = roadmapOverview.totalSteps > 0
     ? `Шаг ${Math.min(roadmapOverview.currentStepIndex, roadmapOverview.totalSteps)} из ${roadmapOverview.totalSteps}: ${roadmapOverview.nextStepTitle}`
     : roadmapOverview.nextStepTitle;
-  const offerCountdownMs = personalOffer.expiresAt
+  const offerCountdownMs = personalOffer?.expiresAt
     ? personalOffer.expiresAt.getTime() - Date.now()
     : null;
   const hasOfferCountdown = offerCountdownMs !== null && offerCountdownMs > 0;
@@ -1134,11 +1286,11 @@ export default function ForYouPage() {
               ? offerResult.value
               : null;
 
-        if (effectiveOffer) {
-          setPersonalOffer(buildPersonalOfferCard(effectiveOffer));
-        } else {
-          setPersonalOffer(createFallbackPersonalOffer());
-        }
+        setPersonalOffer(
+          effectiveOffer && isRecord(effectiveOffer)
+            ? buildPersonalOfferCard(effectiveOffer)
+            : null,
+        );
 
         try {
           const nextRoadmapPlan = await loadForYouRoadmap();
@@ -1194,7 +1346,7 @@ export default function ForYouPage() {
       product_id: productId,
       page: 'for_you',
       section_key: product.section,
-      context: { assignment_id: personalOffer.assignmentId },
+      context: { assignment_id: personalOffer?.assignmentId },
     }).catch(() => undefined);
   };
 
@@ -1211,9 +1363,52 @@ export default function ForYouPage() {
           product_id: productId,
           page: 'for_you',
           section_key: selected.section,
-          context: { assignment_id: personalOffer.assignmentId },
+          context: { assignment_id: personalOffer?.assignmentId },
         }).catch(() => undefined);
       }
+    }
+  };
+
+  const handleRecommendationAddToCart = async (product: RecommendationCard, quantity: number) => {
+    try {
+      const nextQuantity = await addToCart(product.id, quantity);
+      toast.success('Р”РѕР±Р°РІР»РµРЅРѕ РІ РєРѕСЂР·РёРЅСѓ!', {
+        description:
+          nextQuantity > 1
+            ? `РўРµРїРµСЂСЊ РІ РєРѕСЂР·РёРЅРµ ${nextQuantity} С€С‚.`
+            : `+${product.pointsEarned} Р±Р°Р»Р»РѕРІ РїРѕСЃР»Рµ РїРѕРєСѓРїРєРё`,
+      });
+
+      const productId = Number(product.id);
+      if (Number.isFinite(productId)) {
+        void sendEvent({
+          action: 'add_to_cart',
+          product_id: productId,
+          page: 'for_you',
+          section_key: product.section,
+          context: { assignment_id: personalOffer?.assignmentId },
+        }).catch(() => undefined);
+      }
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      toast.error(error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕР±Р°РІРёС‚СЊ С‚РѕРІР°СЂ РІ РєРѕСЂР·РёРЅСѓ');
+    }
+  };
+
+  const handleRecommendationQuantityChange = async (product: RecommendationCard, quantity: number) => {
+    try {
+      await setCartQuantity(product.id, quantity);
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      toast.error(error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РєРѕСЂР·РёРЅСѓ');
     }
   };
 
@@ -1391,7 +1586,14 @@ export default function ForYouPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {recommendations.map(p => (
-                  <EnhancedRecCard key={p.id} product={p} onAdd={handleAddToCart} onProductClick={handleRecommendationClick} />
+                  <EnhancedRecCard
+                    key={p.id}
+                    product={p}
+                    cartQuantity={getCartQuantity(p.id)}
+                    onAdd={handleRecommendationAddToCart}
+                    onSetQuantity={handleRecommendationQuantityChange}
+                    onProductClick={handleRecommendationClick}
+                  />
                 ))}
               </div>
             </section>
@@ -1415,7 +1617,14 @@ export default function ForYouPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {trendingRecommendations.map(p => (
-                  <EnhancedRecCard key={p.id} product={p} onAdd={handleAddToCart} onProductClick={handleRecommendationClick} />
+                  <EnhancedRecCard
+                    key={p.id}
+                    product={p}
+                    cartQuantity={getCartQuantity(p.id)}
+                    onAdd={handleRecommendationAddToCart}
+                    onSetQuantity={handleRecommendationQuantityChange}
+                    onProductClick={handleRecommendationClick}
+                  />
                 ))}
               </div>
             </section>
@@ -1466,14 +1675,18 @@ export default function ForYouPage() {
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">ОФФЕР</span>
                 <span className="text-xs text-[#6B7280]">Персональный</span>
               </div>
-              <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">{personalOffer.title}</h3>
-              <p className="text-xs text-[#6B7280] mb-3">{personalOffer.description}</p>
+              <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">
+                {personalOffer?.title ?? 'РџРµСЂСЃРѕРЅР°Р»СЊРЅС‹Р№ РѕС„С„РµСЂ РїРѕРєР° РЅРµРґРѕСЃС‚СѓРїРµРЅ'}
+              </h3>
+              <p className="text-xs text-[#6B7280] mb-3">
+                {personalOffer?.description ?? 'РљРѕРіРґР° API РїРѕРґР±РµСЂС‘С‚ РїРѕРґС…РѕРґСЏС‰РµРµ РїСЂРµРґР»РѕР¶РµРЅРёРµ, РѕРЅРѕ РїРѕСЏРІРёС‚СЃСЏ Р·РґРµСЃСЊ.'}
+              </p>
 
               {/* Saving highlight */}
               <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
                 <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
                 <p className="text-xs text-[#111827]">
-                  {personalOffer.highlight}
+                  {personalOffer?.highlight ?? 'РЎРµР№С‡Р°СЃ РґР»СЏ РІР°С€РµРіРѕ РїСЂРѕС„РёР»СЏ РЅРµС‚ Р°РєС‚РёРІРЅРѕРіРѕ РїСЂРµРґР»РѕР¶РµРЅРёСЏ.'}
                 </p>
               </div>
 

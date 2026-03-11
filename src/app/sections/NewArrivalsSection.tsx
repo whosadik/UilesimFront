@@ -4,7 +4,7 @@ import { CarouselHeader } from '../components/CarouselHeader';
 import { ProductCarousel } from '../components/ProductCarousel';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
-import { listProducts } from '../../shared/api/catalog';
+import { listProducts, type ProductListResponse } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 
 type CarouselProduct = {
@@ -24,6 +24,7 @@ type CarouselProduct = {
 type ApiProduct = Record<string, unknown>;
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+const NEW_ARRIVALS_LIMIT = 10;
 
 function toNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -67,10 +68,18 @@ function mapApiProduct(item: ApiProduct, index: number): CarouselProduct {
       (typeof item.category === 'string' && item.category) ||
       (typeof item.product_type === 'string' && item.product_type) ||
       'skincare',
-    isNew: Boolean(item.is_new),
+    isNew: item.is_new === undefined ? true : Boolean(item.is_new),
     inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
     pointsEarned: toNumber(item.points_earned),
   };
+}
+
+function toResults(payload: CarouselProduct[] | ProductListResponse): ApiProduct[] {
+  if (Array.isArray(payload)) {
+    return payload as unknown as ApiProduct[];
+  }
+
+  return Array.isArray(payload.results) ? (payload.results as unknown as ApiProduct[]) : [];
 }
 
 export function NewArrivalsSection() {
@@ -89,9 +98,8 @@ export function NewArrivalsSection() {
       setError(null);
 
       try {
-        const response = await listProducts();
-        const items = Array.isArray(response) ? response : response.results;
-        const mapped = items.slice(0, 10).map((item, index) => mapApiProduct(item as ApiProduct, index));
+        const response = await listProducts({ new: true, page: 1, page_size: NEW_ARRIVALS_LIMIT });
+        const mapped = toResults(response).map((item, index) => mapApiProduct(item, index));
 
         if (!cancelled) {
           setProducts(mapped);
@@ -125,18 +133,18 @@ export function NewArrivalsSection() {
   return (
     <section className="py-12">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title="Новинки" subtitle="Свежие релизы недели" />
+        <CarouselHeader title="Новинки" subtitle="Свежие релизы из текущего каталога" />
 
         {error ? (
           <ErrorState
             title="Не удалось загрузить новинки"
-            description="Произошла ошибка при загрузке новинок. Попробуйте ещё раз."
+            description="Произошла ошибка при загрузке новинок. Попробуйте еще раз."
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : !isLoading && products.length === 0 ? (
           <EmptyState
             title="Новинок пока нет"
-            description="Сейчас нет доступных новинок. Проверьте позже."
+            description="Сейчас в API нет товаров, попадающих в окно новых поступлений."
             action={{
               label: 'Обновить',
               onClick: () => setRetryKey((value) => value + 1),

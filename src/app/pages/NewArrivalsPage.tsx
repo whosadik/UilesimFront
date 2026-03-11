@@ -38,7 +38,7 @@ export default function NewArrivalsPage() {
       setLoadError(null);
 
       try {
-        const response = await listProducts();
+        const response = await listProducts({ new: true });
         const mapped = extractProducts(response).map((item, index) =>
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'new-product',
@@ -60,7 +60,7 @@ export default function NewArrivalsPage() {
         }
 
         setProducts([]);
-        setLoadError('Не удалось загрузить новинки из API. Попробуйте ещё раз.');
+        setLoadError('Не удалось загрузить новинки из API. Попробуйте еще раз.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -75,16 +75,15 @@ export default function NewArrivalsPage() {
     };
   }, [location.pathname, navigate, reloadKey]);
 
-  const newProducts = useMemo(() => products.filter((product) => product.isNew), [products]);
   const visibleProducts = useMemo(
     () =>
-      newProducts.filter((product) => {
+      products.filter((product) => {
         const categoryMatched =
           selectedCategory === 'all' || product.category.toLowerCase() === selectedCategory;
         const stockMatched = !onlyInStock || product.inStock !== false;
         return categoryMatched && stockMatched;
       }),
-    [newProducts, onlyInStock, selectedCategory],
+    [products, onlyInStock, selectedCategory],
   );
 
   return (
@@ -104,10 +103,10 @@ export default function NewArrivalsPage() {
             <h1 className="text-3xl lg:text-4xl font-bold text-[#111827]">
               Новинки
             </h1>
-            <Badge>{newProducts.length} товаров</Badge>
+            <Badge>{products.length} товаров</Badge>
           </div>
           <p className="text-base text-[#6B7280]">
-            Свежие релизы последних недель
+            Свежие релизы из окна новых поступлений в каталоге
           </p>
         </div>
 
@@ -154,7 +153,7 @@ export default function NewArrivalsPage() {
       </div>
 
       <div className="hidden">
-        {/* Source: GET /api/products/, "new" is derived from created_at/is_new */}
+        {/* Source: GET /api/products/?new=true */}
       </div>
     </div>
   );

@@ -5,12 +5,13 @@ import { ProductGrid, type Product } from '../components/ProductGrid';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
-import { listProducts } from '../../shared/api/catalog';
+import { listProducts, type ProductListResponse } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 
 type ApiProduct = Record<string, unknown>;
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+const PRODUCT_FEED_PAGE_SIZE = 12;
 
 function toNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -60,10 +61,25 @@ function mapApiProduct(item: ApiProduct, index: number): Product {
   };
 }
 
+function toPagedPayload(payload: Product[] | ProductListResponse): ProductListResponse {
+  if (Array.isArray(payload)) {
+    return {
+      count: payload.length,
+      next: null,
+      previous: null,
+      results: payload,
+    };
+  }
+
+  return payload;
+}
+
 export function ProductFeedSection() {
   const navigate = useNavigate();
   const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextPage, setNextPage] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,12 +93,14 @@ export function ProductFeedSection() {
       setError(null);
 
       try {
-        const response = await listProducts();
-        const items = Array.isArray(response) ? response : response.results;
-        const mapped = items.map((item, index) => mapApiProduct(item as ApiProduct, index));
+        const response = await listProducts({ page: 1, page_size: PRODUCT_FEED_PAGE_SIZE });
+        const payload = toPagedPayload(response);
+        const mapped = payload.results.map((item, index) => mapApiProduct(item as ApiProduct, index));
 
         if (!cancelled) {
           setProducts(mapped);
+          setTotalCount(typeof payload.count === 'number' ? payload.count : mapped.length);
+          setNextPage(payload.next ? 2 : null);
         }
       } catch (loadError) {
         if (cancelled) {
@@ -95,6 +113,8 @@ export function ProductFeedSection() {
         }
 
         setProducts([]);
+        setTotalCount(0);
+        setNextPage(null);
         setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить товары');
       } finally {
         if (!cancelled) {
@@ -110,9 +130,34 @@ export function ProductFeedSection() {
     };
   }, [location.pathname, navigate, retryKey]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
+    if (isLoadingMore || nextPage === null) {
+      return;
+    }
+
     setIsLoadingMore(true);
-    setTimeout(() => setIsLoadingMore(false), 1500);
+
+    try {
+      const response = await listProducts({ page: nextPage, page_size: PRODUCT_FEED_PAGE_SIZE });
+      const payload = toPagedPayload(response);
+      const currentLength = products.length;
+      const mapped = payload.results.map((item, index) =>
+        mapApiProduct(item as ApiProduct, currentLength + index),
+      );
+
+      setProducts((current) => [...current, ...mapped]);
+      setTotalCount(typeof payload.count === 'number' ? payload.count : currentLength + mapped.length);
+      setNextPage(payload.next ? nextPage + 1 : null);
+    } catch (loadError) {
+      if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      setError(loadError instanceof Error ? loadError.message : 'Не удалось догрузить товары');
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   if (error) {
@@ -125,7 +170,7 @@ export function ProductFeedSection() {
           <FilterBar />
           <ErrorState
             title="Не удалось загрузить товары"
-            description="Произошла ошибка при загрузке товаров. Попробуйте ещё раз."
+            description="Произошла ошибка при загрузке товаров. Попробуйте еще раз."
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         </div>
@@ -173,11 +218,15 @@ export function ProductFeedSection() {
 
         <div className="flex flex-col items-center gap-4 mt-8">
           <div className="text-sm text-gray-600">
-            Показано {products.length} из {products.length} товаров
+            Показано {products.length} из {totalCount || products.length} товаров
           </div>
-          <Button onClick={handleLoadMore} variant="ghost">
-            Показать ещё
-          </Button>
+          {nextPage !== null ? (
+            <Button onClick={handleLoadMore} variant="ghost" disabled={isLoadingMore}>
+              {isLoadingMore ? 'Загружаем...' : 'Показать ещё'}
+            </Button>
+          ) : (
+            <div className="text-xs text-gray-500">Вы показали все товары из API</div>
+          )}
         </div>
       </div>
     </section>

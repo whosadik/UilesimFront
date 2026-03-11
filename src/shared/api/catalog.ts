@@ -14,9 +14,16 @@ export interface Product {
   [key: string]: any;
 }
 
+export interface ProductListResponse {
+  count?: number;
+  next?: string | null;
+  previous?: string | null;
+  results: Product[];
+}
+
 export function listProducts(
   params?: Record<string, string | number | boolean | undefined>,
-): Promise<Product[] | { results: Product[] }> {
+): Promise<Product[] | ProductListResponse> {
   const query = new URLSearchParams();
   if (params) {
     for (const [key, value] of Object.entries(params)) {
