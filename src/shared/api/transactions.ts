@@ -1,4 +1,5 @@
 import { apiFetch } from './httpClient';
+import type { RoadmapStepSnapshotApi } from './roadmap';
 
 const ENDPOINT = '/api/transactions/';
 
@@ -42,6 +43,7 @@ export type Transaction = {
   target?: Record<string, unknown> | null;
   eligible_total?: string | number;
   next_offer?: unknown;
+  next_roadmap_step?: RoadmapStepSnapshotApi | null;
   items?: TransactionItem[];
   [k: string]: unknown;
 };

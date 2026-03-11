@@ -3,10 +3,14 @@ import { apiFetch } from './httpClient';
 export interface Product {
   id: number;
   name: string;
+  brand?: string;
   product_type?: string;
   category?: string;
   price?: string | number | null;
   image_url?: string | null;
+  image_urls?: string[];
+  in_stock?: boolean;
+  currency?: string | null;
   [key: string]: any;
 }
 

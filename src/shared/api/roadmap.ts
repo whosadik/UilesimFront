@@ -5,34 +5,41 @@ export type RoadmapRecommendedProduct = {
   name?: string;
   brand?: string;
   price?: string | number | null;
+  currency?: string | null;
   category?: string;
   product_type?: string;
   in_stock?: boolean;
+  image_url?: string | null;
+  image_urls?: string[];
+  points_earned?: number;
   [k: string]: unknown;
 };
 
-export type RoadmapStepApi = {
+export type RoadmapStepSnapshotApi = {
   id?: number;
+  step_id?: number;
+  plan_id?: number | null;
+  category?: string | null;
   step_index?: number;
   product_type?: string;
   status?: string;
-  recommended_product?: RoadmapRecommendedProduct | null;
-  suggestions?: unknown[];
-  score?: number | null;
-  confidence?: number | null;
+  title?: string;
+  description?: string;
   why?: unknown;
   cadence?: string;
+  recommended_product_id?: number | null;
+  recommended_product?: RoadmapRecommendedProduct | null;
   [k: string]: unknown;
 };
 
+export type RoadmapStepApi = RoadmapStepSnapshotApi & {
+  suggestions?: unknown[];
+  score?: number | null;
+  confidence?: number | null;
+};
+
 export type RoadmapSummaryApi = {
-  next_step?: {
-    id?: number;
-    step_index?: number;
-    product_type?: string;
-    status?: string;
-    [k: string]: unknown;
-  } | null;
+  next_step?: RoadmapStepSnapshotApi | null;
   missing_steps_count?: number;
   total_steps?: number;
   [k: string]: unknown;
@@ -55,9 +62,14 @@ type RoadmapRefreshPayload = {
   category: string;
 };
 
-export function getRoadmap(category: string): Promise<RoadmapPlanApi> {
-  const query = new URLSearchParams({ category });
-  return apiFetch<RoadmapPlanApi>(`/api/me/roadmap?${query.toString()}`, {
+export function getRoadmap(category?: string): Promise<RoadmapPlanApi> {
+  const query = new URLSearchParams();
+  if (category) {
+    query.set('category', category);
+  }
+  const search = query.toString();
+
+  return apiFetch<RoadmapPlanApi>(search ? `/api/me/roadmap?${search}` : '/api/me/roadmap', {
     method: 'GET',
     skipCsrf: true,
   });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Map, RefreshCw, Sparkles, Star } from "lucide-react";
 import { RoadmapStepCard, type RoadmapStep } from "../components/RoadmapStepCard";
@@ -17,157 +17,19 @@ import {
   type RoadmapStepApi,
   type RoadmapSummaryApi,
 } from "../../shared/api/roadmap";
+import {
+  DEFAULT_ROADMAP_STEP_META,
+  ROADMAP_CATEGORY_OPTIONS,
+  getRoadmapStepMeta,
+  getRoadmapStepPresentation,
+  mapRoadmapStatusToUiStatus,
+} from "../../shared/roadmap/presentation";
 
 type UiRoadmapStep = RoadmapStep & {
   apiStepId?: number;
   productType: string;
   rawStatus: string;
   why: string[];
-};
-
-type StepMeta = {
-  points: number;
-  why: string;
-  improves: string;
-  benefit: string;
-};
-
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
-
-const CATEGORIES = [
-  { id: "skincare", label: "Уход за кожей", icon: "✨" },
-  { id: "makeup", label: "Макияж", icon: "💄" },
-  { id: "haircare", label: "Уход за волосами", icon: "💇" },
-  { id: "fragrance", label: "Парфюмерия", icon: "🌸" },
-];
-
-const STEP_TEXT_BY_TYPE: Record<string, { title: string; description: string }> = {
-  cleanser: {
-    title: "Очищение",
-    description: "Начните с мягкого очищающего средства для вашего типа кожи.",
-  },
-  toner: {
-    title: "Тонизирование",
-    description: "Восстановите баланс кожи с помощью подходящего тоника.",
-  },
-  serum: {
-    title: "Сыворотка",
-    description: "Добавьте активный этап для решения конкретной задачи кожи.",
-  },
-  moisturizer: {
-    title: "Увлажнение",
-    description: "Закрепите уход увлажняющим средством для поддержания барьера кожи.",
-  },
-  spf: {
-    title: "Защита SPF",
-    description: "Завершите дневной уход средством с солнцезащитой.",
-  },
-  shampoo: {
-    title: "Очищение кожи головы",
-    description: "Выберите шампунь по типу кожи головы и частоте мытья.",
-  },
-  conditioner: {
-    title: "Кондиционирование",
-    description: "Используйте кондиционер для защиты длины и блеска волос.",
-  },
-  hair_mask: {
-    title: "Маска для волос",
-    description: "Добавьте еженедельный восстановительный этап ухода.",
-  },
-  hair_oil: {
-    title: "Масло для волос",
-    description: "Используйте масло для защиты и гладкости длины.",
-  },
-  scalp_serum: {
-    title: "Сыворотка для кожи головы",
-    description: "Добавьте целевой уход для кожи головы и корней.",
-  },
-  foundation: {
-    title: "Тон",
-    description: "Подберите основу, подходящую по тону и типу кожи.",
-  },
-  eyeshadow: {
-    title: "Акцент для глаз",
-    description: "Добавьте продукт для акцента и завершения макияжа.",
-  },
-  lipstick: {
-    title: "Акцент для губ",
-    description: "Завершите образ подходящим оттенком для губ.",
-  },
-  perfume: {
-    title: "Парфюмерная база",
-    description: "Подберите аромат, который соответствует вашим предпочтениям.",
-  },
-};
-
-const STEP_META_BY_TYPE: Record<string, StepMeta> = {
-  cleanser: {
-    points: 120,
-    why: "Базовый шаг для стабильной рутины.",
-    improves: "Очищение и подготовка кожи.",
-    benefit: "Первые изменения обычно заметны в течение недели.",
-  },
-  toner: {
-    points: 90,
-    why: "Помогает выровнять баланс после очищения.",
-    improves: "Комфорт и текстура кожи.",
-    benefit: "Кожа выглядит более ровной и спокойной.",
-  },
-  serum: {
-    points: 140,
-    why: "Целевой шаг под вашу текущую задачу.",
-    improves: "Выраженность ключевой проблемы.",
-    benefit: "Результат обычно проявляется через 2–4 недели.",
-  },
-  moisturizer: {
-    points: 130,
-    why: "Закрепляет эффект предыдущих шагов.",
-    improves: "Защитный барьер и эластичность.",
-    benefit: "Меньше сухости и дискомфорта.",
-  },
-  spf: {
-    points: 190,
-    why: "Ключевой этап дневной защиты кожи.",
-    improves: "Профилактику пигментации и фотостарения.",
-    benefit: "Долгосрочная защита результата ухода.",
-  },
-  shampoo: {
-    points: 100,
-    why: "Основа регулярного ухода за волосами.",
-    improves: "Состояние кожи головы.",
-    benefit: "Чистота и комфорт между мытьем.",
-  },
-  conditioner: {
-    points: 110,
-    why: "Нужен для защиты длины после очищения.",
-    improves: "Мягкость и управляемость волос.",
-    benefit: "Меньше спутывания и ломкости.",
-  },
-  hair_mask: {
-    points: 150,
-    why: "Усиливает базовый уход раз в неделю.",
-    improves: "Плотность и восстановление длины.",
-    benefit: "Волосы выглядят более гладкими.",
-  },
-  hair_oil: {
-    points: 130,
-    why: "Защищает длину от пересушивания.",
-    improves: "Гладкость и блеск.",
-    benefit: "Меньше пушения и сухости кончиков.",
-  },
-  scalp_serum: {
-    points: 145,
-    why: "Целевой уход за кожей головы.",
-    improves: "Баланс и комфорт кожи головы.",
-    benefit: "Повышает эффективность всей рутины.",
-  },
-};
-
-const DEFAULT_META: StepMeta = {
-  points: 100,
-  why: "Персональный шаг подобран на основе ваших данных.",
-  improves: "Результат вашей рутины.",
-  benefit: "Улучшения обычно заметны при регулярном использовании.",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -206,37 +68,22 @@ function toWhyList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
-function formatProductType(productType: string): string {
-  const prepared = productType.replace(/_/g, " ").trim();
-  if (!prepared) {
-    return "Шаг ухода";
-  }
-
-  return prepared[0].toUpperCase() + prepared.slice(1);
-}
-
-function getStepPresentation(productType: string): { title: string; description: string } {
-  return (
-    STEP_TEXT_BY_TYPE[productType] ?? {
-      title: formatProductType(productType),
-      description: "Персональный шаг, добавленный в ваш roadmap.",
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
     }
-  );
-}
 
-function mapStatusToUiStatus(
-  apiStatus: string,
-  isCurrent: boolean,
-): "pending" | "completed" | "current" {
-  if (isCurrent) {
-    return "current";
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.trim().length > 0) {
+          return item.trim();
+        }
+      }
+    }
   }
 
-  if (apiStatus === "completed" || apiStatus === "owned" || apiStatus === "skipped") {
-    return "completed";
-  }
-
-  return "pending";
+  return undefined;
 }
 
 function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
@@ -244,13 +91,16 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
   const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : undefined;
   const nextStep = summary && isRecord(summary.next_step) ? summary.next_step : undefined;
 
-  const nextStepId = typeof nextStep?.id === "number" ? nextStep.id : undefined;
+  const nextStepId =
+    typeof nextStep?.step_id === "number"
+      ? nextStep.step_id
+      : typeof nextStep?.id === "number"
+        ? nextStep.id
+        : undefined;
   const nextStepIndex = typeof nextStep?.step_index === "number" ? nextStep.step_index : undefined;
 
-  const firstCurrentCandidate = rawSteps.find((step) =>
-    step &&
-    typeof step === "object" &&
-    (step.status === "missing" || step.status === "recommended"),
+  const firstCurrentCandidate = rawSteps.find(
+    (step) => step && typeof step === "object" && (step.status === "missing" || step.status === "recommended"),
   );
 
   const fallbackCurrentId =
@@ -262,31 +112,34 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
     const apiStep = isRecord(step) ? (step as RoadmapStepApi) : {};
     const apiStepId = typeof apiStep.id === "number" ? apiStep.id : undefined;
     const stepIndex = typeof apiStep.step_index === "number" ? apiStep.step_index : index + 1;
-    const productType = typeof apiStep.product_type === "string" && apiStep.product_type
-      ? apiStep.product_type
-      : "routine_step";
+    const productType =
+      typeof apiStep.product_type === "string" && apiStep.product_type ? apiStep.product_type : "routine_step";
     const apiStatus = typeof apiStep.status === "string" ? apiStep.status : "missing";
 
     const isCurrent =
       (nextStepId !== undefined && apiStepId === nextStepId) ||
       (nextStepId === undefined && nextStepIndex !== undefined && stepIndex === nextStepIndex) ||
-      (nextStepId === undefined && nextStepIndex === undefined && apiStepId !== undefined && apiStepId === fallbackCurrentId);
+      (nextStepId === undefined &&
+        nextStepIndex === undefined &&
+        apiStepId !== undefined &&
+        apiStepId === fallbackCurrentId);
 
-    const recommendedProduct = isRecord(apiStep.recommended_product)
-      ? apiStep.recommended_product
-      : null;
-
+    const recommendedProduct = isRecord(apiStep.recommended_product) ? apiStep.recommended_product : null;
     const productId =
-      recommendedProduct && (typeof recommendedProduct.id === "number" || typeof recommendedProduct.id === "string")
-        ? String(recommendedProduct.id)
-        : undefined;
+      typeof apiStep.recommended_product_id === "number"
+        ? String(apiStep.recommended_product_id)
+        : recommendedProduct && (typeof recommendedProduct.id === "number" || typeof recommendedProduct.id === "string")
+          ? String(recommendedProduct.id)
+          : undefined;
 
     const productName =
-      recommendedProduct && typeof recommendedProduct.name === "string"
-        ? recommendedProduct.name
-        : undefined;
-
-    const presentation = getStepPresentation(productType);
+      recommendedProduct && typeof recommendedProduct.name === "string" ? recommendedProduct.name : undefined;
+    const productImage = firstString(
+      recommendedProduct?.image_url,
+      recommendedProduct?.image_urls,
+    );
+    const productPrice = toNumber(recommendedProduct?.price);
+    const presentation = getRoadmapStepPresentation(productType);
 
     return {
       id: apiStepId !== undefined ? String(apiStepId) : `step-${index + 1}`,
@@ -299,10 +152,19 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
       description: presentation.description,
       product_id: productId,
       product_name: productName,
-      product_image: productId ? FALLBACK_IMAGE : undefined,
-      status: mapStatusToUiStatus(apiStatus, isCurrent),
+      product_image: productImage,
+      recommended_product: productId
+        ? {
+            id: productId,
+            name: productName,
+            image_url: productImage,
+            price: recommendedProduct?.price,
+            in_stock: recommendedProduct?.in_stock,
+          }
+        : null,
+      status: mapRoadmapStatusToUiStatus(apiStatus, isCurrent),
       recommendation_score: toPercent(apiStep.score),
-      price: toNumber(recommendedProduct?.price),
+      price: productPrice,
       is_owned: apiStatus === "owned" || apiStatus === "completed",
     };
   });
@@ -355,7 +217,7 @@ export default function RoadmapPage() {
       }
     };
 
-    loadRoadmap();
+    void loadRoadmap();
 
     return () => {
       cancelled = true;
@@ -413,9 +275,7 @@ export default function RoadmapPage() {
   };
 
   const totalSteps =
-    typeof summary?.total_steps === "number" && summary.total_steps > 0
-      ? summary.total_steps
-      : steps.length;
+    typeof summary?.total_steps === "number" && summary.total_steps > 0 ? summary.total_steps : steps.length;
 
   const completedCount =
     typeof summary?.missing_steps_count === "number" && totalSteps > 0
@@ -427,7 +287,7 @@ export default function RoadmapPage() {
   const totalPointsAvailable = useMemo(
     () =>
       steps.reduce((sum, step) => {
-        const meta = STEP_META_BY_TYPE[step.productType] ?? DEFAULT_META;
+        const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
         return sum + meta.points;
       }, 0),
     [steps],
@@ -438,7 +298,7 @@ export default function RoadmapPage() {
       steps
         .filter((step) => step.status === "completed")
         .reduce((sum, step) => {
-          const meta = STEP_META_BY_TYPE[step.productType] ?? DEFAULT_META;
+          const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
           return sum + meta.points;
         }, 0),
     [steps],
@@ -460,9 +320,7 @@ export default function RoadmapPage() {
               Обновить
             </Button>
           </div>
-          <p className="text-gray-600 mb-6">
-            Пошаговый план построения рутины на основе вашего профиля.
-          </p>
+          <p className="text-gray-600 mb-6">Пошаговый план построения рутины на основе вашего профиля.</p>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
@@ -508,7 +366,7 @@ export default function RoadmapPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-2 flex-wrap mb-6">
-          {CATEGORIES.map((category) => (
+          {ROADMAP_CATEGORY_OPTIONS.map((category) => (
             <Button
               key={category.id}
               variant={selectedCategory === category.id ? "primary" : "secondary"}
@@ -541,7 +399,7 @@ export default function RoadmapPage() {
         ) : steps.length > 0 ? (
           <div className="space-y-4">
             {steps.map((step) => {
-              const meta = STEP_META_BY_TYPE[step.productType] ?? DEFAULT_META;
+              const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
 
               return (
                 <div key={step.id} className="relative">
@@ -586,9 +444,7 @@ export default function RoadmapPage() {
             {isFullyCompleted && (
               <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 text-center">
                 <Sparkles className="w-12 h-12 mx-auto mb-3 text-green-600" />
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  Поздравляем! Вы завершили все шаги.
-                </h3>
+                <h3 className="font-semibold text-gray-900 mb-2">Поздравляем! Вы завершили все шаги.</h3>
                 <p className="text-sm text-gray-600 mb-4">
                   Вы завершили roadmap и получили {totalPointsAvailable} баллов.
                 </p>
