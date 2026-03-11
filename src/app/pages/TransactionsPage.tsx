@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Receipt, Calendar, ChevronDown } from "lucide-react";
 import { TransactionRow, Transaction } from "../components/TransactionRow";
@@ -26,7 +26,7 @@ import {
  * DEV NOTES:
  * Endpoint list: GET /api/transactions/
  * Endpoint detail: GET /api/transactions/{id}/
- * Contract: { id, created_at, total_amount, channel, items[] }
+ * Contract: rich transaction snapshot with pricing fields and product_summary in items.
  */
 
 const toNumber = (value: unknown): number => {
@@ -44,8 +44,14 @@ const toNumber = (value: unknown): number => {
   return 0;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
 interface TransactionDetailItem {
   productId: string;
+  productName: string;
+  brand?: string;
+  imageUrl?: string;
   quantity: number;
   unitPrice: number;
 }
@@ -53,13 +59,19 @@ interface TransactionDetailItem {
 const mapApiTransactionToRow = (transaction: ApiTransaction, index: number): Transaction => {
   const idValue = typeof transaction.id === "number" ? transaction.id : index + 1;
   const explicitType = typeof transaction.type === "string" ? transaction.type.toLowerCase() : "";
-  const totalAmount = toNumber(transaction.total_amount ?? transaction.net_total ?? transaction.amount);
+  const totalAmount = toNumber(transaction.net_total ?? transaction.total_amount ?? transaction.amount);
   const pointsEarned = toNumber(transaction.points_earned);
   const pointsRedeemed = toNumber(transaction.points_redeemed);
-  const fallbackPoints = toNumber(transaction.points_change);
+  const explicitPointsChange = toNumber(transaction.points_change);
 
   const pointsChange =
-    pointsEarned !== 0 ? pointsEarned : pointsRedeemed !== 0 ? -Math.abs(pointsRedeemed) : fallbackPoints;
+    explicitPointsChange !== 0
+      ? explicitPointsChange
+      : pointsEarned !== 0
+        ? pointsEarned
+        : pointsRedeemed !== 0
+          ? -Math.abs(pointsRedeemed)
+          : 0;
 
   const type: Transaction["type"] =
     explicitType === "purchase" ||
@@ -67,13 +79,13 @@ const mapApiTransactionToRow = (transaction: ApiTransaction, index: number): Tra
     explicitType === "refund" ||
     explicitType === "redeem"
       ? explicitType
-      : pointsChange < 0 || totalAmount < 0
-        ? "redeem"
-        : "purchase";
+      : "purchase";
 
   const transactionId =
     (typeof transaction.transaction_id === "string" && transaction.transaction_id) ||
-    `TRX-${String(idValue).padStart(6, "0")}`;
+    (typeof transaction.transaction_id === "number" && Number.isFinite(transaction.transaction_id)
+      ? String(transaction.transaction_id)
+      : `TXN-${String(idValue).padStart(8, "0")}`);
 
   const date =
     (typeof transaction.created_at === "string" && transaction.created_at) ||
@@ -81,7 +93,7 @@ const mapApiTransactionToRow = (transaction: ApiTransaction, index: number): Tra
 
   const description =
     (typeof transaction.description === "string" && transaction.description) ||
-    `Транзакция #${idValue}`;
+    "Покупка";
 
   const rawStatus = typeof transaction.status === "string" ? transaction.status.toLowerCase() : "";
   const status: Transaction["status"] =
@@ -98,7 +110,12 @@ const mapApiTransactionToRow = (transaction: ApiTransaction, index: number): Tra
     description,
     date,
     status,
-    tier_after: typeof transaction.tier_after === "string" ? transaction.tier_after : undefined,
+    tier_after:
+      typeof transaction.new_tier === "string"
+        ? transaction.new_tier
+        : typeof transaction.tier_after === "string"
+          ? transaction.tier_after
+          : undefined,
   };
 };
 
@@ -108,13 +125,31 @@ const mapApiItems = (items: ApiTransactionItem[] | undefined): TransactionDetail
   }
 
   return items.map((item, index) => {
+    const summary = isRecord(item.product_summary) ? item.product_summary : null;
     const productId =
-      typeof item.product === "number" || typeof item.product === "string"
-        ? String(item.product)
-        : `#${index + 1}`;
+      typeof summary?.id === "number"
+        ? String(summary.id)
+        : typeof item.product === "number" || typeof item.product === "string"
+          ? String(item.product)
+          : `#${index + 1}`;
+    const imageUrl =
+      typeof summary?.image_url === "string" && summary.image_url
+        ? summary.image_url
+        : Array.isArray(summary?.image_urls) && typeof summary.image_urls[0] === "string"
+          ? summary.image_urls[0]
+          : undefined;
 
     return {
       productId,
+      productName:
+        typeof summary?.name === "string" && summary.name.trim()
+          ? summary.name
+          : `Товар #${productId}`,
+      brand:
+        typeof summary?.brand === "string" && summary.brand.trim()
+          ? summary.brand
+          : undefined,
+      imageUrl,
       quantity: typeof item.quantity === "number" && Number.isFinite(item.quantity) ? item.quantity : 0,
       unitPrice: toNumber(item.unit_price),
     };
@@ -428,9 +463,27 @@ export default function TransactionsPage() {
                         {detailItems.map((item, index) => (
                           <div
                             key={`${item.productId}-${index}`}
-                            className="flex items-center justify-between rounded-lg border border-gray-200 p-2"
+                            className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3"
                           >
-                            <p className="text-sm text-gray-900">Товар #{item.productId}</p>
+                            <div className="flex items-center gap-3 min-w-0">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.productName}
+                                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-lg bg-gray-100 text-gray-500 text-xs font-medium flex items-center justify-center flex-shrink-0">
+                                  {item.productName.slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-sm text-gray-900 truncate">{item.productName}</p>
+                                <p className="text-xs text-gray-500 truncate">
+                                  {item.brand ?? `ID: ${item.productId}`}
+                                </p>
+                              </div>
+                            </div>
                             <p className="text-sm text-gray-600">
                               {item.quantity} × {item.unitPrice.toLocaleString("ru-RU")} ₸
                             </p>
@@ -448,3 +501,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+

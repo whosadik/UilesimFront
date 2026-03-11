@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ArrowRight, CheckCircle, ChevronRight, Map, Sparkles } from 'lucide-react';
 import { ApiError } from '../../shared/api/ApiError';
-import { preview } from '../../shared/api/checkout';
+import { getLastCheckout } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
-import { listTransactions } from '../../shared/api/transactions';
 
 type TierName = 'bronze' | 'silver' | 'gold' | 'platinum';
 
@@ -78,6 +77,20 @@ const normalizeTier = (value: unknown): TierName | undefined => {
 };
 
 const formatTransactionId = (value: unknown): string | undefined => {
+  if (typeof value === 'string' && value.trim()) {
+    const trimmed = value.trim();
+    if (/^[a-z]+-\d+$/i.test(trimmed)) {
+      return trimmed;
+    }
+
+    const parsed = Number(trimmed);
+    if (Number.isFinite(parsed)) {
+      return `TXN-${String(Math.round(parsed)).padStart(8, '0')}`;
+    }
+
+    return trimmed;
+  }
+
   const numericId = toNumber(value);
   if (numericId === undefined) {
     return undefined;
@@ -90,7 +103,6 @@ const isAuthError = (error: unknown): boolean =>
 
 const parseCheckoutResult = (
   payload: Record<string, unknown>,
-  fallbackTransactionId?: string,
 ): CheckoutResult | null => {
   const gross = toNumber(payload.gross_total);
   const net = toNumber(payload.net_total);
@@ -104,12 +116,11 @@ const parseCheckoutResult = (
     toNumber(payload.points_earned) ??
     toNumber(payload.estimated_points_earned) ??
     0;
-  const transactionId =
-    formatTransactionId(payload.transaction_id ?? payload.id) ??
-    fallbackTransactionId ??
-    '—';
+  const transactionId = formatTransactionId(payload.transaction_id ?? payload.id) ?? '—';
+  const pointsBalance = toNumber(payload.new_balance ?? payload.points_balance);
+  const tier = normalizeTier(payload.new_tier ?? payload.tier_after ?? payload.tier);
 
-  return {
+  const result: CheckoutResult = {
     transactionId,
     grossAmount: Math.max(0, Math.round(gross)),
     discount: Math.max(0, Math.round(discount)),
@@ -117,35 +128,16 @@ const parseCheckoutResult = (
     netAmount: Math.max(0, Math.round(net)),
     pointsEarned: Math.max(0, Math.round(pointsEarned)),
   };
-};
 
-const parsePreviewItemsFromTransaction = (
-  transaction: Record<string, unknown>,
-): Array<{ product: number; quantity: number }> => {
-  const rawItems = Array.isArray(transaction.items) ? transaction.items : [];
+  if (pointsBalance !== undefined) {
+    result.pointsBalance = Math.max(0, Math.round(pointsBalance));
+  }
 
-  return rawItems
-    .map((item) => {
-      if (!isRecord(item)) {
-        return null;
-      }
+  if (tier) {
+    result.tier = tier;
+  }
 
-      const productId = toNumber(item.product);
-      const quantity = toNumber(item.quantity) ?? 1;
-
-      if (productId === undefined || quantity <= 0) {
-        return null;
-      }
-
-      return {
-        product: Math.round(productId),
-        quantity: Math.max(1, Math.round(quantity)),
-      };
-    })
-    .filter(
-      (item): item is { product: number; quantity: number } =>
-        item !== null,
-    );
+  return result;
 };
 
 const parseNextOfferHint = (payload: unknown): NextOfferHint | null => {
@@ -245,13 +237,11 @@ export default function CheckoutPage() {
         }
 
         let checkoutPayload: Record<string, unknown> | null = stateCommit ?? statePreview;
-        let transactionFallbackId: string | undefined;
 
         if (!checkoutPayload) {
-          const latestTransactions = await listTransactions({ page_size: 1 });
-          const latestTransaction = latestTransactions[0];
+          const lastCheckout = await getLastCheckout();
 
-          if (!latestTransaction || !isRecord(latestTransaction)) {
+          if (!lastCheckout || !isRecord(lastCheckout)) {
             if (!cancelled) {
               setResult(null);
               setNextOfferHint(
@@ -263,25 +253,7 @@ export default function CheckoutPage() {
             return;
           }
 
-          transactionFallbackId = formatTransactionId(latestTransaction.id);
-          const previewItems = parsePreviewItemsFromTransaction(latestTransaction);
-
-          if (previewItems.length === 0) {
-            fail('В последней транзакции нет позиций для расчета preview.');
-            return;
-          }
-
-          const previewResponse = await preview({
-            channel:
-              typeof latestTransaction.channel === 'string'
-                ? latestTransaction.channel
-                : 'online',
-            items: previewItems,
-          });
-
-          checkoutPayload = isRecord(previewResponse)
-            ? previewResponse
-            : null;
+          checkoutPayload = lastCheckout;
         }
 
         if (!checkoutPayload) {
@@ -289,10 +261,10 @@ export default function CheckoutPage() {
           return;
         }
 
-        const parsed = parseCheckoutResult(checkoutPayload, transactionFallbackId);
+        const parsed = parseCheckoutResult(checkoutPayload);
         if (!parsed) {
           fail(
-            'Ответ /api/checkout/preview не содержит обязательные поля gross_total/net_total.',
+            'Ответ checkout API не содержит обязательные поля gross_total/net_total.',
           );
           return;
         }
@@ -640,3 +612,5 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
+

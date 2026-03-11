@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
@@ -10,7 +10,7 @@ import {
   getCart,
   type CartItem as ApiCartItem,
 } from '../../shared/api/cart';
-import { preview } from '../../shared/api/checkout';
+import { commit, preview } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
@@ -33,6 +33,8 @@ interface CartItem {
   quantity: number;
   image: string;
   pointsEarned: number;
+  category?: string;
+  productType?: string;
 }
 
 interface CheckoutTotals {
@@ -44,11 +46,14 @@ interface CheckoutTotals {
 }
 
 interface ActiveOffer {
+  assignmentId?: number;
   name: string;
   type?: string;
   value?: number;
   scope?: string;
   targetValue?: string;
+  targetCategory?: string;
+  targetProductType?: string;
   targetProductId?: string;
 }
 
@@ -87,6 +92,7 @@ const parseActiveOffer = (value: unknown): ActiveOffer | null => {
 
   const offerData = value.offer;
   const targetData = isRecord(value.target) ? value.target : null;
+  const assignmentId = toNumber(value.assignment_id);
   const targetValue =
     targetData && (typeof targetData.value === 'number' || typeof targetData.value === 'string')
       ? String(targetData.value)
@@ -94,6 +100,7 @@ const parseActiveOffer = (value: unknown): ActiveOffer | null => {
   const scope = targetData && typeof targetData.scope === 'string' ? targetData.scope : undefined;
 
   return {
+    assignmentId: assignmentId !== undefined ? Math.round(assignmentId) : undefined,
     name:
       (typeof offerData.name === 'string' && offerData.name.trim()) ||
       'Персональное предложение',
@@ -101,6 +108,9 @@ const parseActiveOffer = (value: unknown): ActiveOffer | null => {
     value: toNumber(offerData.value),
     scope,
     targetValue,
+    targetCategory: targetData && typeof targetData.category === 'string' ? targetData.category : undefined,
+    targetProductType:
+      targetData && typeof targetData.product_type === 'string' ? targetData.product_type : undefined,
     targetProductId: scope === 'product_id' ? targetValue : undefined,
   };
 };
@@ -135,7 +145,51 @@ const mapApiCartItem = (item: ApiCartItem, index: number): CartItem => {
       imageUrls[0] ||
       FALLBACK_IMAGE,
     pointsEarned: Math.max(0, Math.round(toNumber(product.points_earned) ?? 0)),
+    category: typeof product.category === 'string' ? product.category : undefined,
+    productType: typeof product.product_type === 'string' ? product.product_type : undefined,
   };
+};
+
+const createIdempotencyKey = (): string => {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `cart-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const isOfferApplicable = (offer: ActiveOffer | null, items: CartItem[]): boolean => {
+  if (!offer?.assignmentId) {
+    return false;
+  }
+
+  if (!offer.scope || offer.scope === 'cart') {
+    return true;
+  }
+
+  if (offer.scope === 'product_id') {
+    return Boolean(offer.targetValue && items.some((item) => item.id === offer.targetValue));
+  }
+
+  if (offer.scope === 'category') {
+    return Boolean(
+      offer.targetValue &&
+      items.some((item) => item.category && item.category === offer.targetValue),
+    );
+  }
+
+  if (offer.scope === 'product_type') {
+    return items.some((item) => {
+      if (offer.targetCategory && item.category !== offer.targetCategory) {
+        return false;
+      }
+      if (offer.targetValue && item.productType !== offer.targetValue) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  return false;
 };
 
 function LoyaltyCartWidget({
@@ -211,7 +265,7 @@ function LoyaltyCartWidget({
 export default function CartPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { removeFromCart, setCartQuantity } = useCommerce();
+  const { refresh, removeFromCart, setCartQuantity } = useCommerce();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartLoading, setIsCartLoading] = useState(true);
   const [cartError, setCartError] = useState<string | null>(null);
@@ -278,10 +332,11 @@ export default function CartPage() {
   };
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discount = Math.round(subtotal * 0.15);
+  const discount = 0;
   const pointsDiscount = pointsToUse;
   const total = subtotal - discount - pointsDiscount;
   const totalPointsEarned = cartItems.reduce((sum, item) => sum + item.pointsEarned * item.quantity, 0);
+  const offerApplicable = isOfferApplicable(activeOffer, cartItems);
 
   const summarySubtotal = previewTotals?.subtotal ?? subtotal;
   const summaryDiscount = previewTotals?.discount ?? discount;
@@ -400,6 +455,13 @@ export default function CartPage() {
       }))
       .filter((item) => Number.isFinite(item.product) && item.quantity > 0);
 
+  const buildCheckoutPayload = () => ({
+    channel: 'online',
+    items: buildCheckoutItems(),
+    apply_assignment_id: offerApplicable ? activeOffer?.assignmentId : undefined,
+    redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
+  });
+
   useEffect(() => {
     if (cartItems.length === 0) {
       setPreviewTotals(null);
@@ -409,18 +471,14 @@ export default function CartPage() {
     let cancelled = false;
 
     const loadPreview = async () => {
-      const items = buildCheckoutItems();
-      if (items.length === 0) {
+      const payload = buildCheckoutPayload();
+      if (payload.items.length === 0) {
         setPreviewTotals(null);
         return;
       }
 
       try {
-        const response: any = await preview({
-          channel: 'online',
-          items,
-          redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
-        });
+        const response: any = await preview(payload);
 
         if (cancelled) {
           return;
@@ -461,27 +519,35 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [cartItems, pointsToUse, navigate, location.pathname, subtotal, discount, total, totalPointsEarned]);
+  }, [activeOffer?.assignmentId, cartItems, location.pathname, navigate, offerApplicable, pointsToUse, subtotal, discount, total, totalPointsEarned]);
 
   const handleCheckout = async () => {
-    const items = buildCheckoutItems();
-    if (items.length === 0 || isCheckingOut) {
+    const payload = buildCheckoutPayload();
+    if (payload.items.length === 0 || isCheckingOut) {
       return;
     }
 
     setIsCheckingOut(true);
 
     try {
-      const previewResponse: any = await preview({
-        channel: 'online',
-        items,
-        redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
+      const checkoutResponse: any = await commit({
+        ...payload,
+        idempotency_key: createIdempotencyKey(),
       });
+
+      try {
+        await refresh();
+      } catch {
+        // Do not turn a successful commit into a failed purchase because of a badge/cart refresh miss.
+      }
+      setCartItems([]);
+      setPreviewTotals(null);
+      setPointsToUse(0);
 
       navigate('/checkout', {
         state: {
-          checkoutPreview: previewResponse,
-          items,
+          checkoutCommit: checkoutResponse,
+          items: payload.items,
         },
       });
     } catch (error) {
@@ -493,17 +559,19 @@ export default function CartPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Не удалось получить предпросмотр checkout');
+        toast.error('Не удалось оформить checkout');
       }
     } finally {
       setIsCheckingOut(false);
     }
   };
 
-  const fallbackOfferTitle = 'Скидка 15% применена';
+  const fallbackOfferTitle = 'Персональный оффер';
   const offerTitle =
     activeOffer && activeOffer.type === 'discount' && activeOffer.value !== undefined
       ? `Активный оффер: ${activeOffer.value}%`
+      : activeOffer && activeOffer.type === 'points_multiplier' && activeOffer.value !== undefined
+        ? `Активный оффер: x${activeOffer.value} баллов`
       : activeOffer?.name || fallbackOfferTitle;
 
   const offerDescription =
@@ -702,7 +770,7 @@ export default function CartPage() {
                 </div>
                 {summaryDiscount > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">Скидка −15%</span>
+                    <span className="text-[#6B7280]">Скидка</span>
                     <span className="font-semibold text-[#FF4DB8]">−{summaryDiscount.toLocaleString('ru')} ₸</span>
                   </div>
                 )}
@@ -720,10 +788,11 @@ export default function CartPage() {
 
               <button
                 onClick={handleCheckout}
-                className="w-full h-12 rounded-xl bg-[#111827] text-white font-semibold text-sm hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2 hover:shadow-lg"
+                disabled={isCheckingOut}
+                className="w-full h-12 rounded-xl bg-[#111827] text-white font-semibold text-sm hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2 hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Оформить заказ
-                <ArrowRight className="w-4 h-4" />
+                {isCheckingOut ? 'Оформляем...' : 'Оформить заказ'}
+                {!isCheckingOut && <ArrowRight className="w-4 h-4" />}
               </button>
 
               <p className="text-center text-xs text-[#6B7280]">
@@ -736,3 +805,4 @@ export default function CartPage() {
     </div>
   );
 }
+
