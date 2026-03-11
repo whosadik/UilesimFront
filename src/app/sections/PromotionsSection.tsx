@@ -6,130 +6,33 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { ApiError } from '../../shared/api/ApiError';
 import { clickOffer, nextOffer } from '../../shared/api/offers';
+import { mapOfferPayloadsToPromotions, type OfferPromotionCard } from '../../shared/offers/presentation';
 
-type PromoCardItem = {
-  id: string;
-  title: string;
-  description: string;
-  badge?: string;
-  buttonText?: string;
+type PromoCardItem = OfferPromotionCard & {
   onClick?: () => void;
 };
-
-const FALLBACK_PROMOS: PromoCardItem[] = [
-  {
-    id: 'fallback-discount',
-    title: 'Скидки до 50%',
-    description: 'На избранные позиции по уходу за кожей.',
-    badge: 'Скидка',
-    buttonText: 'Открыть',
-  },
-  {
-    id: 'fallback-points',
-    title: '2x баллы на уход',
-    description: 'Удвоенные бонусы на категорию skincare.',
-    badge: 'Бонусы',
-    buttonText: 'Активировать',
-  },
-  {
-    id: 'fallback-gift',
-    title: 'Подарок за заказ',
-    description: 'Миниатюра при покупке от 25 000 тг.',
-    badge: 'Подарок',
-    buttonText: 'Подробнее',
-  },
-  {
-    id: 'fallback-weekend',
-    title: 'Предложения выходного дня',
-    description: 'Специальные условия на ограниченный период.',
-    badge: 'Хит',
-    buttonText: 'Смотреть',
-  },
-];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function toNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-}
-
-function buildOfferDescription(payload: Record<string, unknown>): string {
-  const target = isRecord(payload.target) ? payload.target : null;
-  const scope = typeof target?.scope === 'string' ? target.scope : undefined;
-
-  if (scope === 'category' && typeof target?.category === 'string') {
-    return `Действует на категорию ${target.category}.`;
-  }
-
-  if (scope === 'product_type' && typeof target?.product_type === 'string') {
-    return `Действует на тип товаров: ${target.product_type}.`;
-  }
-
-  if (scope === 'product_id') {
-    return 'Действует на выбранный товар.';
-  }
-
-  const value = toNumber(isRecord(payload.offer) ? payload.offer.value : undefined);
-  if (value !== undefined) {
-    return `Персональное предложение со значением ${value}.`;
-  }
-
-  return 'Персональное предложение подобрано для вас.';
-}
-
-function mapNextOfferToPromo(
-  payload: unknown,
-  onClick: () => void,
-): PromoCardItem | null {
-  if (!isRecord(payload)) {
-    return null;
-  }
-
-  const offer = isRecord(payload.offer) ? payload.offer : null;
-  const assignmentId = toNumber(payload.assignment_id);
-
-  if (!offer || assignmentId === undefined) {
-    return null;
-  }
-
-  const offerName = typeof offer.name === 'string' && offer.name.trim() ? offer.name.trim() : 'Персональный оффер';
-  const offerType = typeof offer.type === 'string' ? offer.type : undefined;
-  const title = offerType === 'discount' ? `Скидка: ${offerName}` : offerName;
-
-  return {
-    id: `offer-${assignmentId}`,
-    title,
-    description: buildOfferDescription(payload),
-    badge: 'Оффер',
-    buttonText: 'Открыть',
-    onClick,
-  };
-}
 
 export function PromotionsSection() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const [promos, setPromos] = useState<PromoCardItem[]>(FALLBACK_PROMOS);
+  const [promos, setPromos] = useState<PromoCardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+
+    const handleOfferClick = async (assignmentId: number) => {
+      try {
+        await clickOffer(assignmentId, { source: 'home_promotions' });
+      } catch (clickError) {
+        if (clickError instanceof ApiError && (clickError.status === 401 || clickError.status === 403)) {
+          navigate('/login', { replace: true, state: { from: location.pathname } });
+        }
+      }
+    };
 
     const loadOffer = async () => {
       setIsLoading(true);
@@ -142,31 +45,24 @@ export function PromotionsSection() {
           return;
         }
 
-        const assignmentId = toNumber(isRecord(payload) ? payload.assignment_id : undefined);
-
-        const onClick = async () => {
-          if (assignmentId === undefined) {
-            return;
-          }
-
-          try {
-            await clickOffer(Math.round(assignmentId), { source: 'home_promotions' });
-          } catch (clickError) {
-            if (clickError instanceof ApiError && (clickError.status === 401 || clickError.status === 403)) {
-              navigate('/login', { replace: true, state: { from: location.pathname } });
-            }
-          }
-        };
-
-        const dynamicPromo = mapNextOfferToPromo(payload, () => {
-          void onClick();
-        });
-
-        if (dynamicPromo) {
-          setPromos([dynamicPromo, ...FALLBACK_PROMOS.slice(0, 3)]);
-        } else {
-          setPromos(FALLBACK_PROMOS);
+        const dynamicPromo = mapOfferPayloadsToPromotions(payload)[0];
+        if (!dynamicPromo) {
+          setPromos([]);
+          return;
         }
+
+        setPromos([
+          {
+            ...dynamicPromo,
+            onClick: () => {
+              if (dynamicPromo.assignmentId === undefined) {
+                return;
+              }
+
+              void handleOfferClick(dynamicPromo.assignmentId);
+            },
+          },
+        ]);
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -177,7 +73,7 @@ export function PromotionsSection() {
           return;
         }
 
-        setPromos(FALLBACK_PROMOS);
+        setPromos([]);
         setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить акции');
       } finally {
         if (!cancelled) {
@@ -186,7 +82,7 @@ export function PromotionsSection() {
       }
     };
 
-    loadOffer();
+    void loadOffer();
 
     return () => {
       cancelled = true;

@@ -517,64 +517,16 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
   };
 };
 
-const inferRoadmapCategories = (
-  response: HomeRecsResponse | null,
-  effectiveOffer: Record<string, unknown> | null,
-): string[] => {
-  const categories: string[] = [];
-  const pushCategory = (value: unknown) => {
-    const normalized = normalizeRoadmapCategory(value);
-    if (normalized && !categories.includes(normalized)) {
-      categories.push(normalized);
+const loadForYouRoadmap = async (): Promise<RoadmapPlanApi | null> => {
+  try {
+    return await getRoadmap();
+  } catch (error) {
+    if (isAuthError(error)) {
+      throw error;
     }
-  };
 
-  if (effectiveOffer) {
-    const target = isRecord(effectiveOffer.target) ? effectiveOffer.target : null;
-    pushCategory(target?.category);
+    return null;
   }
-
-  if (response) {
-    for (const { item } of extractHomeResults(response)) {
-      const source = isRecord(item) ? item : null;
-      const product = source && isRecord(source.product) ? source.product : source;
-      pushCategory(product?.category);
-    }
-  }
-
-  return categories;
-};
-
-const loadForYouRoadmap = async (
-  response: HomeRecsResponse | null,
-  effectiveOffer: Record<string, unknown> | null,
-): Promise<RoadmapPlanApi | null> => {
-  const categories = inferRoadmapCategories(response, effectiveOffer);
-  const candidates = categories.length > 0 ? [...categories, undefined] : [undefined];
-  let fallbackPlan: RoadmapPlanApi | null = null;
-
-  for (const category of candidates) {
-    try {
-      const plan = category ? await getRoadmap(category) : await getRoadmap();
-      if (Array.isArray(plan.steps) && plan.steps.length > 0) {
-        return plan;
-      }
-
-      if (!fallbackPlan) {
-        fallbackPlan = plan;
-      }
-    } catch (error) {
-      if (isAuthError(error)) {
-        throw error;
-      }
-
-      if (!(error instanceof ApiError && error.status === 400)) {
-        continue;
-      }
-    }
-  }
-
-  return fallbackPlan;
 };
 
 const mapApiSkinTypeToUi = (value: unknown): string | null => {
@@ -1189,7 +1141,7 @@ export default function ForYouPage() {
         }
 
         try {
-          const nextRoadmapPlan = await loadForYouRoadmap(homeResponse, effectiveOffer);
+          const nextRoadmapPlan = await loadForYouRoadmap();
           if (cancelled) {
             return;
           }

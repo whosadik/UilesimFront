@@ -302,30 +302,6 @@ const parseCheckoutRoadmapStep = (
   };
 };
 
-const inferRoadmapCategoriesFromCheckout = (payload: Record<string, unknown>): string[] => {
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  const counts = new Map<string, number>();
-
-  for (const item of items) {
-    if (!isRecord(item)) {
-      continue;
-    }
-
-    const productSummary = isRecord(item.product_summary) ? item.product_summary : null;
-    const category = normalizeRoadmapCategory(productSummary?.category ?? item.category);
-    if (!category) {
-      continue;
-    }
-
-    const quantity = toNumber(item.quantity) ?? 1;
-    counts.set(category, (counts.get(category) ?? 0) + Math.max(1, Math.round(quantity)));
-  }
-
-  return [...counts.entries()]
-    .sort((left, right) => right[1] - left[1])
-    .map(([category]) => category);
-};
-
 const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapStepApi | null => {
   const steps = Array.isArray(plan.steps) ? plan.steps : [];
   const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null;
@@ -364,40 +340,14 @@ const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapStepApi | null => {
   return fallbackStep && isRecord(fallbackStep) ? (fallbackStep as RoadmapStepApi) : null;
 };
 
-const buildCheckoutRoadmapStep = async (
-  payload: Record<string, unknown>,
-): Promise<CheckoutRoadmapNextStep | null> => {
-  const categories = inferRoadmapCategoriesFromCheckout(payload);
-  const roadmapRequests = categories.length > 0 ? categories : [undefined];
-
+const buildCheckoutRoadmapStep = async (): Promise<CheckoutRoadmapNextStep | null> => {
   let plan: RoadmapPlanApi | null = null;
-  for (const category of roadmapRequests) {
-    try {
-      const candidate = await getRoadmap(category);
-      if (Array.isArray(candidate.steps) && candidate.steps.length > 0) {
-        plan = candidate;
-        break;
-      }
-      if (!plan) {
-        plan = candidate;
-      }
-    } catch (error) {
-      if (isAuthError(error)) {
-        throw error;
-      }
-    }
-  }
 
-  if (!plan && categories.length > 0) {
-    try {
-      const fallbackPlan = await getRoadmap();
-      if (Array.isArray(fallbackPlan.steps) && fallbackPlan.steps.length > 0) {
-        plan = fallbackPlan;
-      }
-    } catch (error) {
-      if (isAuthError(error)) {
-        throw error;
-      }
+  try {
+    plan = await getRoadmap();
+  } catch (error) {
+    if (isAuthError(error)) {
+      throw error;
     }
   }
 
@@ -541,7 +491,7 @@ export default function CheckoutPage() {
 
         let nextRoadmapStep = parseCheckoutRoadmapStep(checkoutPayload.next_roadmap_step);
         if (!nextRoadmapStep) {
-          nextRoadmapStep = await buildCheckoutRoadmapStep(checkoutPayload).catch((error) => {
+          nextRoadmapStep = await buildCheckoutRoadmapStep().catch((error) => {
             if (isAuthError(error)) {
               throw error;
             }
