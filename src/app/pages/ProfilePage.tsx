@@ -15,8 +15,8 @@ import { useAuth } from '../../shared/auth/AuthContext';
 import { ApiError } from '../../shared/api/ApiError';
 import { getFavoriteCategory, getLoyalty, getProfile, updateProfile } from '../../shared/api/me';
 import { home } from '../../shared/api/recommendations';
+import { formatMoney } from '../utils/formatters';
 
-// TODO: добавь/импортни из своего api слоя (пример ниже в разделе 3)
 import { clickOffer, getNextOffer } from '../../shared/api/offers';
 
 type ProfileWizardData = {
@@ -54,6 +54,9 @@ type FavoriteCategoryState = {
   category: string;
   windowDays: number | null;
   historyItemsConsidered: number | null;
+  productsBought: number | null;
+  totalSpent: string | null;
+  currency: string | null;
   explain: string;
 };
 
@@ -181,6 +184,25 @@ function mapOfferDescription(target?: Record<string, unknown>) {
   return `Условие: ${scope}`;
 }
 
+function formatCategorySpend(totalSpent: string | null, currency: string | null): string {
+  const normalizedCurrency = String(currency ?? '').trim().toUpperCase();
+
+  if (!totalSpent) {
+    return 'нет данных';
+  }
+
+  if (!normalizedCurrency || normalizedCurrency === 'KZT' || normalizedCurrency === '₸') {
+    return formatMoney(totalSpent);
+  }
+
+  const parsed = Number(totalSpent);
+  if (!Number.isFinite(parsed)) {
+    return `0 ${normalizedCurrency}`;
+  }
+
+  return `${Math.round(parsed).toLocaleString('ru-RU')} ${normalizedCurrency}`;
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -203,6 +225,9 @@ export default function ProfilePage() {
     category: '',
     windowDays: null,
     historyItemsConsidered: null,
+    productsBought: null,
+    totalSpent: null,
+    currency: null,
     explain: '',
   });
 
@@ -265,6 +290,15 @@ export default function ProfilePage() {
         const explainObj = isRecord(favObj.explain) ? favObj.explain : null;
         const windowDaysValue = Number(favObj.window_days);
         const historyItemsValue = Number(explainObj?.history_items_considered);
+        const productsBoughtValue = Number(favObj.products_bought);
+        const totalSpentValue =
+          typeof favObj.total_spent === 'number' || typeof favObj.total_spent === 'string'
+            ? String(favObj.total_spent)
+            : null;
+        const currencyValue =
+          typeof favObj.currency === 'string' && favObj.currency.trim()
+            ? favObj.currency.trim()
+            : null;
 
         // В API explain — объект, в UI у тебя строка, поэтому делаем компактный текст.
         const explainText = explainObj
@@ -283,6 +317,11 @@ export default function ProfilePage() {
           historyItemsConsidered: Number.isFinite(historyItemsValue)
             ? Math.max(0, Math.round(historyItemsValue))
             : null,
+          productsBought: Number.isFinite(productsBoughtValue)
+            ? Math.max(0, Math.round(productsBoughtValue))
+            : null,
+          totalSpent: totalSpentValue,
+          currency: currencyValue,
           explain: explainText,
         });
 
@@ -415,6 +454,21 @@ export default function ProfilePage() {
 
             <div className="space-y-3">
               <p className="text-2xl font-bold text-[#FF4DB8]">{favoriteCategory.category || 'нет данных'}</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-[#FFF8FC] border border-[#F8D7EA] px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#6B7280]">Куплено</p>
+                  <p className="mt-1 text-base font-bold text-[#111827]">
+                    {favoriteCategory.productsBought !== null ? favoriteCategory.productsBought : 'нет данных'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#FFF8FC] border border-[#F8D7EA] px-3 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#6B7280]">Потрачено</p>
+                  <p className="mt-1 text-base font-bold text-[#111827]">
+                    {formatCategorySpend(favoriteCategory.totalSpent, favoriteCategory.currency)}
+                  </p>
+                </div>
+              </div>
 
               <div className="space-y-1 text-sm text-[#6B7280]">
                 <p>

@@ -56,6 +56,24 @@ function formatDate(value?: string): string {
   return parsed.toLocaleDateString("ru-RU");
 }
 
+function normalizeDateForInput(value?: string): string {
+  if (!value) {
+    return "";
+  }
+
+  const match = value.match(/\d{4}-\d{2}-\d{2}/);
+  if (match) {
+    return match[0];
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
 function mapOwnedProduct(item: OwnedProductRecord, index: number): OwnedProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `owned-${index}`;
   const product = isRecord(item.product) ? item.product : null;
@@ -101,6 +119,8 @@ export default function OwnedProductsPage() {
   const [ownedProducts, setOwnedProducts] = useState<OwnedProduct[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState("");
+  const [editOpenedAt, setEditOpenedAt] = useState("");
+  const [editFinishDate, setEditFinishDate] = useState("");
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [pendingNotesId, setPendingNotesId] = useState<string | null>(null);
 
@@ -179,13 +199,24 @@ export default function OwnedProductsPage() {
   const handleStartEdit = (product: OwnedProduct) => {
     setEditingId(product.id);
     setEditNotes(product.notes || "");
+    setEditOpenedAt(normalizeDateForInput(product.opened_at));
+    setEditFinishDate(normalizeDateForInput(product.finish_date));
   };
 
   const handleSaveNotes = async (productId: string) => {
+    if (editOpenedAt && editFinishDate && editFinishDate < editOpenedAt) {
+      toast.error("Дата окончания не может быть раньше даты открытия");
+      return;
+    }
+
     setPendingNotesId(productId);
 
     try {
-      const response = await updateOwnedProduct(productId, { notes: editNotes });
+      const response = await updateOwnedProduct(productId, {
+        notes: editNotes,
+        opened_at: editOpenedAt || null,
+        finish_date: editFinishDate || null,
+      });
 
       setOwnedProducts((prev) =>
         prev.map((product) =>
@@ -218,6 +249,8 @@ export default function OwnedProductsPage() {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditNotes("");
+    setEditOpenedAt("");
+    setEditFinishDate("");
   };
 
   const activeCount = useMemo(
@@ -336,7 +369,7 @@ export default function OwnedProductsPage() {
 
                       <div className="mb-3">
                         {editingId === product.id ? (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <textarea
                               value={editNotes}
                               onChange={(event) => setEditNotes(event.target.value)}
@@ -344,6 +377,26 @@ export default function OwnedProductsPage() {
                               className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                               rows={2}
                             />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-500">Дата открытия</label>
+                                <input
+                                  type="date"
+                                  value={editOpenedAt}
+                                  onChange={(event) => setEditOpenedAt(event.target.value)}
+                                  className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-500">Дата окончания</label>
+                                <input
+                                  type="date"
+                                  value={editFinishDate}
+                                  onChange={(event) => setEditFinishDate(event.target.value)}
+                                  className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                />
+                              </div>
+                            </div>
                             <div className="flex gap-2">
                               <Button
                                 variant="primary"
@@ -367,11 +420,20 @@ export default function OwnedProductsPage() {
                           </div>
                         ) : (
                           <div className="flex items-start gap-2">
-                            {product.notes ? (
-                              <p className="text-sm text-gray-700 flex-1">{product.notes}</p>
-                            ) : (
-                              <p className="text-sm text-gray-400 flex-1 italic">Нет заметок</p>
-                            )}
+                            <div className="flex-1">
+                              {product.notes ? (
+                                <p className="text-sm text-gray-700">{product.notes}</p>
+                              ) : (
+                                <p className="text-sm text-gray-400 italic">Нет заметок</p>
+                              )}
+                              {(product.opened_at || product.finish_date) && (
+                                <p className="mt-2 text-xs text-gray-500">
+                                  {product.opened_at ? `Открыт: ${formatDate(product.opened_at)}` : "Открыт: —"}
+                                  {" · "}
+                                  {product.finish_date ? `Закончен: ${formatDate(product.finish_date)}` : "Закончен: —"}
+                                </p>
+                              )}
+                            </div>
                             <button
                               onClick={() => handleStartEdit(product)}
                               className="text-gray-400 hover:text-gray-600 transition-colors"

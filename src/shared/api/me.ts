@@ -7,7 +7,25 @@ export type Loyalty = {
   points_balance: number;
 };
 
-export type FavoriteCategory = Record<string, unknown>;
+export type FavoriteCategoryExplain = {
+  window_start?: string | null;
+  window_end?: string | null;
+  history_items_considered?: number | string | null;
+  picked_by?: string | null;
+  signals?: unknown;
+};
+
+export type FavoriteCategory = {
+  ok?: boolean;
+  favorite_category?: string | null;
+  window_days?: number | string | null;
+  products_bought?: number | string | null;
+  total_spent?: number | string | null;
+  currency?: string | null;
+  profile_complete?: boolean;
+  explain?: FavoriteCategoryExplain | null;
+  [key: string]: unknown;
+};
 
 type UpdateProfileResponse =
   | Profile

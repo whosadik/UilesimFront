@@ -9,11 +9,9 @@ import { Chip } from '../components/Chip';
 import { FilterBar } from '../components/FilterBar';
 import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
-
-type ApiProduct = Record<string, unknown>;
+import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
-const NEW_PRODUCT_WINDOW_DAYS = 60;
 const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
 const MAX_RECENT_SEARCHES = 5;
 const SEARCH_DEBOUNCE_MS = 2000;
@@ -25,102 +23,6 @@ const SUGGESTED_QUERIES = [
   'lipstick',
   'spf',
 ] as const;
-
-const toNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-};
-
-const toRecord = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-
-const toStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : [];
-
-const extractProducts = (payload: unknown): ApiProduct[] => {
-  if (Array.isArray(payload)) {
-    return payload.filter((item): item is ApiProduct => Boolean(toRecord(item)));
-  }
-
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    Array.isArray((payload as { results?: unknown[] }).results)
-  ) {
-    return (payload as { results: unknown[] }).results.filter(
-      (item): item is ApiProduct => Boolean(toRecord(item)),
-    );
-  }
-
-  return [];
-};
-
-const isNewByCreatedAt = (value: unknown): boolean => {
-  if (typeof value !== 'string' || !value.trim()) {
-    return false;
-  }
-
-  const createdAt = new Date(value);
-  if (Number.isNaN(createdAt.getTime())) {
-    return false;
-  }
-
-  const diffMs = Date.now() - createdAt.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  return diffDays <= NEW_PRODUCT_WINDOW_DAYS;
-};
-
-const mapApiProductToGrid = (item: ApiProduct, index: number): Product => {
-  const id = item.id !== undefined && item.id !== null ? String(item.id) : `search-product-${index}`;
-  const price = toNumber(item.price) ?? 0;
-  const originalPrice = toNumber(item.original_price);
-  const imageUrls = toStringArray(item.image_urls);
-  const image =
-    (typeof item.image_url === 'string' && item.image_url) ||
-    (typeof item.image === 'string' && item.image) ||
-    imageUrls[0] ||
-    FALLBACK_IMAGE_URL;
-
-  let discount = toNumber(item.discount);
-  if (discount === undefined && originalPrice && originalPrice > price) {
-    discount = Math.round(((originalPrice - price) / originalPrice) * 100);
-  }
-
-  const isNew =
-    typeof item.is_new === 'boolean'
-      ? item.is_new
-      : isNewByCreatedAt(item.created_at);
-
-  return {
-    id,
-    name: (typeof item.name === 'string' && item.name.trim()) || `Товар #${id}`,
-    brand: (typeof item.brand === 'string' && item.brand.trim()) || 'Uilesim',
-    price: Math.max(0, Math.round(price)),
-    originalPrice: originalPrice !== undefined ? Math.max(0, Math.round(originalPrice)) : undefined,
-    image,
-    category:
-      (typeof item.category === 'string' && item.category) ||
-      (typeof item.product_type === 'string' && item.product_type) ||
-      'skincare',
-    isNew,
-    discount: discount !== undefined ? Math.max(0, Math.round(discount)) : undefined,
-    inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
-  };
-};
 
 const matchesQuery = (product: Product, rawQuery: string): boolean => {
   const query = rawQuery.trim().toLowerCase();
@@ -190,17 +92,32 @@ export default function SearchPage() {
 
         if (query) {
           const response = await listProducts({ search: query });
-          mapped = extractProducts(response).map(mapApiProductToGrid);
+          mapped = extractProducts(response).map((item, index) =>
+            mapApiProductToGrid(item, index, {
+              fallbackIdPrefix: 'search-product',
+              fallbackImageUrl: FALLBACK_IMAGE_URL,
+            }),
+          );
 
           // Fallback: if backend search returned empty, try local filtering of full catalog.
           if (mapped.length === 0) {
             const fallbackResponse = await listProducts();
-            const allProducts = extractProducts(fallbackResponse).map(mapApiProductToGrid);
+            const allProducts = extractProducts(fallbackResponse).map((item, index) =>
+              mapApiProductToGrid(item, index, {
+                fallbackIdPrefix: 'search-product',
+                fallbackImageUrl: FALLBACK_IMAGE_URL,
+              }),
+            );
             mapped = allProducts.filter((product) => matchesQuery(product, query));
           }
         } else {
           const response = await listProducts();
-          mapped = extractProducts(response).map(mapApiProductToGrid);
+          mapped = extractProducts(response).map((item, index) =>
+            mapApiProductToGrid(item, index, {
+              fallbackIdPrefix: 'search-product',
+              fallbackImageUrl: FALLBACK_IMAGE_URL,
+            }),
+          );
         }
 
         if (!cancelled) {

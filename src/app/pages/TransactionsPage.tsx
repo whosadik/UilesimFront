@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Receipt, Calendar, ChevronDown } from "lucide-react";
 import { TransactionRow, Transaction } from "../components/TransactionRow";
 import { EmptyState } from "../components/EmptyState";
@@ -21,6 +21,7 @@ import {
   type Transaction as ApiTransaction,
   type TransactionItem as ApiTransactionItem,
 } from "../../shared/api/transactions";
+import type { RoadmapStepSnapshotApi } from "../../shared/api/roadmap";
 
 /**
  * DEV NOTES:
@@ -46,6 +47,55 @@ const toNumber = (value: unknown): number => {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const toNullableNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const formatMoney = (value: unknown): string => {
+  const amount = toNullableNumber(value);
+  return amount === null ? "—" : `${Math.round(amount).toLocaleString("ru-RU")} ₸`;
+};
+
+const formatStatusLabel = (value: unknown): string => {
+  const status = String(value ?? "").toLowerCase();
+  if (status === "completed") return "Завершена";
+  if (status === "pending") return "В обработке";
+  if (status === "failed") return "Ошибка";
+  return "Неизвестно";
+};
+
+const formatChannelLabel = (value: unknown): string => {
+  const channel = String(value ?? "").toLowerCase();
+  if (channel === "online") return "Онлайн";
+  if (channel === "offline") return "Офлайн";
+  return channel ? channel : "—";
+};
+
+const formatTierLabel = (value: unknown): string => {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (!raw) {
+    return "—";
+  }
+
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+};
+
+const getRoadmapStep = (transaction: ApiTransaction | null): RoadmapStepSnapshotApi | null =>
+  transaction && transaction.next_roadmap_step && isRecord(transaction.next_roadmap_step)
+    ? (transaction.next_roadmap_step as RoadmapStepSnapshotApi)
+    : null;
 
 interface TransactionDetailItem {
   productId: string;
@@ -185,6 +235,7 @@ export default function TransactionsPage() {
   const [retryKey, setRetryKey] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedTransactionDetail, setSelectedTransactionDetail] = useState<ApiTransaction | null>(null);
   const [detailItems, setDetailItems] = useState<TransactionDetailItem[]>([]);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -242,6 +293,7 @@ export default function TransactionsPage() {
 
   const handleTransactionClick = async (transaction: Transaction) => {
     setSelectedTransaction(transaction);
+    setSelectedTransactionDetail(null);
     setDetailItems([]);
     setDetailError(null);
     setIsDetailLoading(true);
@@ -251,6 +303,7 @@ export default function TransactionsPage() {
       const detail = await getTransactionById(transaction.id);
       const mapped = mapApiTransactionToRow(detail, 0);
       setSelectedTransaction(mapped);
+      setSelectedTransactionDetail(detail);
       setDetailItems(mapApiItems(detail.items));
     } catch (detailLoadError) {
       if (detailLoadError instanceof ApiError && (detailLoadError.status === 401 || detailLoadError.status === 403)) {
@@ -270,8 +323,22 @@ export default function TransactionsPage() {
       ? transactions
       : transactions.filter((transaction) => transaction.type === filterType);
 
-  const totalPoints = transactions.reduce((sum, transaction) => sum + transaction.points_change, 0);
-  const currentMonthPoints = getCurrentMonthPoints(transactions);
+  const totalPointsNet = transactions.reduce((sum, transaction) => sum + transaction.points_change, 0);
+  const currentMonthPointsNet = getCurrentMonthPoints(transactions);
+  const roadmapStep = getRoadmapStep(selectedTransactionDetail);
+  const roadmapProduct =
+    roadmapStep && roadmapStep.recommended_product && isRecord(roadmapStep.recommended_product)
+      ? roadmapStep.recommended_product
+      : null;
+  const detailGrossAmount = toNullableNumber(selectedTransactionDetail?.gross_total);
+  const detailDiscountAmount = toNullableNumber(selectedTransactionDetail?.discount_amount);
+  const detailNetAmount =
+    toNullableNumber(selectedTransactionDetail?.net_total) ??
+    toNullableNumber(selectedTransaction?.amount);
+  const detailPointsEarned = toNullableNumber(selectedTransactionDetail?.points_earned);
+  const detailPointsRedeemed = toNullableNumber(selectedTransactionDetail?.points_redeemed);
+  const detailNewBalance = toNullableNumber(selectedTransactionDetail?.new_balance);
+  const detailTierAfter = selectedTransactionDetail?.new_tier ?? selectedTransactionDetail?.tier_after;
 
   if (isLoading) {
     return (
@@ -308,12 +375,18 @@ export default function TransactionsPage() {
               <p className="text-2xl font-semibold text-gray-900">{transactions.length}</p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Всего баллов заработано</p>
-              <p className="text-2xl font-semibold text-green-600">+{totalPoints}</p>
+              <p className="text-sm text-gray-600 mb-1">Чистое изменение баллов</p>
+              <p className={`text-2xl font-semibold ${totalPointsNet >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {totalPointsNet > 0 ? "+" : ""}
+                {totalPointsNet}
+              </p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">За текущий месяц</p>
-              <p className="text-2xl font-semibold text-gray-900">+{currentMonthPoints}</p>
+              <p className="text-sm text-gray-600 mb-1">Чистое изменение за месяц</p>
+              <p className={`text-2xl font-semibold ${currentMonthPointsNet >= 0 ? "text-gray-900" : "text-red-600"}`}>
+                {currentMonthPointsNet > 0 ? "+" : ""}
+                {currentMonthPointsNet}
+              </p>
             </div>
           </div>
         </div>
@@ -389,7 +462,17 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+      <Dialog
+        open={showDetailDialog}
+        onOpenChange={(nextOpen) => {
+          setShowDetailDialog(nextOpen);
+          if (!nextOpen) {
+            setSelectedTransactionDetail(null);
+            setDetailItems([]);
+            setDetailError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Детали транзакции</DialogTitle>
@@ -413,24 +496,56 @@ export default function TransactionsPage() {
                         </p>
                       </div>
                       <div className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
-                        {selectedTransaction.status}
+                        {formatStatusLabel(selectedTransactionDetail?.status ?? selectedTransaction.status)}
                       </div>
                     </div>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Дата</span>
                         <span className="text-gray-900">
-                          {new Date(selectedTransaction.date).toLocaleString("ru-RU")}
+                            {new Date(selectedTransaction.date).toLocaleString("ru-RU")}
                         </span>
                       </div>
+                      {selectedTransactionDetail?.channel && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Канал</span>
+                          <span className="text-gray-900">{formatChannelLabel(selectedTransactionDetail.channel)}</span>
+                        </div>
+                      )}
+                      {detailGrossAmount !== null && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Сумма до скидки</span>
+                          <span className="text-gray-900">{formatMoney(detailGrossAmount)}</span>
+                        </div>
+                      )}
+                      {detailDiscountAmount !== null && detailDiscountAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Скидка</span>
+                          <span className="font-semibold text-green-600">−{formatMoney(detailDiscountAmount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Сумма</span>
+                        <span className="text-gray-600">Итого</span>
                         <span className="text-gray-900 font-semibold">
-                          {selectedTransaction.amount.toLocaleString("ru-RU")} ₸
+                          {detailNetAmount !== null
+                            ? `${detailNetAmount.toLocaleString("ru-RU")} ₸`
+                            : formatMoney(selectedTransaction.amount)}
                         </span>
                       </div>
+                      {detailPointsEarned !== null && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Начислено баллов</span>
+                          <span className="font-semibold text-green-600">+{Math.round(detailPointsEarned)} б.</span>
+                        </div>
+                      )}
+                      {detailPointsRedeemed !== null && detailPointsRedeemed > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Списано баллов</span>
+                          <span className="font-semibold text-red-600">−{Math.round(detailPointsRedeemed)} б.</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Баллы</span>
+                        <span className="text-gray-600">Чистое изменение</span>
                         <span
                           className={`font-semibold ${
                             selectedTransaction.points_change > 0 ? "text-green-600" : "text-red-600"
@@ -440,12 +555,23 @@ export default function TransactionsPage() {
                           {selectedTransaction.points_change} б.
                         </span>
                       </div>
-                      {selectedTransaction.tier_after && (
+                      {detailNewBalance !== null && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Баланс после</span>
+                          <span className="text-gray-900 font-medium">{Math.round(detailNewBalance)} б.</span>
+                        </div>
+                      )}
+                      {detailTierAfter && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Уровень после</span>
                           <span className="text-gray-900 font-medium">
-                            {selectedTransaction.tier_after}
+                            {formatTierLabel(detailTierAfter)}
                           </span>
+                        </div>
+                      )}
+                      {selectedTransactionDetail?.tier_upgraded && (
+                        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                          Уровень лояльности повышен после этой транзакции.
                         </div>
                       )}
                     </div>
@@ -455,6 +581,76 @@ export default function TransactionsPage() {
                     <p className="text-sm text-gray-600 mb-2">Описание</p>
                     <p className="text-sm text-gray-900">{selectedTransaction.description}</p>
                   </div>
+
+                  {roadmapStep && (
+                    <div className="rounded-lg border border-[#EAE6EF] bg-[#FFF8FC] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[#111827]">
+                            Следующий шаг roadmap
+                          </p>
+                          <p className="text-xs text-[#6B7280] mt-1">
+                            {roadmapStep.title ?? "Персональный шаг"}
+                            {roadmapStep.step_index ? ` · Шаг ${roadmapStep.step_index}` : ""}
+                          </p>
+                        </div>
+                        <Link
+                          to="/me/roadmap"
+                          className="text-xs font-medium text-[#FF4DB8] hover:underline"
+                        >
+                          Открыть roadmap
+                        </Link>
+                      </div>
+
+                      {typeof roadmapStep.description === "string" && roadmapStep.description.trim() && (
+                        <p className="mt-3 text-sm text-[#4B5563]">{roadmapStep.description}</p>
+                      )}
+
+                      {roadmapProduct && (
+                        <div className="mt-3 flex items-center gap-3 rounded-lg border border-white bg-white p-3">
+                          {typeof roadmapProduct.image_url === "string" && roadmapProduct.image_url ? (
+                            <img
+                              src={roadmapProduct.image_url}
+                              alt={typeof roadmapProduct.name === "string" ? roadmapProduct.name : "Recommended product"}
+                              className="h-14 w-14 rounded-lg object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
+                              {typeof roadmapProduct.name === "string" && roadmapProduct.name
+                                ? roadmapProduct.name.slice(0, 1).toUpperCase()
+                                : "P"}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            {typeof roadmapProduct.id === "number" ? (
+                              <Link
+                                to={`/product/${roadmapProduct.id}`}
+                                className="text-sm font-medium text-[#111827] hover:text-[#FF4DB8] line-clamp-2"
+                              >
+                                {typeof roadmapProduct.name === "string" && roadmapProduct.name.trim()
+                                  ? roadmapProduct.name
+                                  : `Товар #${roadmapProduct.id}`}
+                              </Link>
+                            ) : (
+                              <p className="text-sm font-medium text-[#111827] line-clamp-2">
+                                {typeof roadmapProduct.name === "string" && roadmapProduct.name.trim()
+                                  ? roadmapProduct.name
+                                  : "Рекомендованный товар"}
+                              </p>
+                            )}
+                            <p className="text-xs text-[#6B7280] mt-1">
+                              {typeof roadmapProduct.brand === "string" && roadmapProduct.brand.trim()
+                                ? roadmapProduct.brand
+                                : "Uilesim"}
+                              {toNullableNumber(roadmapProduct.price) !== null
+                                ? ` · ${formatMoney(roadmapProduct.price)}`
+                                : ""}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {detailItems.length > 0 && (
                     <div>

@@ -7,11 +7,9 @@ import { Badge } from '../components/Badge';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ApiError } from '../../shared/api/ApiError';
 import { listProducts } from '../../shared/api/catalog';
-
-type ApiProduct = Record<string, unknown>;
+import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
-const NEW_PRODUCT_WINDOW_DAYS = 60;
 const BRAND_DESCRIPTION_FALLBACK =
   'Эффективная косметика с прозрачными формулами и доступными ценами. Научный подход к уходу за кожей.';
 
@@ -23,89 +21,6 @@ const fromBrandSlugToLabel = (value: string): string =>
     .filter((part) => part.length > 0)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-
-const toNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-};
-
-const toRecord = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-
-const toStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : [];
-
-const extractProducts = (payload: unknown): ApiProduct[] => {
-  if (Array.isArray(payload)) {
-    return payload.filter((item): item is ApiProduct => Boolean(toRecord(item)));
-  }
-
-  if (payload && typeof payload === 'object' && Array.isArray((payload as { results?: unknown[] }).results)) {
-    return (payload as { results: unknown[] }).results.filter((item): item is ApiProduct => Boolean(toRecord(item)));
-  }
-
-  return [];
-};
-
-const isNewByCreatedAt = (value: unknown): boolean => {
-  if (typeof value !== 'string' || !value.trim()) {
-    return false;
-  }
-
-  const createdAt = new Date(value);
-  if (Number.isNaN(createdAt.getTime())) {
-    return false;
-  }
-
-  const diffMs = Date.now() - createdAt.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  return diffDays <= NEW_PRODUCT_WINDOW_DAYS;
-};
-
-const mapApiProductToGrid = (item: ApiProduct, index: number): Product => {
-  const id = item.id !== undefined && item.id !== null ? String(item.id) : `brand-product-${index}`;
-  const price = toNumber(item.price) ?? 0;
-  const originalPrice = toNumber(item.original_price);
-  const imageUrls = toStringArray(item.image_urls);
-  const imageUrl =
-    (typeof item.image_url === 'string' && item.image_url) ||
-    (typeof item.image === 'string' && item.image) ||
-    imageUrls[0] ||
-    FALLBACK_IMAGE;
-
-  let discount = toNumber(item.discount);
-  if (discount === undefined && originalPrice && originalPrice > price) {
-    discount = Math.round(((originalPrice - price) / originalPrice) * 100);
-  }
-
-  return {
-    id,
-    name: (typeof item.name === 'string' && item.name.trim()) || `Товар #${id}`,
-    brand: (typeof item.brand === 'string' && item.brand.trim()) || 'Uilesim',
-    price: Math.max(0, Math.round(price)),
-    originalPrice: originalPrice !== undefined ? Math.max(0, Math.round(originalPrice)) : undefined,
-    image: imageUrl,
-    category:
-      (typeof item.category === 'string' && item.category) ||
-      (typeof item.product_type === 'string' && item.product_type) ||
-      'skincare',
-    isNew: isNewByCreatedAt(item.created_at),
-    discount: discount !== undefined ? Math.max(0, Math.round(discount)) : undefined,
-    inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),
-  };
-};
 
 const isAuthError = (error: unknown): error is ApiError =>
   error instanceof ApiError && (error.status === 401 || error.status === 403);
@@ -157,7 +72,12 @@ export default function BrandPage() {
           return;
         }
 
-        const mappedProducts = items.map(mapApiProductToGrid);
+        const mappedProducts = items.map((item, index) =>
+          mapApiProductToGrid(item, index, {
+            fallbackIdPrefix: 'brand-product',
+            fallbackImageUrl: FALLBACK_IMAGE,
+          }),
+        );
         setProducts(mappedProducts);
 
         if (mappedProducts.length > 0) {
