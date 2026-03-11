@@ -13,6 +13,7 @@ import {
   generateRoutine,
   validateRoutine,
   type RoutineGenerateResponseApi,
+  type RoutineProductApi,
   type RoutineStepApi,
   type RoutineValidateResponseApi,
   type ValidateRoutinePayload,
@@ -35,9 +36,24 @@ interface Routine {
   notes: string[];
 }
 
+interface RoutineValidationAlternative {
+  id: string;
+  name: string;
+  brand?: string;
+  image: string;
+}
+
+interface RoutineValidationSuggestion {
+  key: string;
+  step: string;
+  currentProductName?: string;
+  alternatives: RoutineValidationAlternative[];
+}
+
 interface RoutineValidationResult {
   is_valid: boolean;
-  suggestions: string[];
+  conflicts: string[];
+  suggestions: RoutineValidationSuggestion[];
 }
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
@@ -71,6 +87,30 @@ const DEFAULT_TIPS = [
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function firstNonEmptyString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getRoutineProductImage(
+  product: RoutineStepApi["product"] | RoutineProductApi | null | undefined,
+): string | undefined {
+  if (!isRecord(product)) {
+    return undefined;
+  }
+
+  const images = Array.isArray(product.image_urls)
+    ? product.image_urls.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : [];
+
+  return firstNonEmptyString(product.image_url, ...images);
 }
 
 function formatStepName(step: string): string {
@@ -112,15 +152,24 @@ function mapRoutineSteps(items: RoutineStepApi[] | undefined): RoutineStep[] {
         ? product.name
         : undefined;
 
+    const stepNote =
+      firstNonEmptyString(item.note) ??
+      firstNonEmptyString(product?.application_text) ??
+      STEP_NOTES[stepKey];
+
     return {
       step_number: index + 1,
       api_step: stepKey,
-      action: formatStepName(stepKey),
+      action:
+        firstNonEmptyString(item.display_step) ??
+        formatStepName(stepKey),
       product_id: productId,
       product_name: productName,
-      product_image: productId ? FALLBACK_IMAGE : undefined,
-      duration: STEP_DURATIONS[stepKey],
-      notes: STEP_NOTES[stepKey],
+      product_image: productId ? getRoutineProductImage(item.product) ?? FALLBACK_IMAGE : undefined,
+      duration:
+        firstNonEmptyString(item.duration_label) ??
+        STEP_DURATIONS[stepKey],
+      notes: stepNote,
     };
   });
 }
@@ -137,9 +186,61 @@ function mapGeneratedRoutine(response: RoutineGenerateResponseApi): Routine {
   };
 }
 
+function mapValidationConflictMessage(conflict: unknown): string | null {
+  if (typeof conflict === "string" && conflict.trim().length > 0) {
+    return conflict.trim();
+  }
+
+  if (!isRecord(conflict)) {
+    return null;
+  }
+
+  if (conflict.type === "active_conflict" && Array.isArray(conflict.pair)) {
+    const pair = conflict.pair.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    if (pair.length >= 2) {
+      return `Конфликт активов в одной рутине: ${pair.join(" + ")}.`;
+    }
+  }
+
+  if (conflict.type === "too_many_strong_actives" && Array.isArray(conflict.actives)) {
+    const actives = conflict.actives.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0,
+    );
+    if (actives.length > 0) {
+      return `В вечерней рутине слишком много сильных активов: ${actives.join(", ")}.`;
+    }
+  }
+
+  return firstNonEmptyString(conflict.message) ?? null;
+}
+
+function mapValidationAlternativeProduct(product: unknown): RoutineValidationAlternative | null {
+  if (!isRecord(product)) {
+    return null;
+  }
+
+  const productId =
+    typeof product.id === "number" || typeof product.id === "string"
+      ? String(product.id)
+      : undefined;
+
+  if (!productId) {
+    return null;
+  }
+
+  return {
+    id: productId,
+    name: firstNonEmptyString(product.name) ?? `Товар #${productId}`,
+    brand: firstNonEmptyString(product.brand),
+    image: getRoutineProductImage(product) ?? FALLBACK_IMAGE,
+  };
+}
+
 function mapValidationResult(response: RoutineValidateResponseApi): RoutineValidationResult {
   const conflicts = Array.isArray(response.conflicts)
-    ? response.conflicts.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    ? response.conflicts
+        .map(mapValidationConflictMessage)
+        .filter((item): item is string => Boolean(item))
     : [];
 
   const suggestions = Array.isArray(response.suggestions)
@@ -149,25 +250,30 @@ function mapValidationResult(response: RoutineValidateResponseApi): RoutineValid
             return null;
           }
 
-          const step = typeof item.step === "string" && item.step ? formatStepName(item.step) : "шаг";
-          const alternatives = Array.isArray(item.alternatives)
-            ? item.alternatives.filter(
-                (value): value is number | string => typeof value === "number" || typeof value === "string",
-              )
+          const stepLabel =
+            firstNonEmptyString(item.display_step) ??
+            (typeof item.step === "string" && item.step ? formatStepName(item.step) : "Шаг");
+          const alternatives = Array.isArray(item.alternative_products)
+            ? item.alternative_products
+                .map(mapValidationAlternativeProduct)
+                .filter((value): value is RoutineValidationAlternative => Boolean(value))
             : [];
+          const currentProduct = mapValidationAlternativeProduct(item.current_product);
 
-          if (alternatives.length === 0) {
-            return `Для шага «${step}» пока нет альтернатив в каталоге.`;
-          }
-
-          return `Для шага «${step}» попробуйте альтернативы: ${alternatives.join(", ")}.`;
+          return {
+            key: `${String(item.step ?? "step")}-${currentProduct?.id ?? "current"}`,
+            step: stepLabel,
+            currentProductName: currentProduct?.name,
+            alternatives,
+          };
         })
-        .filter((value): value is string => Boolean(value))
+        .filter((value): value is RoutineValidationSuggestion => Boolean(value))
     : [];
 
   return {
     is_valid: Boolean(response.is_valid),
-    suggestions: [...conflicts, ...suggestions],
+    conflicts,
+    suggestions,
   };
 }
 
@@ -302,17 +408,82 @@ export default function RoutinePage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {validationResult && (
-          <div className="mb-6">
+          <div className="mb-6 space-y-4">
             <AlertBanner
               variant={validationResult.is_valid ? "success" : "warning"}
               title={validationResult.is_valid ? "Рутина валидна" : "Есть предупреждения"}
               message={
-                validationResult.suggestions.length > 0
-                  ? validationResult.suggestions.join(" ")
+                validationResult.conflicts.length > 0
+                  ? validationResult.conflicts.join(" ")
+                  : validationResult.suggestions.length > 0
+                    ? "Мы нашли альтернативы для шагов с конфликтующими активами."
                   : "Ваша рутина выглядит отлично!"
               }
               dismissible
             />
+
+            {!validationResult.is_valid && validationResult.suggestions.length > 0 && (
+              <div className="space-y-3">
+                {validationResult.suggestions.map((suggestion) => (
+                  <div
+                    key={suggestion.key}
+                    className="p-4 bg-white rounded-xl border border-yellow-200"
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {suggestion.step}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {suggestion.currentProductName
+                            ? `Текущий продукт: ${suggestion.currentProductName}`
+                            : "Для этого шага найдены более мягкие альтернативы."}
+                        </p>
+                      </div>
+                      <Badge className="bg-white border-yellow-300 text-yellow-700">
+                        Альтернативы
+                      </Badge>
+                    </div>
+
+                    {suggestion.alternatives.length > 0 ? (
+                      <div className="space-y-2">
+                        {suggestion.alternatives.map((product) => (
+                          <div
+                            key={product.id}
+                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                          >
+                            <div className="w-12 h-12 bg-white rounded-md overflow-hidden border border-gray-200">
+                              <img
+                                src={product.image}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                              {product.brand && (
+                                <p className="text-xs text-gray-500">{product.brand}</p>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              className="px-4 py-2 text-xs"
+                              onClick={() => navigate(`/product/${product.id}`)}
+                            >
+                              Открыть
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        Пока нет подходящих альтернатив в каталоге.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -401,7 +572,11 @@ export default function RoutinePage() {
                           <p className="text-sm font-medium text-gray-900 flex-1">
                             {step.product_name}
                           </p>
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/product/${step.product_id}`)}
+                          >
                             Подробнее
                           </Button>
                         </div>

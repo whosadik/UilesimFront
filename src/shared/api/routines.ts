@@ -6,6 +6,10 @@ export type RoutineProductApi = {
   brand?: string;
   category?: string;
   product_type?: string;
+  image_url?: string | null;
+  image_urls?: string[] | null;
+  description?: string;
+  application_text?: string;
   [k: string]: unknown;
 };
 
@@ -16,6 +20,9 @@ export type RoutineStepApi = {
   product?: RoutineProductApi | null;
   why?: unknown[];
   suggestions?: unknown[];
+  display_step?: string;
+  duration_label?: string;
+  note?: string;
   [k: string]: unknown;
 };
 
@@ -28,13 +35,23 @@ export type RoutineGenerateResponseApi = {
 
 export type RoutineValidateSuggestionApi = {
   step?: string;
+  display_step?: string;
   current_product_id?: number | string;
+  current_product?: RoutineProductApi | null;
   alternatives?: Array<number | string>;
+  alternative_products?: RoutineProductApi[];
   [k: string]: unknown;
 };
 
+export type RoutineValidateConflictApi =
+  | string
+  | {
+      message?: string;
+      [k: string]: unknown;
+    };
+
 export type RoutineValidateResponseApi = {
-  conflicts?: string[];
+  conflicts?: RoutineValidateConflictApi[];
   suggestions?: RoutineValidateSuggestionApi[];
   is_valid?: boolean;
   [k: string]: unknown;

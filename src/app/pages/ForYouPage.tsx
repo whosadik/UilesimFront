@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
-  Sparkles, ArrowRight, Target, TrendingUp, ShoppingBag,
+  Sparkles, ArrowRight, TrendingUp, ShoppingBag,
   ChevronRight, Clock, Check, RefreshCw, Zap, Map,
-  Plus, Minus, Star, Settings,
+  Plus, Minus, Star, Settings, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
@@ -81,79 +81,6 @@ const GOAL_API_TO_UI: Record<string, string> = {
   spf: 'Защита SPF',
   sun_protection: 'Защита SPF',
 };
-
-const mockRecommendations = [
-  {
-    id: '1',
-    name: 'Тоник с гиалуроновой кислотой',
-    brand: 'The Ordinary',
-    price: 890,
-    originalPrice: 1100,
-    image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&q=80',
-    pointsEarned: 89,
-    recommendationScore: 97,
-    whyRecommended: 'Для жирной кожи',
-    whatImproves: 'Увлажнение и сужение пор',
-    expectedBenefit: 'Результат через 2–3 недели',
-    section: 'for_you',
-  },
-  {
-    id: '2',
-    name: 'Vitamin C Brightening Serum',
-    brand: 'Paula\'s Choice',
-    price: 2199,
-    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80',
-    pointsEarned: 220,
-    recommendationScore: 94,
-    whyRecommended: 'Цель: Сияние',
-    whatImproves: 'Тон и текстура кожи',
-    expectedBenefit: 'Видимый эффект через 4 недели',
-    section: 'for_you',
-  },
-  {
-    id: '3',
-    name: 'Ceramide Moisturizer',
-    brand: 'CeraVe',
-    price: 1450,
-    originalPrice: 1750,
-    image: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=400&q=80',
-    pointsEarned: 145,
-    recommendationScore: 91,
-    whyRecommended: 'Шаг 3 Roadmap',
-    whatImproves: 'Барьерная функция кожи',
-    expectedBenefit: 'Меньше шелушения через 1 неделю',
-    section: 'for_you',
-  },
-];
-
-const mockTrendingRecs = [
-  {
-    id: '4',
-    name: 'SPF 50 Солнцезащитный крем',
-    brand: 'La Roche-Posay',
-    price: 1890,
-    image: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400&q=80',
-    pointsEarned: 189,
-    recommendationScore: 88,
-    whyRecommended: 'Похожие профили любят',
-    whatImproves: 'Защита от УФ-излучения',
-    expectedBenefit: 'Профилактика пигментации',
-    section: 'trending',
-  },
-  {
-    id: '5',
-    name: 'Retinol Night Serum 0.3%',
-    brand: 'The Inkey List',
-    price: 980,
-    image: 'https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400&q=80',
-    pointsEarned: 98,
-    recommendationScore: 85,
-    whyRecommended: 'Антивозрастной уход',
-    whatImproves: 'Мелкие морщины и текстура',
-    expectedBenefit: 'Эффект через 6–8 недель',
-    section: 'trending',
-  },
-];
 
 type RecommendationCard = {
   id: string;
@@ -300,12 +227,14 @@ type RoadmapOverview = {
   }>;
 };
 
-const createFallbackPersonalOffer = (): PersonalOfferCard => ({
-  title: 'Скидка 15% на уход',
-  description: 'Применяется автоматически при покупке от 1 000 ₸.',
-  highlight: 'На корзине 1 299 ₸ вы сэкономите 195 ₸',
-  expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000),
-});
+type SidebarQuickAction = {
+  key: string;
+  title: string;
+  description: string;
+  accent: string;
+  done?: boolean;
+  muted?: boolean;
+};
 
 const FALLBACK_ROADMAP_OVERVIEW: RoadmapOverview = {
   nextStepTitle: 'Добавьте тоник в рутину',
@@ -522,6 +451,87 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
       totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0,
     steps: stepsForUi.length > 0 ? stepsForUi : FALLBACK_ROADMAP_OVERVIEW.steps,
   };
+};
+
+const buildSidebarQuickActions = ({
+  skinType,
+  goals,
+  roadmapPlan,
+  roadmapOverview,
+  personalOffer,
+  recommendations,
+  trendingRecommendations,
+}: {
+  skinType: string;
+  goals: string[];
+  roadmapPlan: RoadmapPlanApi | null;
+  roadmapOverview: RoadmapOverview;
+  personalOffer: PersonalOfferCard | null;
+  recommendations: RecommendationCard[];
+  trendingRecommendations: RecommendationCard[];
+}): SidebarQuickAction[] => {
+  const profileConfigured = Boolean(skinType.trim()) && goals.length > 0;
+  const topRecommendation = recommendations[0] ?? trendingRecommendations[0] ?? null;
+  const hasRoadmap = roadmapPlan !== null && roadmapOverview.totalSteps > 0;
+
+  return [
+    profileConfigured
+      ? {
+          key: 'profile',
+          title: 'Профиль настроен',
+          description: 'Тип кожи и цели уже участвуют в персонализации.',
+          accent: 'Готово',
+          done: true,
+        }
+      : {
+          key: 'profile',
+          title: 'Уточните профиль',
+          description: 'Добавьте тип кожи и цели, чтобы рекомендации стали точнее.',
+          accent: 'Профиль',
+        },
+    hasRoadmap
+      ? {
+          key: 'roadmap',
+          title: 'Следующий шаг roadmap',
+          description: roadmapOverview.nextStepTitle,
+          accent: roadmapOverview.nextStepPoints ? `+${roadmapOverview.nextStepPoints}` : 'Roadmap',
+        }
+      : {
+          key: 'roadmap',
+          title: 'Roadmap формируется',
+          description: 'Когда план будет готов, следующий шаг появится здесь.',
+          accent: 'Скоро',
+          muted: true,
+        },
+    personalOffer
+      ? {
+          key: 'offer',
+          title: 'Текущий персональный оффер',
+          description: personalOffer.highlight,
+          accent: 'Активен',
+        }
+      : {
+          key: 'offer',
+          title: 'Оффер появится позже',
+          description: 'Когда для вас будет назначено предложение, оно отобразится здесь.',
+          accent: 'Ожидание',
+          muted: true,
+        },
+    topRecommendation
+      ? {
+          key: 'recommendation',
+          title: 'Рекомендация для корзины',
+          description: `${topRecommendation.name} • +${topRecommendation.pointsEarned} баллов после покупки`,
+          accent: `+${topRecommendation.pointsEarned}`,
+        }
+      : {
+          key: 'recommendation',
+          title: 'Рекомендации загружаются',
+          description: 'Как только API вернет персональные товары, они появятся слева.',
+          accent: 'Каталог',
+          muted: true,
+        },
+  ];
 };
 
 const loadForYouRoadmap = async (): Promise<RoadmapPlanApi | null> => {
@@ -1027,61 +1037,102 @@ function QuickPrefsPanel({
   );
 }
 
-// Cold Start / New User State
-function ColdStartState({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState(1);
-  const [skinType, setSkinType] = useState('');
-  const [goals, setGoals] = useState<string[]>([]);
+function RecommendationEmptyState({
+  title,
+  description,
+  ctaLabel,
+  ctaTo,
+}: {
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaTo: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#EAE6EF] bg-white p-5">
+      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
+        <ShoppingBag className="w-4 h-4 text-[#6B7280]" />
+      </div>
+      <h3 className="text-sm font-semibold text-[#111827] mb-1">{title}</h3>
+      <p className="text-xs text-[#6B7280] mb-4">{description}</p>
+      <Link
+        to={ctaTo}
+        className="inline-flex items-center gap-2 text-xs font-semibold text-[#111827] hover:text-[#FF4DB8] transition-colors"
+      >
+        {ctaLabel}
+        <ChevronRight className="w-3.5 h-3.5" />
+      </Link>
+    </div>
+  );
+}
 
-  const toggleGoal = (g: string) => {
-    setGoals(gs => gs.includes(g) ? gs.filter(x => x !== g) : [...gs, g]);
+function ColdStartState({
+  initialSkinType,
+  initialGoals,
+  isSaving,
+  onComplete,
+}: {
+  initialSkinType?: string;
+  initialGoals?: string[];
+  isSaving: boolean;
+  onComplete: (payload: { skinType: string; goals: string[] }) => Promise<void>;
+}) {
+  const [step, setStep] = useState((initialGoals?.length ?? 0) > 0 ? 2 : 1);
+  const [skinType, setSkinType] = useState(initialSkinType ?? '');
+  const [goals, setGoals] = useState<string[]>(initialGoals ?? []);
+
+  const toggleGoal = (goal: string) => {
+    setGoals((currentGoals) =>
+      currentGoals.includes(goal)
+        ? currentGoals.filter((item) => item !== goal)
+        : [...currentGoals, goal],
+    );
   };
 
-  const handleFinish = () => {
-    if (!skinType || goals.length === 0) {
+  const handleFinish = async () => {
+    if (!skinType || goals.length === 0 || isSaving) {
       toast.error('Выберите тип кожи и хотя бы одну цель');
       return;
     }
-    toast.success('Рекомендации персонализированы!');
-    onComplete();
+
+    await onComplete({ skinType, goals });
   };
 
   return (
     <div className="max-w-xl mx-auto py-8">
-      {/* Progress dots */}
       <div className="flex items-center gap-2 mb-8 justify-center">
-        {[1, 2].map(i => (
+        {[1, 2].map((item) => (
           <div
-            key={i}
+            key={item}
             className={`rounded-full transition-all ${
-              i === step ? 'w-8 h-2 bg-[#111827]' : i < step ? 'w-2 h-2 bg-[#111827]' : 'w-2 h-2 bg-gray-200'
+              item === step ? 'w-8 h-2 bg-[#111827]' : item < step ? 'w-2 h-2 bg-[#111827]' : 'w-2 h-2 bg-gray-200'
             }`}
           />
         ))}
       </div>
 
-      {step === 1 && (
+      {step === 1 ? (
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#FFE1F2] flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-[#FF4DB8]" />
           </div>
-          <h2 className="text-2xl font-semibold text-[#111827] mb-2">Привет! Давайте познакомимся</h2>
-          <p className="text-[#6B7280] mb-8">Два быстрых вопроса — и мы покажем то, что реально вам подходит</p>
+          <h2 className="text-2xl font-semibold text-[#111827] mb-2">Давайте настроим вашу персонализацию</h2>
+          <p className="text-[#6B7280] mb-8">Ответьте на два быстрых вопроса, и платформа сразу перестроит рекомендации под вас.</p>
 
           <div className="text-left mb-6">
             <p className="text-sm font-semibold text-[#111827] mb-3">Какой у вас тип кожи?</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {SKIN_TYPES.map(s => (
+              {SKIN_TYPES.map((value) => (
                 <button
-                  key={s}
-                  onClick={() => setSkinType(s)}
+                  key={value}
+                  onClick={() => setSkinType(value)}
                   className={`py-3 px-4 rounded-xl text-sm font-medium border-2 transition-all ${
-                    skinType === s
+                    skinType === value
                       ? 'border-[#111827] bg-[#111827] text-white'
                       : 'border-[#EAE6EF] text-[#111827] hover:border-[#111827]/30'
                   }`}
                 >
-                  {s}
+                  {value}
                 </button>
               ))}
             </div>
@@ -1095,28 +1146,26 @@ function ColdStartState({ onComplete }: { onComplete: () => void }) {
             Далее <ArrowRight className="w-4 h-4" />
           </button>
         </div>
-      )}
-
-      {step === 2 && (
+      ) : (
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-            <Target className="w-8 h-8 text-[#111827]" />
+            <Sparkles className="w-8 h-8 text-[#111827]" />
           </div>
-          <h2 className="text-2xl font-semibold text-[#111827] mb-2">Ваши бьюти-цели</h2>
-          <p className="text-[#6B7280] mb-8">Можно выбрать несколько — мы подберём продукты под каждую</p>
+          <h2 className="text-2xl font-semibold text-[#111827] mb-2">Какие у вас цели?</h2>
+          <p className="text-[#6B7280] mb-8">Можно выбрать несколько, а рекомендации и roadmap подстроятся автоматически.</p>
 
           <div className="flex flex-wrap gap-2 justify-center mb-8">
-            {GOALS.map(g => (
+            {GOALS.map((goal) => (
               <button
-                key={g}
-                onClick={() => toggleGoal(g)}
+                key={goal}
+                onClick={() => toggleGoal(goal)}
                 className={`px-4 py-2.5 rounded-full text-sm font-medium border-2 transition-all ${
-                  goals.includes(g)
+                  goals.includes(goal)
                     ? 'border-[#FF4DB8] bg-[#FF4DB8] text-white'
                     : 'border-[#EAE6EF] text-[#111827] hover:border-[#FF4DB8]/30'
                 }`}
               >
-                {goals.includes(g) && '✓ '}{g}
+                {goals.includes(goal) && '✓ '}{goal}
               </button>
             ))}
           </div>
@@ -1129,18 +1178,14 @@ function ColdStartState({ onComplete }: { onComplete: () => void }) {
               Назад
             </button>
             <button
-              onClick={handleFinish}
-              disabled={goals.length === 0}
+              onClick={() => void handleFinish()}
+              disabled={goals.length === 0 || isSaving}
               className="flex-2 flex-1 h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              Показать мои рекомендации
+              {isSaving ? 'Сохраняем...' : 'Показать мои рекомендации'}
             </button>
           </div>
-
-          <p className="mt-4 text-xs text-[#6B7280]">
-            После регистрации вы получите <strong>+50 приветственных баллов</strong>
-          </p>
         </div>
       )}
     </div>
@@ -1149,14 +1194,47 @@ function ColdStartState({ onComplete }: { onComplete: () => void }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+function EmailVerificationNotice({
+  email,
+  isSending,
+  onResend,
+}: {
+  email: string;
+  isSending: boolean;
+  onResend: () => void;
+}) {
+  return (
+    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-amber-900 font-semibold">
+            <Mail className="w-4 h-4" />
+            Confirm your email
+          </div>
+          <p className="mt-1 text-sm text-amber-800">
+            We sent a confirmation link to <span className="font-medium">{email}</span>. Confirm it to finish account setup.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onResend}
+          disabled={isSending}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RefreshCw className={`w-4 h-4 ${isSending ? 'animate-spin' : ''}`} />
+          {isSending ? 'Sending...' : 'Resend email'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ForYouPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, resendVerificationEmail } = useAuth();
   const { addToCart, getCartQuantity, setCartQuantity } = useCommerce();
 
-  // Simulate states
-  const [isNewUser, setIsNewUser] = useState(false);
   const [skinType, setSkinType] = useState('Жирная');
   const [goals, setGoals] = useState(['Увлажнение', 'Сияние']);
   const [isSaving, setIsSaving] = useState(false);
@@ -1169,15 +1247,30 @@ export default function ForYouPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [showAutoOnboarding, setShowAutoOnboarding] = useState(false);
+  const [isOnboardingSaving, setIsOnboardingSaving] = useState(false);
+  const [isVerificationEmailSending, setIsVerificationEmailSending] = useState(false);
+  const [onboardingInitialSkinType, setOnboardingInitialSkinType] = useState('');
+  const [onboardingInitialGoals, setOnboardingInitialGoals] = useState<string[]>([]);
 
   const roadmapOverview = buildRoadmapOverview(roadmapPlan) ?? FALLBACK_ROADMAP_OVERVIEW;
   const roadmapHeading = roadmapOverview.totalSteps > 0
     ? `Шаг ${Math.min(roadmapOverview.currentStepIndex, roadmapOverview.totalSteps)} из ${roadmapOverview.totalSteps}: ${roadmapOverview.nextStepTitle}`
     : roadmapOverview.nextStepTitle;
+  const sidebarQuickActions = buildSidebarQuickActions({
+    skinType,
+    goals,
+    roadmapPlan,
+    roadmapOverview,
+    personalOffer,
+    recommendations,
+    trendingRecommendations,
+  });
   const offerCountdownMs = personalOffer?.expiresAt
     ? personalOffer.expiresAt.getTime() - Date.now()
     : null;
   const hasOfferCountdown = offerCountdownMs !== null && offerCountdownMs > 0;
+  const shouldShowEmailVerificationNotice = Boolean(user?.email && user.email_verified === false);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -1227,15 +1320,26 @@ export default function ForYouPage() {
 
         if (profileResult.status === 'fulfilled') {
           const profile = profileResult.value as Record<string, unknown>;
-          const nextSkinType = mapApiSkinTypeToUi(profile.skin_type);
+          const nextSkinType = mapApiSkinTypeToUi(profile.skin_type) ?? '';
+          const nextGoals = mapApiGoalsToUi(profile.goals);
+          const isProfileCompleted =
+            typeof profile.profile_completed_at === 'string' &&
+            profile.profile_completed_at.trim().length > 0;
+
+          setOnboardingInitialSkinType(nextGoals.length > 0 ? nextSkinType : '');
+          setOnboardingInitialGoals(nextGoals);
+
           if (nextSkinType) {
             setSkinType(nextSkinType);
           }
 
-          const nextGoals = mapApiGoalsToUi(profile.goals);
           if (nextGoals.length > 0) {
             setGoals(nextGoals);
           }
+
+          setShowAutoOnboarding(!isProfileCompleted);
+        } else {
+          setShowAutoOnboarding(false);
         }
 
         if (loyaltyResult.status === 'fulfilled') {
@@ -1308,7 +1412,7 @@ export default function ForYouPage() {
         if (homeResult.status === 'rejected' && offerResult.status === 'rejected') {
           setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
         } else if (homeResult.status === 'rejected') {
-          setLoadError('Часть персональных данных недоступна. Показаны резервные рекомендации.');
+          setLoadError('Часть персональных данных недоступна. Некоторые разделы рекомендаций могут быть временно пустыми.');
         } else if (offerResult.status === 'rejected') {
           setLoadError('Не удалось загрузить персональный оффер. Остальные данные отображаются.');
         }
@@ -1348,25 +1452,6 @@ export default function ForYouPage() {
       section_key: product.section,
       context: { assignment_id: personalOffer?.assignmentId },
     }).catch(() => undefined);
-  };
-
-  const handleAddToCart = (id: string) => {
-    const selected = [...recommendations, ...trendingRecommendations].find((product) => product.id === id);
-    const points = selected?.pointsEarned || 0;
-    toast.success('Добавлено в корзину!', { description: `+${points} баллов после покупки` });
-
-    if (selected) {
-      const productId = Number(selected.id);
-      if (Number.isFinite(productId)) {
-        void sendEvent({
-          action: 'add_to_cart',
-          product_id: productId,
-          page: 'for_you',
-          section_key: selected.section,
-          context: { assignment_id: personalOffer?.assignmentId },
-        }).catch(() => undefined);
-      }
-    }
   };
 
   const handleRecommendationAddToCart = async (product: RecommendationCard, quantity: number) => {
@@ -1449,20 +1534,84 @@ export default function ForYouPage() {
     }
   };
 
-  if (isNewUser) {
+  const handleCompleteOnboarding = async ({
+    skinType: nextSkinType,
+    goals: nextGoals,
+  }: {
+    skinType: string;
+    goals: string[];
+  }) => {
+    setIsOnboardingSaving(true);
+    try {
+      await updateProfile({
+        skin_type: mapUiSkinTypeToApi(nextSkinType),
+        goals: mapUiGoalsToApi(nextGoals),
+      });
+      setSkinType(nextSkinType);
+      setGoals(nextGoals);
+      setOnboardingInitialSkinType(nextSkinType);
+      setOnboardingInitialGoals(nextGoals);
+      setShowAutoOnboarding(false);
+      setRetryKey((value) => value + 1);
+      toast.success('Рекомендации персонализированы!');
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Не удалось сохранить персонализацию.');
+      }
+    } finally {
+      setIsOnboardingSaving(false);
+    }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    if (isVerificationEmailSending) {
+      return;
+    }
+
+    setIsVerificationEmailSending(true);
+    try {
+      const response = await resendVerificationEmail();
+      if (response.already_verified) {
+        toast.success('Email already confirmed.');
+      } else {
+        toast.success(`Confirmation email sent to ${response.email}.`);
+      }
+    } catch (error) {
+      if (isAuthError(error)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      toast.error(error instanceof Error ? error.message : 'Unable to send confirmation email.');
+    } finally {
+      setIsVerificationEmailSending(false);
+    }
+  };
+
+  if (showAutoOnboarding) {
     return (
       <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[800px] mx-auto px-6 py-8 lg:py-12">
-          {/* Demo toggle */}
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => setIsNewUser(false)}
-              className="text-xs text-[#6B7280] underline"
-            >
-              Посмотреть как выглядит для существующих
-            </button>
-          </div>
-          <ColdStartState onComplete={() => setIsNewUser(false)} />
+          {shouldShowEmailVerificationNotice && user?.email ? (
+            <EmailVerificationNotice
+              email={user.email}
+              isSending={isVerificationEmailSending}
+              onResend={() => void handleResendVerificationEmail()}
+            />
+          ) : null}
+          <ColdStartState
+            initialSkinType={onboardingInitialSkinType || undefined}
+            initialGoals={onboardingInitialGoals}
+            isSaving={isOnboardingSaving}
+            onComplete={handleCompleteOnboarding}
+          />
         </div>
       </div>
     );
@@ -1471,6 +1620,13 @@ export default function ForYouPage() {
   return (
     <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+        {shouldShowEmailVerificationNotice && user?.email ? (
+          <EmailVerificationNotice
+            email={user.email}
+            isSending={isVerificationEmailSending}
+            onResend={() => void handleResendVerificationEmail()}
+          />
+        ) : null}
 
         {/* ─── Header ──────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -1488,14 +1644,6 @@ export default function ForYouPage() {
                 {formatTierLabel(loyaltyTier)}
               </span>
             </div>
-            {/* Demo toggle */}
-            <button
-              onClick={() => setIsNewUser(true)}
-              className="text-xs text-[#6B7280] hover:text-[#111827] transition-colors hidden sm:block"
-              title="Показать cold-start"
-            >
-              ↩ Новый пользователь
-            </button>
           </div>
         </div>
 
@@ -1584,18 +1732,27 @@ export default function ForYouPage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recommendations.map(p => (
-                  <EnhancedRecCard
-                    key={p.id}
-                    product={p}
-                    cartQuantity={getCartQuantity(p.id)}
-                    onAdd={handleRecommendationAddToCart}
-                    onSetQuantity={handleRecommendationQuantityChange}
-                    onProductClick={handleRecommendationClick}
-                  />
-                ))}
-              </div>
+              {recommendations.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {recommendations.map(p => (
+                    <EnhancedRecCard
+                      key={p.id}
+                      product={p}
+                      cartQuantity={getCartQuantity(p.id)}
+                      onAdd={handleRecommendationAddToCart}
+                      onSetQuantity={handleRecommendationQuantityChange}
+                      onProductClick={handleRecommendationClick}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <RecommendationEmptyState
+                  title="Персональные рекомендации формируются"
+                  description="Когда API соберёт товары под ваш профиль и roadmap, они появятся в этом блоке."
+                  ctaLabel="Открыть каталог"
+                  ctaTo="/catalog"
+                />
+              )}
             </section>
 
             {/* ─── Recommendations: Trending ──────────────────────── */}
@@ -1615,18 +1772,27 @@ export default function ForYouPage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {trendingRecommendations.map(p => (
-                  <EnhancedRecCard
-                    key={p.id}
-                    product={p}
-                    cartQuantity={getCartQuantity(p.id)}
-                    onAdd={handleRecommendationAddToCart}
-                    onSetQuantity={handleRecommendationQuantityChange}
-                    onProductClick={handleRecommendationClick}
-                  />
-                ))}
-              </div>
+              {trendingRecommendations.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {trendingRecommendations.map(p => (
+                    <EnhancedRecCard
+                      key={p.id}
+                      product={p}
+                      cartQuantity={getCartQuantity(p.id)}
+                      onAdd={handleRecommendationAddToCart}
+                      onSetQuantity={handleRecommendationQuantityChange}
+                      onProductClick={handleRecommendationClick}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <RecommendationEmptyState
+                  title="Тренды для вашего профиля пока не готовы"
+                  description="Как только backend вернёт популярные товары для похожих пользователей, они появятся здесь."
+                  ctaLabel="Смотреть новинки"
+                  ctaTo="/new"
+                />
+              )}
             </section>
           </div>
 
@@ -1713,26 +1879,40 @@ export default function ForYouPage() {
               isSaving={isSaving}
             />
 
-            {/* Earn more */}
+            {/* Quick actions */}
             <div className="p-5 bg-gray-50 rounded-2xl border border-[#EAE6EF]">
-              <p className="text-xs font-semibold text-[#111827] mb-3">Как заработать больше баллов</p>
+              <p className="text-xs font-semibold text-[#111827] mb-3">Быстрые действия</p>
               <div className="flex flex-col gap-2.5">
-                {[
-                  { action: 'Оставьте отзыв', points: '+20', done: false },
-                  { action: 'Заполните профиль', points: '+50', done: true },
-                  { action: 'Купите по Roadmap', points: '+89', done: false },
-                  { action: 'Пригласите друга', points: '+100', done: false },
-                ].map(item => (
-                  <div key={item.action} className="flex items-center gap-2">
+                {sidebarQuickActions.map((item) => (
+                  <div key={item.key} className="flex items-start gap-2">
                     <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      item.done ? 'bg-[#111827]' : 'border border-gray-300'
+                      item.done
+                        ? 'bg-[#111827]'
+                        : item.muted
+                          ? 'border border-[#D1D5DB] bg-white'
+                          : 'border border-gray-300 bg-white'
                     }`}>
                       {item.done && <Check className="w-2.5 h-2.5 text-white" />}
                     </div>
-                    <span className={`text-xs flex-1 ${item.done ? 'text-[#6B7280] line-through' : 'text-[#111827]'}`}>
-                      {item.action}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs ${
+                        item.done
+                          ? 'text-[#6B7280] line-through'
+                          : item.muted
+                            ? 'text-[#6B7280]'
+                            : 'text-[#111827]'
+                      }`}>
+                        {item.title}
+                      </p>
+                      <p className="text-[11px] text-[#9CA3AF] mt-0.5">
+                        {item.description}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-semibold ${
+                      item.muted ? 'text-[#9CA3AF]' : 'text-[#FF4DB8]'
+                    }`}>
+                      {item.accent}
                     </span>
-                    <span className="text-xs font-semibold text-[#FF4DB8]">{item.points}</span>
                   </div>
                 ))}
               </div>

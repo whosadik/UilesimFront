@@ -1,7 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api/ApiError';
 import * as authApi from '../api/auth';
-import type { AuthUser } from '../api/auth';
+import type {
+  AuthResendVerificationResponse,
+  AuthRegisterResponse,
+  AuthUser,
+} from '../api/auth';
 import { getAdminHealth } from '../api/adminMetrics';
 
 interface AuthContextValue {
@@ -9,7 +13,14 @@ interface AuthContextValue {
   isAdmin: boolean;
   isLoading: boolean;
   refresh: () => Promise<void>;
-  login: (username: string, password: string) => Promise<{ isAdmin: boolean }>;
+  login: (username: string, password: string) => Promise<{ isAdmin: boolean; user: AuthUser }>;
+  register: (
+    username: string,
+    email: string,
+    password: string,
+    passwordConfirm: string,
+  ) => Promise<{ isAdmin: boolean; response: AuthRegisterResponse }>;
+  resendVerificationEmail: () => Promise<AuthResendVerificationResponse>;
   logout: () => Promise<void>;
 }
 
@@ -91,12 +102,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (username: string, password: string) => {
-      await authApi.login(username, password);
+      const response = await authApi.login(username, password);
       const nextIsAdmin = await refreshSession();
-      return { isAdmin: nextIsAdmin };
+      return { isAdmin: nextIsAdmin, user: response.user };
     },
     [refreshSession],
   );
+
+  const register = useCallback(
+    async (username: string, email: string, password: string, passwordConfirm: string) => {
+      const response = await authApi.register(username, email, password, passwordConfirm);
+      const nextIsAdmin = await refreshSession();
+      return { isAdmin: nextIsAdmin, response };
+    },
+    [refreshSession],
+  );
+
+  const resendVerificationEmail = useCallback(async () => {
+    const response = await authApi.resendVerificationEmail();
+    if (response.already_verified) {
+      await refreshSession();
+    }
+    return response;
+  }, [refreshSession]);
 
   const logout = useCallback(async () => {
     try {
@@ -137,9 +165,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       refresh,
       login,
+      register,
+      resendVerificationEmail,
       logout,
     }),
-    [user, isAdmin, isLoading, refresh, login, logout],
+    [user, isAdmin, isLoading, refresh, login, register, resendVerificationEmail, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

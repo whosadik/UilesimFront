@@ -16,6 +16,9 @@ import CheckoutPage from "./pages/CheckoutPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import VerifyEmailPendingPage from "./pages/VerifyEmailPendingPage";
 import SearchPage from "./pages/SearchPage";
 import WishlistPage from "./pages/WishlistPage";
 import TransactionsPage from "./pages/TransactionsPage";
@@ -60,6 +63,9 @@ export const router = createBrowserRouter([
       { path: "cart", Component: CartPage },
       { path: "checkout", Component: CheckoutPage },
       { path: "login", Component: LoginPage },
+      { path: "register", Component: RegisterPage },
+      { path: "verify-email", Component: VerifyEmailPage },
+      { path: "verify-email-pending", Component: VerifyEmailPendingPage },
       { path: "search", Component: SearchPage },
       { path: "wishlist", Component: WishlistPage },
       { path: "me", Component: ProfilePage },

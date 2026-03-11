@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { Button } from "../components/Button";
 import { AlertBanner } from "../components/AlertBanner";
 import { toast } from "sonner";
 import { useAuth } from "../../shared/auth/AuthContext";
+import { savePendingVerificationEmail } from "../../shared/auth/emailVerificationStorage";
 
 /**
  * DEV NOTES:
@@ -43,9 +44,20 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { isAdmin } = await login(username, password);
+      const { isAdmin, user } = await login(username, password);
       const state = location.state as { from?: string } | null;
       const returnPath = typeof state?.from === "string" ? state.from : null;
+      if (user.email_verified === false) {
+        if (typeof user.email === "string" && user.email.trim()) {
+          savePendingVerificationEmail(user.email);
+        }
+        toast.info("Confirm your email before entering the account.");
+        navigate("/verify-email-pending", {
+          replace: true,
+          state: { email: user.email ?? "", from: returnPath ?? "/for-you" },
+        });
+        return;
+      }
       const targetPath = isAdmin
         ? returnPath && returnPath.startsWith("/admin")
           ? returnPath
@@ -182,9 +194,9 @@ export default function LoginPage() {
         {/* Register link */}
         <p className="text-center text-sm text-gray-600 mt-6">
           Нет аккаунта?{" "}
-          <button className="text-gray-900 font-medium hover:underline">
+          <Link to="/register" className="text-gray-900 font-medium hover:underline">
             Зарегистрироваться
-          </button>
+          </Link>
         </p>
       </div>
     </div>
