@@ -11,6 +11,7 @@ import { getProduct } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { bundle as getBundleRecommendations, type BundleRecsResponse, type RecItem } from '../../shared/api/recommendations';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
+import { toBrandSlug } from '../utils/brandSlug';
 
 interface ProductViewModel {
   id: string;
@@ -376,7 +377,7 @@ export default function ProductPage() {
   }
 
   const currentImage = product.images[selectedImage] ?? product.images[0] ?? FALLBACK_IMAGE;
-  const brandSlug = product.brand.toLowerCase().replace(/\s+/g, '-');
+  const brandSlug = toBrandSlug(product.brand);
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen">

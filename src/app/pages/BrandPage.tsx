@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import * as Tabs from '@radix-ui/react-tabs';
-import { Breadcrumbs } from '../components/Breadcrumbs';
-import { ProductGrid, type Product } from '../components/ProductGrid';
-import { Badge } from '../components/Badge';
-import { LoadingSpinner } from '../components/LoadingSpinner';
+
 import { ApiError } from '../../shared/api/ApiError';
+import { getBrand, type BrandDetail } from '../../shared/api/brands';
 import { listProducts } from '../../shared/api/catalog';
+import { Badge } from '../components/Badge';
+import { Breadcrumbs } from '../components/Breadcrumbs';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { ProductGrid, type Product } from '../components/ProductGrid';
+import { fromBrandSlugToLabel } from '../utils/brandSlug';
 import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
-const BRAND_DESCRIPTION_FALLBACK =
-  'Эффективная косметика с прозрачными формулами и доступными ценами. Научный подход к уходу за кожей.';
-
-const toBrandSlug = (value: string): string => value.toLowerCase().trim().replace(/\s+/g, '-');
-
-const fromBrandSlugToLabel = (value: string): string =>
-  decodeURIComponent(value)
-    .split('-')
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 
 const isAuthError = (error: unknown): error is ApiError =>
   error instanceof ApiError && (error.status === 401 || error.status === 403);
+
+const categoryLabels: Record<string, string> = {
+  skincare: 'Skincare',
+  haircare: 'Haircare',
+  makeup: 'Makeup',
+  fragrance: 'Fragrance',
+};
 
 export default function BrandPage() {
   const { brand } = useParams();
@@ -32,14 +32,14 @@ export default function BrandPage() {
 
   const [activeTab, setActiveTab] = useState('hits');
   const [products, setProducts] = useState<Product[]>([]);
-  const [brandName, setBrandName] = useState('Бренд');
+  const [brandDetails, setBrandDetails] = useState<BrandDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!brand) {
-      setBrandName('Бренд');
+      setBrandDetails(null);
       setProducts([]);
       setError('Бренд не найден.');
       setIsLoading(false);
@@ -48,43 +48,27 @@ export default function BrandPage() {
 
     let cancelled = false;
 
-    const loadBrandProducts = async () => {
+    const loadBrandPage = async () => {
       setIsLoading(true);
       setError(null);
 
-      const brandSlug = decodeURIComponent(brand).toLowerCase();
-      const brandLabelFromSlug = fromBrandSlugToLabel(brandSlug);
-      const brandNameQuery = brandSlug.replace(/-/g, ' ').trim();
-
       try {
-        const primaryResponse = await listProducts({ brand: brandNameQuery });
-        let items = extractProducts(primaryResponse);
-
-        if (items.length === 0) {
-          const fallbackResponse = await listProducts();
-          items = extractProducts(fallbackResponse).filter((item) => {
-            const brandValue = typeof item.brand === 'string' ? item.brand : '';
-            return toBrandSlug(brandValue) === brandSlug;
-          });
-        }
+        const brandResponse = await getBrand(brand);
+        const productsResponse = await listProducts({ brand: brandResponse.name });
 
         if (cancelled) {
           return;
         }
 
-        const mappedProducts = items.map((item, index) =>
+        const mappedProducts = extractProducts(productsResponse).map((item, index) =>
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'brand-product',
             fallbackImageUrl: FALLBACK_IMAGE,
           }),
         );
-        setProducts(mappedProducts);
 
-        if (mappedProducts.length > 0) {
-          setBrandName(mappedProducts[0].brand);
-        } else {
-          setBrandName(brandLabelFromSlug || 'Бренд');
-        }
+        setBrandDetails(brandResponse);
+        setProducts(mappedProducts);
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -95,9 +79,13 @@ export default function BrandPage() {
           return;
         }
 
+        setBrandDetails(null);
         setProducts([]);
-        setBrandName(brandLabelFromSlug || 'Бренд');
-        setError('Не удалось загрузить товары бренда из API. Попробуйте еще раз.');
+        setError(
+          loadError instanceof ApiError && loadError.status === 404
+            ? 'Бренд не найден.'
+            : 'Не удалось загрузить страницу бренда из API. Попробуйте ещё раз.',
+        );
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -105,36 +93,24 @@ export default function BrandPage() {
       }
     };
 
-    loadBrandProducts().catch((loadError) => {
-      if (cancelled) {
-        return;
-      }
-
-      if (isAuthError(loadError)) {
-        navigate('/login', { replace: true, state: { from: location.pathname } });
-        return;
-      }
-
-      setProducts([]);
-      setError('Не удалось загрузить страницу бренда. Попробуйте еще раз.');
-      setIsLoading(false);
-    });
+    loadBrandPage();
 
     return () => {
       cancelled = true;
     };
   }, [brand, location.pathname, navigate, retryKey]);
 
+  const brandName = brandDetails?.name ?? (brand ? fromBrandSlugToLabel(brand) || 'Бренд' : 'Бренд');
   const newProducts = useMemo(() => products.filter((product) => product.isNew), [products]);
   const hitsProducts = useMemo(() => products.slice(0, 8), [products]);
   const tabProducts = activeTab === 'new' ? newProducts : activeTab === 'all' ? products : hitsProducts;
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen">
-      <div className="relative py-12 lg:py-16 bg-gradient-to-br from-[#FFE1F2] to-pink-50 border-b border-[#FF4DB8]/20">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF4DB8]/10 rounded-full blur-3xl"></div>
+    <div className="min-h-screen pt-20 lg:pt-28">
+      <div className="relative border-b border-[#FF4DB8]/20 bg-gradient-to-br from-[#FFE1F2] to-pink-50 py-12 lg:py-16">
+        <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[#FF4DB8]/10 blur-3xl" />
 
-        <div className="relative max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+        <div className="relative mx-auto max-w-[1160px] px-6 lg:px-[140px]">
           <Breadcrumbs
             items={[
               { label: 'Главная', href: '/' },
@@ -144,53 +120,59 @@ export default function BrandPage() {
           />
 
           <div className="mt-8 flex items-center gap-6">
-            <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-white border border-[#EAE6EF] flex items-center justify-center text-3xl font-bold text-[#FF4DB8] flex-shrink-0">
-              {brandName.charAt(0)}
+            <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl border border-[#EAE6EF] bg-white text-3xl font-bold text-[#FF4DB8] lg:h-24 lg:w-24">
+              {brandDetails?.logo_letter ?? brandName.charAt(0)}
             </div>
 
             <div className="flex-1">
-              <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-2">{brandName}</h1>
-              <p className="text-base text-[#6B7280] max-w-2xl">{BRAND_DESCRIPTION_FALLBACK}</p>
-              <div className="flex items-center gap-2 mt-3">
-                <Badge>{products.length} товаров</Badge>
-                {newProducts.length > 0 && <Badge>Новинки</Badge>}
+              <h1 className="mb-2 text-3xl font-bold text-[#111827] lg:text-4xl">{brandName}</h1>
+              <p className="max-w-2xl text-base text-[#6B7280]">
+                {brandDetails?.description ?? 'Описание бренда пока недоступно.'}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Badge>{brandDetails?.product_count ?? products.length} товаров</Badge>
+                {(brandDetails?.new_products_count ?? newProducts.length) > 0 && (
+                  <Badge>{brandDetails?.new_products_count ?? newProducts.length} новинок</Badge>
+                )}
+                {(brandDetails?.sale_products_count ?? 0) > 0 && (
+                  <Badge>{brandDetails?.sale_products_count} со скидкой</Badge>
+                )}
+                {brandDetails?.categories.slice(0, 2).map((category) => (
+                  <Badge key={category}>{categoryLabels[category] ?? category}</Badge>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="mx-auto max-w-[1160px] px-6 py-8 lg:px-[140px] lg:py-12">
         {isLoading ? (
           <LoadingSpinner size="lg" text="Загружаем товары бренда..." />
         ) : error ? (
-          <div className="rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-4">
-            <p className="text-sm text-[#B42318]">{error}</p>
-            <button
-              onClick={() => setRetryKey((value) => value + 1)}
-              className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
-            >
-              Повторить
-            </button>
-          </div>
+          <ErrorState
+            title="Не удалось загрузить бренд"
+            description={error}
+            onRetry={() => setRetryKey((value) => value + 1)}
+          />
         ) : (
           <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-            <Tabs.List className="flex items-center gap-1 mb-8 pb-4 border-b border-[#EAE6EF]">
+            <Tabs.List className="mb-8 flex items-center gap-1 border-b border-[#EAE6EF] pb-4">
               <Tabs.Trigger
                 value="hits"
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#111827] data-[state=active]:text-white text-[#6B7280] hover:text-[#111827]"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
               >
                 Хиты
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="new"
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#111827] data-[state=active]:text-white text-[#6B7280] hover:text-[#111827]"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
               >
                 Новинки
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="all"
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-all data-[state=active]:bg-[#111827] data-[state=active]:text-white text-[#6B7280] hover:text-[#111827]"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
               >
                 Все товары
               </Tabs.Trigger>
@@ -201,13 +183,15 @@ export default function BrandPage() {
                 <ProductGrid products={tabProducts} columns={4} />
               ) : (
                 <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-                  Товары для выбранной вкладки пока не найдены.
+                  Для выбранной вкладки товары пока не найдены.
                 </div>
               )}
             </Tabs.Content>
           </Tabs.Root>
         )}
       </div>
+
+      <div className="hidden">{/* Source: GET /api/brands/:slug + GET /api/products/?brand=... */}</div>
     </div>
   );
 }
