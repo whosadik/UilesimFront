@@ -16,7 +16,9 @@ import {
   type RoadmapPlanApi,
   type RoadmapStepApi,
   type RoadmapStepPresentationApi,
+  type RoadmapStepStatusApi,
   type RoadmapSummaryApi,
+  updateRoadmapStep,
 } from "../../shared/api/roadmap";
 import {
   DEFAULT_ROADMAP_STEP_META,
@@ -193,11 +195,18 @@ export default function RoadmapPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pendingStepId, setPendingStepId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [steps, setSteps] = useState<UiRoadmapStep[]>([]);
   const [summary, setSummary] = useState<RoadmapSummaryApi | null>(null);
   const [planCategory, setPlanCategory] = useState<string | null>(null);
+
+  const applyPlan = (plan: RoadmapPlanApi) => {
+    setSteps(buildUiSteps(plan));
+    setSummary(isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null);
+    setPlanCategory(typeof plan.category === "string" && plan.category ? plan.category : null);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -208,12 +217,9 @@ export default function RoadmapPage() {
 
       try {
         const plan = await getRoadmap();
-        const mappedSteps = buildUiSteps(plan);
 
         if (!cancelled) {
-          setSteps(mappedSteps);
-          setSummary(isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null);
-          setPlanCategory(typeof plan.category === "string" && plan.category ? plan.category : null);
+          applyPlan(plan);
         }
       } catch (loadError) {
         if (cancelled) {
@@ -248,10 +254,7 @@ export default function RoadmapPage() {
 
     try {
       const plan = await refreshRoadmap(planCategory ? { category: planCategory } : {});
-      const mappedSteps = buildUiSteps(plan);
-      setSteps(mappedSteps);
-      setSummary(isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null);
-      setPlanCategory(typeof plan.category === "string" && plan.category ? plan.category : null);
+      applyPlan(plan);
       toast.success("Roadmap обновлен с учетом ваших предпочтений");
     } catch (refreshError) {
       if (refreshError instanceof ApiError && (refreshError.status === 401 || refreshError.status === 403)) {
@@ -262,6 +265,41 @@ export default function RoadmapPage() {
       toast.error("Не удалось обновить roadmap");
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleStepStatusChange = async (
+    step: UiRoadmapStep,
+    nextStatus: Extract<RoadmapStepStatusApi, "completed" | "skipped">,
+  ) => {
+    if (step.apiStepId === undefined) {
+      return;
+    }
+
+    setPendingStepId(step.apiStepId);
+
+    try {
+      await updateRoadmapStep(step.apiStepId, nextStatus);
+      const nextPlan = await getRoadmap(planCategory ?? undefined);
+      applyPlan(nextPlan);
+      toast.success(
+        nextStatus === "completed"
+          ? "Шаг отмечен как выполненный"
+          : "Шаг пропущен и roadmap обновлен",
+      );
+    } catch (updateError) {
+      if (updateError instanceof ApiError && (updateError.status === 401 || updateError.status === 403)) {
+        navigate("/login", { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      toast.error(
+        updateError instanceof Error
+          ? updateError.message
+          : "Не удалось обновить статус шага",
+      );
+    } finally {
+      setPendingStepId(null);
     }
   };
 
@@ -300,7 +338,7 @@ export default function RoadmapPage() {
   const completedCount =
     typeof summary?.missing_steps_count === "number" && totalSteps > 0
       ? Math.max(0, totalSteps - summary.missing_steps_count)
-      : steps.filter((step) => step.status === "completed").length;
+      : steps.filter((step) => ["completed", "owned", "skipped"].includes(step.rawStatus)).length;
 
   const progressPercent = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
 
@@ -316,7 +354,7 @@ export default function RoadmapPage() {
   const earnedPoints = useMemo(
     () =>
       steps
-        .filter((step) => step.status === "completed")
+        .filter((step) => step.rawStatus === "completed" || step.rawStatus === "owned")
         .reduce((sum, step) => {
           const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
           return sum + (step.stepPoints ?? meta.points);
@@ -410,6 +448,15 @@ export default function RoadmapPage() {
               const stepImproves = step.stepImproves ?? meta.improves;
               const stepBenefit = step.stepBenefit ?? meta.benefit;
               const stepPoints = step.stepPoints ?? meta.points;
+              const isPendingUpdate = step.apiStepId !== undefined && pendingStepId === step.apiStepId;
+              const isRewarded = step.rawStatus === "completed" || step.rawStatus === "owned";
+              const isSkipped = step.rawStatus === "skipped";
+              const canUpdateStatus =
+                step.apiStepId !== undefined &&
+                !isPendingUpdate &&
+                !isSkipped &&
+                step.rawStatus !== "completed" &&
+                step.rawStatus !== "owned";
 
               return (
                 <div key={step.id} className="relative">
@@ -419,7 +466,7 @@ export default function RoadmapPage() {
                     onStepClick={handleStepClick}
                   />
 
-                  {step.status !== "completed" ? (
+                  {!isRewarded && !isSkipped ? (
                     <div
                       className={`mt-1 mx-1 px-4 py-3 rounded-b-xl border border-t-0 bg-gray-50 border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ${
                         step.status === "current" ? "border-[#FF4DB8]/20 bg-[#FFE1F2]/30" : ""
@@ -440,11 +487,36 @@ export default function RoadmapPage() {
                           <span className="text-xs font-semibold text-[#FF4DB8]">+{stepPoints} б.</span>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 sm:ml-2">
+                        <button
+                          type="button"
+                          className="h-9 px-3 rounded-full border border-[#E5E7EB] bg-white text-xs font-medium text-[#6B7280] transition-colors hover:border-[#D1D5DB] hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => handleStepStatusChange(step, "skipped")}
+                          disabled={!canUpdateStatus}
+                        >
+                          {isPendingUpdate ? "Сохраняем..." : "Пропустить"}
+                        </button>
+                        <button
+                          type="button"
+                          className="h-9 px-3 rounded-full bg-[#111827] text-xs font-medium text-white transition-colors hover:bg-[#0B1220] disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => handleStepStatusChange(step, "completed")}
+                          disabled={!canUpdateStatus}
+                        >
+                          {isPendingUpdate ? "Сохраняем..." : "Выполнено"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : isSkipped ? (
+                    <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-amber-50 border-amber-100 flex items-center gap-2">
+                      <Star className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="text-xs text-amber-700 font-medium">Шаг пропущен, баллы не начислены</span>
                     </div>
                   ) : (
                     <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-emerald-50 border-emerald-100 flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs text-emerald-700 font-medium">+{stepPoints} баллов начислено</span>
+                      <span className="text-xs text-emerald-700 font-medium">
+                        {step.rawStatus === "owned" ? "Шаг уже закрыт вашим текущим продуктом" : `+${stepPoints} баллов начислено`}
+                      </span>
                     </div>
                   )}
                 </div>

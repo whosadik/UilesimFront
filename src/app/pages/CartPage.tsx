@@ -46,7 +46,7 @@ interface CartItem {
 interface CheckoutTotals {
   subtotal: number;
   discount: number;
-  pointsDiscount: number;
+  pointsRedeemed: number;
   total: number;
   pointsEarned: number;
 }
@@ -71,15 +71,7 @@ interface UpsellSuggestion {
   actionLabel: string;
 }
 
-const POINTS_RATE = 0.1; // 10 баллов за 100 ₸
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&q=80';
-
-const LOYALTY_TIERS = [
-  { name: 'Bronze', min: 0, color: '#CD7F32' },
-  { name: 'Silver', min: 500, color: '#9CA3AF' },
-  { name: 'Gold', min: 1000, color: '#F59E0B' },
-  { name: 'Platinum', min: 1500, color: '#6366F1' },
-];
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -117,6 +109,9 @@ const formatLabel = (value: unknown): string | undefined => {
   const prepared = value.trim().replace(/_/g, ' ');
   return prepared[0].toUpperCase() + prepared.slice(1);
 };
+
+const formatTierName = (value: string): string =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : 'Bronze';
 
 const parseActiveOffer = (value: unknown): ActiveOffer | null => {
   if (!isRecord(value) || !isRecord(value.offer)) {
@@ -326,12 +321,6 @@ function LoyaltyCartWidget({
   tier: string;
 }) {
   const newBalance = currentBalance + pointsEarned;
-  const currentTier = LOYALTY_TIERS.find(t => t.name.toLowerCase() === tier) || LOYALTY_TIERS[2];
-  const nextTier = LOYALTY_TIERS[LOYALTY_TIERS.indexOf(currentTier) + 1];
-  const toNext = nextTier ? nextTier.min - newBalance : 0;
-  const progressPct = nextTier
-    ? Math.min(100, ((newBalance - currentTier.min) / (nextTier.min - currentTier.min)) * 100)
-    : 100;
 
   return (
     <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF]">
@@ -354,34 +343,13 @@ function LoyaltyCartWidget({
         </div>
       </div>
 
-      {/* Progress to next tier */}
-      {nextTier && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-xs text-[#6B7280]">
-              До <span className="font-semibold" style={{ color: nextTier.color }}>{nextTier.name}</span>
-            </p>
-            <p className="text-xs font-semibold text-[#111827]">{Math.max(0, toNext)} баллов</p>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${progressPct}%`, backgroundColor: currentTier.color }}
-            />
-          </div>
-          {toNext <= 0 ? (
-            <p className="text-xs text-emerald-600 font-medium">🎉 После этой покупки вы достигнете {nextTier.name}!</p>
-          ) : (
-            <p className="text-xs text-[#6B7280]">
-              Добавьте товаров на <strong>{Math.ceil(toNext / (POINTS_RATE * 10)).toLocaleString('ru')} ₸</strong> и повысьте уровень
-            </p>
-          )}
-        </div>
-      )}
-
-      {!nextTier && (
-        <p className="text-xs text-purple-600 font-medium">✦ Вы на максимальном уровне Platinum!</p>
-      )}
+      <div className="rounded-xl bg-gray-50 p-3">
+        <p className="text-xs text-[#6B7280] mb-0.5">Текущий уровень</p>
+        <p className="text-sm font-semibold text-[#111827]">{formatTierName(tier)}</p>
+        <p className="text-xs text-[#6B7280] mt-1">
+          Уровень считается по сумме покупок за последние 90 дней, а не по балансу баллов.
+        </p>
+      </div>
     </div>
   );
 }
@@ -458,16 +426,17 @@ export default function CartPage() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discount = 0;
-  const pointsDiscount = pointsToUse;
-  const total = subtotal - discount - pointsDiscount;
+  const pointsRedeemed = Math.min(pointsToUse, Math.max(0, Math.floor(subtotal - discount)));
+  const total = Math.max(0, subtotal - discount - pointsRedeemed);
   const totalPointsEarned = cartItems.reduce((sum, item) => sum + item.pointsEarned * item.quantity, 0);
   const offerApplicable = isOfferApplicable(activeOffer, cartItems);
 
   const summarySubtotal = previewTotals?.subtotal ?? subtotal;
   const summaryDiscount = previewTotals?.discount ?? discount;
-  const summaryPointsDiscount = previewTotals?.pointsDiscount ?? pointsDiscount;
+  const summaryPointsRedeemed = previewTotals?.pointsRedeemed ?? pointsRedeemed;
   const summaryTotal = previewTotals?.total ?? total;
   const summaryPointsEarned = previewTotals?.pointsEarned ?? totalPointsEarned;
+  const maxRedeemablePoints = Math.max(0, Math.floor(summarySubtotal - summaryDiscount));
 
   useEffect(() => {
     let cancelled = false;
@@ -584,8 +553,8 @@ export default function CartPage() {
   }, [location.pathname, metaRetryKey, navigate]);
 
   useEffect(() => {
-    setPointsToUse((value) => Math.min(value, availablePoints));
-  }, [availablePoints]);
+    setPointsToUse((value) => Math.min(value, availablePoints, maxRedeemablePoints));
+  }, [availablePoints, maxRedeemablePoints]);
 
   const buildCheckoutItems = () =>
     cartItems
@@ -636,7 +605,7 @@ export default function CartPage() {
         setPreviewTotals({
           subtotal: Math.max(0, Math.round(gross)),
           discount: Math.max(0, Math.round(appliedDiscount)),
-          pointsDiscount: Math.max(0, Math.round(usedPoints)),
+          pointsRedeemed: Math.max(0, Math.round(usedPoints)),
           total: Math.max(0, Math.round(net)),
           pointsEarned: Math.max(0, Math.round(earned)),
         });
@@ -909,19 +878,21 @@ export default function CartPage() {
                   <input
                     type="number"
                     value={pointsToUse || ''}
-                    onChange={e => setPointsToUse(Math.min(availablePoints, Math.max(0, Number(e.target.value))))}
+                    onChange={e => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints, Math.max(0, Number(e.target.value))))}
                     placeholder="0"
                     className="flex-1 px-3 py-2 rounded-xl border border-[#EAE6EF] text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                   />
                   <button
-                    onClick={() => setPointsToUse(Math.min(availablePoints, summaryTotal))}
+                    onClick={() => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints))}
                     className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
                     Макс.
                   </button>
                 </div>
                 {pointsToUse > 0 && (
-                  <p className="text-xs text-[#FF4DB8] mt-2">Экономия: −{pointsToUse.toLocaleString('ru')} ₸</p>
+                  <p className="text-xs text-[#FF4DB8] mt-2">
+                    Спишем: {summaryPointsRedeemed.toLocaleString('ru')} баллов = {summaryPointsRedeemed.toLocaleString('ru')} ₸
+                  </p>
                 )}
               </div>
 
@@ -937,10 +908,10 @@ export default function CartPage() {
                     <span className="font-semibold text-[#FF4DB8]">−{summaryDiscount.toLocaleString('ru')} ₸</span>
                   </div>
                 )}
-                {summaryPointsDiscount > 0 && (
+                {summaryPointsRedeemed > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">Баллы</span>
-                    <span className="font-semibold text-[#FF4DB8]">−{summaryPointsDiscount.toLocaleString('ru')} ₸</span>
+                    <span className="text-[#6B7280]">Списано баллов</span>
+                    <span className="font-semibold text-[#FF4DB8]">−{summaryPointsRedeemed.toLocaleString('ru')} ₸</span>
                   </div>
                 )}
                 <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">

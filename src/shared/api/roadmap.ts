@@ -49,6 +49,13 @@ export type RoadmapStepApi = RoadmapStepSnapshotApi & {
   confidence?: number | null;
 };
 
+export type RoadmapStepStatusApi =
+  | 'missing'
+  | 'recommended'
+  | 'owned'
+  | 'skipped'
+  | 'completed';
+
 export type RoadmapSummaryApi = {
   next_step?: RoadmapStepSnapshotApi | null;
   missing_steps_count?: number;
@@ -96,5 +103,15 @@ export function refreshRoadmap(payload: RoadmapRefreshPayload): Promise<RoadmapP
 export function clickRoadmapStep(stepId: string | number): Promise<{ ok?: boolean; step_id?: number }> {
   return apiFetch<{ ok?: boolean; step_id?: number }>(`/api/me/roadmap/steps/${stepId}/click`, {
     method: 'POST',
+  });
+}
+
+export function updateRoadmapStep(
+  stepId: string | number,
+  status: RoadmapStepStatusApi,
+): Promise<{ ok?: boolean; step?: RoadmapStepApi }> {
+  return apiFetch<{ ok?: boolean; step?: RoadmapStepApi }>(`/api/me/roadmap/steps/${stepId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
 }

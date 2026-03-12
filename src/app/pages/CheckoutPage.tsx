@@ -56,13 +56,6 @@ type LocationCheckoutState = {
   checkoutPreview?: unknown;
 };
 
-const TIERS = [
-  { name: 'Bronze', min: 0, color: '#CD7F32' },
-  { name: 'Silver', min: 500, color: '#9CA3AF' },
-  { name: 'Gold', min: 1000, color: '#F59E0B' },
-  { name: 'Platinum', min: 1500, color: '#6366F1' },
-];
-
 const FALLBACK_OFFER_IMAGE =
   'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
@@ -215,6 +208,9 @@ const firstString = (...values: unknown[]): string | undefined => {
 
   return undefined;
 };
+
+const formatTierName = (value: TierName): string =>
+  value.charAt(0).toUpperCase() + value.slice(1);
 
 const normalizeRoadmapCategory = (value: unknown): string | undefined => {
   if (typeof value !== 'string') {
@@ -542,45 +538,12 @@ export default function CheckoutPage() {
     };
   }, [location.pathname, location.state, navigate, retryKey]);
 
-  const currentTierData = useMemo(() => {
-    if (!result?.tier) {
-      return null;
-    }
-    return TIERS.find((item) => item.name.toLowerCase() === result.tier) ?? null;
-  }, [result?.tier]);
-
-  const nextTierData = useMemo(() => {
-    if (!currentTierData) {
-      return null;
-    }
-    const index = TIERS.indexOf(currentTierData);
-    return TIERS[index + 1] ?? null;
-  }, [currentTierData]);
-
   const previousBalance = useMemo(() => {
     if (!result || result.pointsBalance === undefined) {
       return undefined;
     }
     return Math.max(0, result.pointsBalance - result.pointsEarned + result.pointsUsed);
   }, [result]);
-
-  const progressPct = useMemo(() => {
-    if (
-      !result ||
-      result.pointsBalance === undefined ||
-      !currentTierData ||
-      !nextTierData
-    ) {
-      return null;
-    }
-
-    return Math.min(
-      100,
-      ((result.pointsBalance - currentTierData.min) /
-        (nextTierData.min - currentTierData.min)) *
-        100,
-    );
-  }, [currentTierData, nextTierData, result]);
 
   const handleRoadmapClick = (stepId?: number) => {
     if (stepId === undefined) {
@@ -739,25 +702,13 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {currentTierData && nextTierData && progressPct !== null && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-xs text-[#6B7280]">
-                  До{' '}
-                  <span className="font-semibold" style={{ color: nextTierData.color }}>
-                    {nextTierData.name}
-                  </span>
-                </p>
-                <p className="text-xs font-semibold text-[#111827]">
-                  {Math.max(0, nextTierData.min - (result.pointsBalance ?? 0))} баллов
-                </p>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-1000"
-                  style={{ width: `${progressPct}%`, backgroundColor: currentTierData.color }}
-                />
-              </div>
+          {result.tier && (
+            <div className="rounded-xl bg-gray-50 p-3">
+              <p className="text-xs text-[#6B7280] mb-0.5">Текущий уровень</p>
+              <p className="text-sm font-semibold text-[#111827]">{formatTierName(result.tier)}</p>
+              <p className="text-xs text-[#6B7280] mt-1">
+                Уровень программы лояльности считается по сумме покупок за 90 дней, а не по текущему балансу баллов.
+              </p>
             </div>
           )}
         </div>
