@@ -1,56 +1,44 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { Button } from "../components/Button";
-import { AlertBanner } from "../components/AlertBanner";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../shared/auth/AuthContext";
 import { savePendingVerificationEmail } from "../../shared/auth/emailVerificationStorage";
-
-/**
- * DEV NOTES:
- * Endpoint: POST /api-auth/login/
- * Auth: SessionAuth (Django SessionAuthentication)
- * CSRF: Required (X-CSRFToken header)
- * 
- * Request: { username: string, password: string }
- * Response success: { ok: true, user: {...}, session_key: string }
- * Response error: { ok: false, code: "invalid_credentials", message: string }
- * 
- * После успешного логина редирект на /for-you или запомненный путь
- * CSRF token получается из cookie csrftoken
- */
+import { AlertBanner } from "../components/AlertBanner";
+import { Button } from "../components/Button";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
 
-    if (!username.trim() || !password) {
-      setError("Заполните все поля");
+    if (!email.trim() || !password) {
+      setError("Fill in both fields.");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const { isAdmin, user } = await login(username, password);
+      const { isAdmin, user } = await login(email.trim(), password);
       const state = location.state as { from?: string } | null;
       const returnPath = typeof state?.from === "string" ? state.from : null;
-      if (user.email_verified === false) {
+
+      if (user.email && user.email_verified === false) {
         if (typeof user.email === "string" && user.email.trim()) {
           savePendingVerificationEmail(user.email);
         }
+
         toast.info("Confirm your email before entering the account.");
         navigate("/verify-email-pending", {
           replace: true,
@@ -58,6 +46,7 @@ export default function LoginPage() {
         });
         return;
       }
+
       const targetPath = isAdmin
         ? returnPath && returnPath.startsWith("/admin")
           ? returnPath
@@ -65,13 +54,14 @@ export default function LoginPage() {
         : returnPath && !returnPath.startsWith("/admin")
           ? returnPath
           : "/for-you";
-      toast.success("Добро пожаловать!");
+
+      toast.success("Welcome back.");
       navigate(targetPath, { replace: true });
     } catch (requestError) {
       if (requestError instanceof Error) {
         setError(requestError.message);
       } else {
-        setError("Неверное имя пользователя или пароль");
+        setError("Invalid email or password.");
       }
     } finally {
       setIsLoading(false);
@@ -81,49 +71,39 @@ export default function LoginPage() {
   return (
     <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-serif text-gray-900 mb-2">Uilesim</h1>
-          <p className="text-gray-600">Войдите в свой аккаунт</p>
+          <p className="text-gray-600">Sign in to your account</p>
         </div>
 
-        {/* Login form */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error banner */}
-            {error && (
-              <AlertBanner
-                variant="error"
-                message={error}
-                dismissible
-              />
-            )}
+            {error ? <AlertBanner variant="error" message={error} dismissible /> : null}
 
-            {/* Username field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Имя пользователя
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <User className="w-5 h-5" />
+                  <Mail className="w-5 h-5" />
                 </div>
                 <input
-                  type="text"
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                  placeholder="Введите имя пользователя"
+                  placeholder="name@example.com"
                   disabled={isLoading}
+                  autoComplete="email"
                 />
               </div>
             </div>
 
-            {/* Password field */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Пароль
+                Password
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -133,14 +113,15 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   id="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                  placeholder="Введите пароль"
+                  placeholder="Enter your password"
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPassword((value) => !value)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   tabIndex={-1}
                 >
@@ -149,53 +130,42 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(event) => setRememberMe(event.target.checked)}
                   className="w-4 h-4 border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-gray-900"
                   disabled={isLoading}
                 />
-                <span className="text-sm text-gray-700">Запомнить меня</span>
+                <span className="text-sm text-gray-700">Remember me</span>
               </label>
 
-              <button
-                type="button"
+              <Link
+                to="/forgot-password"
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
-                Забыли пароль?
-              </button>
+                Forgot password?
+              </Link>
             </div>
 
-            {/* Submit button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              disabled={isLoading}
-              loading={isLoading}
-            >
-              Войти
+            <Button type="submit" variant="primary" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
 
-            {/* Demo hint */}
             <div className="pt-4 border-t border-gray-100">
               <p className="text-sm text-gray-500 text-center">
-                Демо доступ: <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">demo / demo</span>
+                Use the email you registered with and your current password.
               </p>
             </div>
           </form>
         </div>
 
-        {/* Register link */}
         <p className="text-center text-sm text-gray-600 mt-6">
-          Нет аккаунта?{" "}
+          No account yet?{" "}
           <Link to="/register" className="text-gray-900 font-medium hover:underline">
-            Зарегистрироваться
+            Create one
           </Link>
         </p>
       </div>

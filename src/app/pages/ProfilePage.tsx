@@ -8,7 +8,7 @@ import { Button } from '../components/Button';
 import { ProfileWizard } from '../components/ProfileWizard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
-import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock } from 'lucide-react';
+import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock, User, Phone, MapPin, Mail } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
@@ -67,6 +67,13 @@ type OfferState = {
   value: number;
   expiresAt?: string | null;
   target?: Record<string, unknown>;
+};
+
+type PersonalDetailsState = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  city: string;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -203,6 +210,75 @@ function formatCategorySpend(totalSpent: string | null, currency: string | null)
   return `${Math.round(parsed).toLocaleString('ru-RU')} ${normalizedCurrency}`;
 }
 
+function readTextField(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function extractPersonalDetails(profile: Record<string, unknown>): PersonalDetailsState {
+  return {
+    firstName: readTextField(profile.first_name),
+    lastName: readTextField(profile.last_name),
+    phone: readTextField(profile.phone),
+    city: readTextField(profile.city),
+  };
+}
+
+function buildProfileName(
+  profile: Record<string, unknown>,
+  user: { username?: string | null; email?: string | null } | null | undefined,
+): string {
+  const firstName = readTextField(profile.first_name);
+  const lastName = readTextField(profile.last_name);
+  const fullName = [firstName, lastName].filter(Boolean).join(' ');
+
+  if (fullName) {
+    return fullName;
+  }
+
+  const username = typeof user?.username === 'string' ? user.username.trim() : '';
+  if (username) {
+    return username;
+  }
+
+  const email = typeof user?.email === 'string' ? user.email.trim() : '';
+  if (email) {
+    return email.split('@')[0] || email;
+  }
+
+  return 'Guest';
+}
+
+function buildProfileInitials(
+  profile: Record<string, unknown>,
+  user: { username?: string | null; email?: string | null } | null | undefined,
+): string {
+  const firstName = readTextField(profile.first_name);
+  const lastName = readTextField(profile.last_name);
+
+  if (firstName || lastName) {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim().toUpperCase() || 'U';
+  }
+
+  const name = buildProfileName(profile, user);
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+  }
+
+  return name.charAt(0).toUpperCase() || 'U';
+}
+
+function buildProfileSummaryState(
+  profile: Record<string, unknown>,
+  user: { username?: string | null; email?: string | null } | null | undefined,
+) {
+  return {
+    name: buildProfileName(profile, user),
+    initials: buildProfileInitials(profile, user),
+    completionPercentage: calcCompletion(profile),
+  };
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -215,6 +291,13 @@ export default function ProfilePage() {
     initials: (user?.username?.charAt(0) || '').toUpperCase(),
     completionPercentage: 0,
   });
+  const [personalDetails, setPersonalDetails] = useState<PersonalDetailsState>({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    city: '',
+  });
+  const [isPersonalDetailsSaving, setIsPersonalDetailsSaving] = useState(false);
 
   const [loyalty, setLoyaltyState] = useState({
     tier: 'bronze' as const,
@@ -246,6 +329,11 @@ export default function ProfilePage() {
     return 'active';
   }, [offer]);
 
+  const applyProfileSnapshot = (profile: Record<string, unknown>) => {
+    setProfileSummary(buildProfileSummaryState(profile, user));
+    setPersonalDetails(extractPersonalDetails(profile));
+  };
+
   useEffect(() => {
     if (isAuthLoading) return;
 
@@ -272,13 +360,7 @@ export default function ProfilePage() {
         if (cancelled) return;
 
         const profileObj = isRecord(profileResp) ? profileResp : {};
-        const profileName = user.username || '';
-
-        setProfileSummary({
-          name: profileName,
-          initials: profileName.charAt(0).toUpperCase(),
-          completionPercentage: calcCompletion(profileObj),
-        });
+        applyProfileSnapshot(profileObj);
 
         const loyaltyObj = isRecord(loyaltyResp) ? loyaltyResp : {};
         setLoyaltyState({
@@ -405,6 +487,50 @@ export default function ProfilePage() {
     };
   }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
 
+  const handlePersonalDetailChange = (field: keyof PersonalDetailsState, value: string) => {
+    setPersonalDetails((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSavePersonalDetails = async () => {
+    setIsPersonalDetailsSaving(true);
+
+    try {
+      const updated = await updateProfile({
+        first_name: personalDetails.firstName.trim(),
+        last_name: personalDetails.lastName.trim(),
+        phone: personalDetails.phone.trim(),
+        city: personalDetails.city.trim(),
+      });
+
+      const updatedProfile =
+        updated && typeof updated === 'object' && 'profile' in updated && updated.profile
+          ? (updated.profile as Record<string, unknown>)
+          : (updated as Record<string, unknown>);
+
+      if (isRecord(updatedProfile) && Object.keys(updatedProfile).length > 0) {
+        applyProfileSnapshot(updatedProfile);
+      } else {
+        const fallbackProfile = await getProfile();
+        if (isRecord(fallbackProfile)) {
+          applyProfileSnapshot(fallbackProfile);
+        }
+      }
+
+      toast.success('Personal details saved');
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : 'Failed to save personal details');
+    } finally {
+      setIsPersonalDetailsSaving(false);
+    }
+  };
+
   if (isAuthLoading || isPageLoading) {
     return (
       <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -492,6 +618,116 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        <section className="mb-12">
+          <div className="rounded-2xl bg-white border border-[#EAE6EF] p-6 lg:p-8 shadow-sm">
+            <div className="flex flex-col gap-2 mb-6">
+              <h2 className="text-2xl font-bold text-[#111827]">Personal details</h2>
+              <p className="text-sm text-[#6B7280]">
+                Optional fields. You can fill them now, later, or leave them empty.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="profile-first-name" className="block text-sm font-medium text-gray-700 mb-2">
+                  First name
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <input
+                    id="profile-first-name"
+                    type="text"
+                    value={personalDetails.firstName}
+                    onChange={(event) => handlePersonalDetailChange('firstName', event.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                    placeholder="Enter first name"
+                    disabled={isPersonalDetailsSaving}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="profile-last-name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Last name
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <input
+                    id="profile-last-name"
+                    type="text"
+                    value={personalDetails.lastName}
+                    onChange={(event) => handlePersonalDetailChange('lastName', event.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                    placeholder="Enter last name"
+                    disabled={isPersonalDetailsSaving}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="profile-phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Phone className="w-5 h-5" />
+                  </div>
+                  <input
+                    id="profile-phone"
+                    type="tel"
+                    value={personalDetails.phone}
+                    onChange={(event) => handlePersonalDetailChange('phone', event.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                    placeholder="+7 777 123 45 67"
+                    disabled={isPersonalDetailsSaving}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="profile-city" className="block text-sm font-medium text-gray-700 mb-2">
+                  City
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <input
+                    id="profile-city"
+                    type="text"
+                    value={personalDetails.city}
+                    onChange={(event) => handlePersonalDetailChange('city', event.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                    placeholder="Enter city"
+                    disabled={isPersonalDetailsSaving}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-sm text-[#6B7280]">
+                <Mail className="w-4 h-4" />
+                <span className="break-all">
+                  Email: <span className="font-medium text-[#111827]">{user?.email || 'not set'}</span>
+                </span>
+              </div>
+
+              <Button
+                variant="primary"
+                onClick={() => void handleSavePersonalDetails()}
+                disabled={isPersonalDetailsSaving}
+              >
+                {isPersonalDetailsSaving ? 'Saving...' : 'Save details'}
+              </Button>
+            </div>
+          </div>
+        </section>
 
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-[#111827] mb-6">Ваш персональный оффер</h2>
@@ -631,11 +867,9 @@ export default function ProfilePage() {
                   const profileObj = Object.keys(updatedProfile || {}).length > 0 ? updatedProfile : await getProfile();
                   const loyaltyObj = await getLoyalty();
 
-                  setProfileSummary({
-                    name: user?.username || '',
-                    initials: (user?.username?.charAt(0) || '').toUpperCase(),
-                    completionPercentage: calcCompletion(isRecord(profileObj) ? profileObj : {}),
-                  });
+                  if (isRecord(profileObj)) {
+                    applyProfileSnapshot(profileObj);
+                  }
 
                   const l = isRecord(loyaltyObj) ? loyaltyObj : {};
                   setLoyaltyState({

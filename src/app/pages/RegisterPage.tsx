@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
 import { useAuth } from "../../shared/auth/AuthContext";
@@ -34,7 +34,6 @@ function formatRegisterError(error: unknown): string {
 export default function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -47,7 +46,7 @@ export default function RegisterPage() {
     event.preventDefault();
     setError(null);
 
-    if (!username.trim() || !email.trim() || !password || !passwordConfirm) {
+    if (!email.trim() || !password || !passwordConfirm) {
       setError("Fill in all fields");
       return;
     }
@@ -60,7 +59,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const { response } = await register(username.trim(), email.trim(), password, passwordConfirm);
+      const { response } = await register(email.trim(), password, passwordConfirm);
       savePendingVerificationEmail(
         response.verification_email,
         response.resend_available_in_seconds,
@@ -95,27 +94,6 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error ? <AlertBanner variant="error" message={error} dismissible /> : null}
-
-            <div>
-              <label htmlFor="register-username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
-              </label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <User className="w-5 h-5" />
-                </div>
-                <input
-                  type="text"
-                  id="register-username"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                  placeholder="Choose a username"
-                  disabled={isLoading}
-                  autoComplete="username"
-                />
-              </div>
-            </div>
 
             <div>
               <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -201,7 +179,7 @@ export default function RegisterPage() {
             </Button>
 
             <p className="text-xs text-gray-500 text-center">
-              After sign up, you will go straight to For You onboarding and receive an email with a confirmation link.
+              After sign up, we create your account ID automatically, open For You onboarding, and send a confirmation email.
             </p>
           </form>
         </div>

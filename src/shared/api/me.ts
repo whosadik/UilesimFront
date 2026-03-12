@@ -1,6 +1,12 @@
 import { apiFetch } from './httpClient';
 
-export type Profile = Record<string, unknown> & { id?: number };
+export type Profile = Record<string, unknown> & {
+  id?: number;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  city?: string;
+};
 
 export type Loyalty = {
   tier: string | null;

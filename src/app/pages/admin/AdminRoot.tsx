@@ -47,7 +47,7 @@ export default function AdminRoot() {
       return;
     }
 
-    if (user.email_verified === false) {
+    if (user.email && user.email_verified === false) {
       navigate('/verify-email-pending', {
         replace: true,
         state: { email: user.email ?? '', from: location.pathname },
@@ -65,7 +65,7 @@ export default function AdminRoot() {
     return location.pathname.startsWith(item.href);
   };
 
-  if (isAuthLoading || !user || user.email_verified === false || !isAdmin) {
+  if (isAuthLoading || !user || (Boolean(user.email) && user.email_verified === false) || !isAdmin) {
     return <div className="min-h-screen bg-gray-50" />;
   }
 

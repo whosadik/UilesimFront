@@ -13,9 +13,8 @@ interface AuthContextValue {
   isAdmin: boolean;
   isLoading: boolean;
   refresh: () => Promise<void>;
-  login: (username: string, password: string) => Promise<{ isAdmin: boolean; user: AuthUser }>;
+  login: (email: string, password: string) => Promise<{ isAdmin: boolean; user: AuthUser }>;
   register: (
-    username: string,
     email: string,
     password: string,
     passwordConfirm: string,
@@ -101,8 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSession]);
 
   const login = useCallback(
-    async (username: string, password: string) => {
-      const response = await authApi.login(username, password);
+    async (email: string, password: string) => {
+      const response = await authApi.login(email, password);
       const nextIsAdmin = await refreshSession();
       return { isAdmin: nextIsAdmin, user: response.user };
     },
@@ -110,8 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (username: string, email: string, password: string, passwordConfirm: string) => {
-      const response = await authApi.register(username, email, password, passwordConfirm);
+    async (email: string, password: string, passwordConfirm: string) => {
+      const response = await authApi.register(email, password, passwordConfirm);
       const nextIsAdmin = await refreshSession();
       return { isAdmin: nextIsAdmin, response };
     },

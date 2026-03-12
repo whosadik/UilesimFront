@@ -45,6 +45,24 @@ export interface AuthVerificationStatusResponse {
   resend_available_in_seconds: number;
 }
 
+export interface AuthPasswordResetRequestResponse {
+  ok: boolean;
+  email: string;
+  sent: boolean;
+  message: string;
+}
+
+export interface AuthPasswordResetValidateResponse {
+  ok: boolean;
+  valid: boolean;
+  message: string;
+}
+
+export interface AuthPasswordResetConfirmResponse {
+  ok: boolean;
+  message: string;
+}
+
 export function csrf(): Promise<{ ok: boolean; csrfToken: string }> {
   return apiFetch('/api/auth/csrf', {
     method: 'GET',
@@ -53,17 +71,16 @@ export function csrf(): Promise<{ ok: boolean; csrfToken: string }> {
 }
 
 export function login(
-  username: string,
+  email: string,
   password: string,
 ): Promise<{ ok: boolean; user: AuthUser }> {
   return apiFetch('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   });
 }
 
 export function register(
-  username: string,
   email: string,
   password: string,
   passwordConfirm: string,
@@ -71,7 +88,6 @@ export function register(
   return apiFetch('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
-      username,
       email,
       password,
       password_confirm: passwordConfirm,
@@ -98,6 +114,42 @@ export function getVerificationStatus(): Promise<AuthVerificationStatusResponse>
   return apiFetch('/api/auth/verification-status', {
     method: 'GET',
     skipCsrf: true,
+  });
+}
+
+export function requestPasswordReset(email: string): Promise<AuthPasswordResetRequestResponse> {
+  return apiFetch('/api/auth/password-reset/request', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function validatePasswordResetLink(
+  uid: string,
+  token: string,
+): Promise<AuthPasswordResetValidateResponse> {
+  return apiFetch('/api/auth/password-reset/validate', {
+    method: 'POST',
+    skipCsrf: true,
+    body: JSON.stringify({ uid, token }),
+  });
+}
+
+export function confirmPasswordReset(
+  uid: string,
+  token: string,
+  password: string,
+  passwordConfirm: string,
+): Promise<AuthPasswordResetConfirmResponse> {
+  return apiFetch('/api/auth/password-reset/confirm', {
+    method: 'POST',
+    skipCsrf: true,
+    body: JSON.stringify({
+      uid,
+      token,
+      password,
+      password_confirm: passwordConfirm,
+    }),
   });
 }
 

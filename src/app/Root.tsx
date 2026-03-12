@@ -9,6 +9,8 @@ import { useAuth } from '../shared/auth/AuthContext';
 const UNVERIFIED_ALLOWED_PATHS = new Set([
   '/login',
   '/register',
+  '/forgot-password',
+  '/reset-password',
   '/verify-email',
   '/verify-email-pending',
 ]);
@@ -20,7 +22,7 @@ export default function Root() {
   const { wishlistCount, cartCount } = useCommerce();
 
   useEffect(() => {
-    if (isAuthLoading || !user || user.email_verified !== false) {
+    if (isAuthLoading || !user || !user.email || user.email_verified !== false) {
       return;
     }
 

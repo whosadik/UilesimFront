@@ -17,6 +17,8 @@ import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import VerifyEmailPendingPage from "./pages/VerifyEmailPendingPage";
 import SearchPage from "./pages/SearchPage";
@@ -64,6 +66,8 @@ export const router = createBrowserRouter([
       { path: "checkout", Component: CheckoutPage },
       { path: "login", Component: LoginPage },
       { path: "register", Component: RegisterPage },
+      { path: "forgot-password", Component: ForgotPasswordPage },
+      { path: "reset-password", Component: ResetPasswordPage },
       { path: "verify-email", Component: VerifyEmailPage },
       { path: "verify-email-pending", Component: VerifyEmailPendingPage },
       { path: "search", Component: SearchPage },
