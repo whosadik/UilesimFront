@@ -5,7 +5,7 @@ import { PromoBannerCard } from '../components/PromoBannerCard';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { ApiError } from '../../shared/api/ApiError';
-import { clickOffer, nextOffer } from '../../shared/api/offers';
+import { clickOffer, listHomePromotions } from '../../shared/api/offers';
 import { mapOfferPayloadsToPromotions, type OfferPromotionCard } from '../../shared/offers/presentation';
 
 type PromoCardItem = OfferPromotionCard & {
@@ -19,6 +19,7 @@ export function PromotionsSection() {
   const [promos, setPromos] = useState<PromoCardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requiresAuth, setRequiresAuth] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -34,47 +35,49 @@ export function PromotionsSection() {
       }
     };
 
-    const loadOffer = async () => {
+    const loadPromotions = async () => {
       setIsLoading(true);
       setError(null);
+      setRequiresAuth(false);
 
       try {
-        const payload = await nextOffer();
+        const payload = await listHomePromotions();
 
         if (cancelled) {
           return;
         }
 
-        const dynamicPromo = mapOfferPayloadsToPromotions(payload)[0];
-        if (!dynamicPromo) {
+        const dynamicPromos = mapOfferPayloadsToPromotions(payload.banners);
+        if (dynamicPromos.length === 0) {
           setPromos([]);
           return;
         }
 
-        setPromos([
-          {
-            ...dynamicPromo,
+        setPromos(
+          dynamicPromos.map((promo) => ({
+            ...promo,
             onClick: () => {
-              if (dynamicPromo.assignmentId === undefined) {
+              if (promo.assignmentId === undefined) {
                 return;
               }
 
-              void handleOfferClick(dynamicPromo.assignmentId);
+              void handleOfferClick(promo.assignmentId);
             },
-          },
-        ]);
+          })),
+        );
       } catch (loadError) {
         if (cancelled) {
           return;
         }
 
         if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setPromos([]);
+          setRequiresAuth(true);
           return;
         }
 
         setPromos([]);
-        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить акции');
+        setError(loadError instanceof Error ? loadError.message : 'could not load promotions');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -82,7 +85,7 @@ export function PromotionsSection() {
       }
     };
 
-    void loadOffer();
+    void loadPromotions();
 
     return () => {
       cancelled = true;
@@ -92,20 +95,29 @@ export function PromotionsSection() {
   return (
     <section className="py-12 bg-gradient-to-b from-white to-pink-50/30">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title="Акции и предложения" />
+        <CarouselHeader title="promotions and offers" />
 
         {error ? (
           <ErrorState
-            title="Не удалось загрузить акции"
-            description="Произошла ошибка при загрузке персонального оффера. Попробуйте ещё раз."
+            title="could not load promotions"
+            description="something went wrong while loading the home offers. try again."
             onRetry={() => setRetryKey((value) => value + 1)}
+          />
+        ) : requiresAuth ? (
+          <EmptyState
+            title="promotions are available after sign in"
+            description="sign in to see personalized offer banners on the home page."
+            action={{
+              label: 'sign in',
+              onClick: () => navigate('/login', { state: { from: location.pathname } }),
+            }}
           />
         ) : !isLoading && promos.length === 0 ? (
           <EmptyState
-            title="Акций пока нет"
-            description="Сейчас нет доступных предложений. Проверьте позже."
+            title="no promotions yet"
+            description="there are no active offer banners for the home page right now."
             action={{
-              label: 'Обновить',
+              label: 'refresh',
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />

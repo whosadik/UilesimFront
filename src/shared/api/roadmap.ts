@@ -15,6 +15,16 @@ export type RoadmapRecommendedProduct = {
   [k: string]: unknown;
 };
 
+export type RoadmapStepPresentationApi = {
+  title?: string;
+  description?: string;
+  points?: number;
+  why?: string;
+  improves?: string;
+  benefit?: string;
+  [k: string]: unknown;
+};
+
 export type RoadmapStepSnapshotApi = {
   id?: number;
   step_id?: number;
@@ -25,6 +35,7 @@ export type RoadmapStepSnapshotApi = {
   status?: string;
   title?: string;
   description?: string;
+  presentation?: RoadmapStepPresentationApi;
   why?: unknown;
   cadence?: string;
   recommended_product_id?: number | null;

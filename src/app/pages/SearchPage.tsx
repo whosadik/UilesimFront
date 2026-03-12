@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { Search, TrendingUp, X } from 'lucide-react';
 import { ProductGrid, type Product } from '../components/ProductGrid';
 import { EmptyState } from '../components/EmptyState';
@@ -16,13 +16,7 @@ const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
 const MAX_RECENT_SEARCHES = 5;
 const SEARCH_DEBOUNCE_MS = 2000;
 
-const SUGGESTED_QUERIES = [
-  'skincare',
-  'makeup',
-  'serum',
-  'lipstick',
-  'spf',
-] as const;
+const SUGGESTED_QUERIES = ['skincare', 'makeup', 'serum', 'lipstick', 'spf'] as const;
 
 const readRecentSearches = (): string[] => {
   if (typeof window === 'undefined') {
@@ -56,8 +50,6 @@ const saveRecentSearches = (value: string[]) => {
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const location = useLocation();
   const query = (searchParams.get('q') || '').trim();
 
   const [searchInput, setSearchInput] = useState(query);
@@ -75,25 +67,13 @@ export default function SearchPage() {
       setLoadError(null);
 
       try {
-        let mapped: Product[] = [];
-
-        if (query) {
-          const response = await listProducts({ search: query });
-          mapped = extractProducts(response).map((item, index) =>
-            mapApiProductToGrid(item, index, {
-              fallbackIdPrefix: 'search-product',
-              fallbackImageUrl: FALLBACK_IMAGE_URL,
-            }),
-          );
-        } else {
-          const response = await listProducts();
-          mapped = extractProducts(response).map((item, index) =>
-            mapApiProductToGrid(item, index, {
-              fallbackIdPrefix: 'search-product',
-              fallbackImageUrl: FALLBACK_IMAGE_URL,
-            }),
-          );
-        }
+        const response = await listProducts(query ? { search: query } : undefined);
+        const mapped = extractProducts(response).map((item, index) =>
+          mapApiProductToGrid(item, index, {
+            fallbackIdPrefix: 'search-product',
+            fallbackImageUrl: FALLBACK_IMAGE_URL,
+          }),
+        );
 
         if (!cancelled) {
           setProducts(mapped);
@@ -104,15 +84,12 @@ export default function SearchPage() {
         }
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', {
-            replace: true,
-            state: { from: `${location.pathname}${location.search}` },
-          });
+          setProducts([]);
           return;
         }
 
         setProducts([]);
-        setLoadError('Не удалось загрузить товары из API. Попробуйте ещё раз.');
+        setLoadError('failed to load search results. please try again.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -120,12 +97,12 @@ export default function SearchPage() {
       }
     };
 
-    loadProducts();
+    void loadProducts();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, location.search, navigate, reloadKey]);
+  }, [query, reloadKey]);
 
   useEffect(() => {
     setSearchInput(query);
@@ -159,7 +136,6 @@ export default function SearchPage() {
   }, [query, searchInput, setSearchParams]);
 
   const filteredProducts = useMemo(() => products, [products]);
-
   const popularProducts = useMemo(() => products.slice(0, 8), [products]);
 
   const handleSearch = (event: React.FormEvent) => {
@@ -202,7 +178,7 @@ export default function SearchPage() {
                 type="text"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Поиск товаров, брендов..."
+                placeholder="search products or brands..."
                 className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all"
                 autoFocus
               />
@@ -223,11 +199,11 @@ export default function SearchPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <LoadingSpinner size="lg" text="Загружаем товары..." />
+            <LoadingSpinner size="lg" text="loading products..." />
           </div>
         ) : loadError ? (
           <ErrorState
-            title="Не удалось загрузить поиск"
+            title="failed to load search"
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
@@ -236,12 +212,12 @@ export default function SearchPage() {
             {recentSearches.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">Недавние поиски</h3>
+                  <h3 className="font-semibold text-gray-900">recent searches</h3>
                   <button
                     onClick={clearRecentSearches}
                     className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
                   >
-                    Очистить
+                    clear
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -258,7 +234,7 @@ export default function SearchPage() {
             )}
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Популярные запросы</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">popular searches</h3>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTED_QUERIES.map((suggestion) => (
                   <button key={suggestion} type="button" onClick={() => handleSuggestedClick(suggestion)}>
@@ -271,12 +247,12 @@ export default function SearchPage() {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Популярное</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">popular now</h3>
               {popularProducts.length > 0 ? (
                 <ProductGrid products={popularProducts} />
               ) : (
                 <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-                  Популярные товары пока недоступны.
+                  popular items are not available yet.
                 </div>
               )}
             </div>
@@ -286,11 +262,11 @@ export default function SearchPage() {
             <div className="mb-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-2">
                 {filteredProducts.length > 0
-                  ? `Найдено ${filteredProducts.length} товаров`
-                  : 'Ничего не найдено'}
+                  ? `found ${filteredProducts.length} products`
+                  : 'nothing found'}
               </h2>
               <p className="text-gray-600">
-                Результаты поиска: <span className="font-medium">"{query}"</span>
+                results for <span className="font-medium">"{query}"</span>
               </p>
             </div>
 
@@ -305,10 +281,10 @@ export default function SearchPage() {
             ) : (
               <EmptyState
                 icon={<Search className="w-12 h-12" />}
-                title="Ничего не найдено"
-                description={`По запросу "${query}" ничего не найдено. Попробуйте изменить запрос.`}
+                title="nothing found"
+                description={`no results for "${query}". try a different search.`}
                 action={{
-                  label: 'Очистить поиск',
+                  label: 'clear search',
                   onClick: clearSearch,
                 }}
               />

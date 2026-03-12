@@ -8,6 +8,7 @@ export type OfferPromotionCard = {
   badge: string;
   type: OfferPromotionType;
   buttonText: string;
+  imageUrl?: string;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -124,9 +125,7 @@ const buildDescription = (
   const scope = firstString(target?.scope);
   const categoryLabel = formatLabel(target?.category);
   const productTypeLabel = formatLabel(target?.product_type);
-  const minBasketAmount = toNumber(
-    target?.min_basket_amount,
-  );
+  const minBasketAmount = toNumber(target?.min_basket_amount);
   const roadmapReason = isRecord(reason?.roadmap) ? reason.roadmap : null;
 
   if (scope === 'cart' && minBasketAmount !== undefined) {
@@ -167,6 +166,7 @@ export const mapOfferPayloadToPromotion = (payload: unknown): OfferPromotionCard
 
   const assignmentId = toNumber(payload.assignment_id);
   const offer = isRecord(payload.offer) ? payload.offer : null;
+  const presentation = isRecord(payload.presentation) ? payload.presentation : null;
   if (!offer || assignmentId === undefined) {
     return null;
   }
@@ -180,11 +180,13 @@ export const mapOfferPayloadToPromotion = (payload: unknown): OfferPromotionCard
   return {
     id: `offer-${Math.round(assignmentId)}`,
     assignmentId: Math.round(assignmentId),
-    title: buildTitle(type, offerName, offerValue, target),
-    description: buildDescription(type, target, reason, offerValue),
-    badge: toBadge(type),
+    title: firstString(presentation?.title) ?? buildTitle(type, offerName, offerValue, target),
+    description: firstString(presentation?.description) ?? buildDescription(type, target, reason, offerValue),
+    badge: firstString(presentation?.badge) ?? toBadge(type),
     type,
-    buttonText: 'Подробнее',
+    buttonText:
+      firstString(presentation?.cta_label, presentation?.ctaLabel, presentation?.button_text) ?? 'Подробнее',
+    imageUrl: firstString(presentation?.image_url, presentation?.imageUrl),
   };
 };
 

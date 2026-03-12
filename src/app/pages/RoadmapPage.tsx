@@ -15,6 +15,7 @@ import {
   refreshRoadmap,
   type RoadmapPlanApi,
   type RoadmapStepApi,
+  type RoadmapStepPresentationApi,
   type RoadmapSummaryApi,
 } from "../../shared/api/roadmap";
 import {
@@ -29,6 +30,10 @@ type UiRoadmapStep = RoadmapStep & {
   productType: string;
   rawStatus: string;
   why: string[];
+  stepPoints?: number;
+  stepWhy?: string;
+  stepImproves?: string;
+  stepBenefit?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -85,6 +90,10 @@ function firstString(...values: unknown[]): string | undefined {
   return undefined;
 }
 
+function getStepPresentation(value: unknown): RoadmapStepPresentationApi | null {
+  return isRecord(value) ? (value as RoadmapStepPresentationApi) : null;
+}
+
 function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
   const rawSteps = Array.isArray(plan.steps) ? plan.steps : [];
   const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : undefined;
@@ -124,6 +133,7 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
         apiStepId === fallbackCurrentId);
 
     const recommendedProduct = isRecord(apiStep.recommended_product) ? apiStep.recommended_product : null;
+    const stepPresentation = getStepPresentation(apiStep.presentation);
     const productId =
       typeof apiStep.recommended_product_id === "number"
         ? String(apiStep.recommended_product_id)
@@ -138,7 +148,7 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
       recommendedProduct?.image_urls,
     );
     const productPrice = toNumber(recommendedProduct?.price);
-    const presentation = getRoadmapStepPresentation(productType);
+    const fallbackPresentation = getRoadmapStepPresentation(productType);
 
     return {
       id: apiStepId !== undefined ? String(apiStepId) : `step-${index + 1}`,
@@ -146,9 +156,17 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
       productType,
       rawStatus: apiStatus,
       why: toWhyList(apiStep.why),
+      stepPoints: toNumber(stepPresentation?.points),
+      stepWhy: firstString(stepPresentation?.why),
+      stepImproves: firstString(stepPresentation?.improves),
+      stepBenefit: firstString(stepPresentation?.benefit),
       step_number: stepIndex,
-      title: presentation.title,
-      description: presentation.description,
+      title:
+        firstString(stepPresentation?.title, apiStep.title) ??
+        fallbackPresentation.title,
+      description:
+        firstString(stepPresentation?.description, apiStep.description) ??
+        fallbackPresentation.description,
       product_id: productId,
       product_name: productName,
       product_image: productImage,
@@ -290,7 +308,7 @@ export default function RoadmapPage() {
     () =>
       steps.reduce((sum, step) => {
         const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
-        return sum + meta.points;
+        return sum + (step.stepPoints ?? meta.points);
       }, 0),
     [steps],
   );
@@ -301,7 +319,7 @@ export default function RoadmapPage() {
         .filter((step) => step.status === "completed")
         .reduce((sum, step) => {
           const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
-          return sum + meta.points;
+          return sum + (step.stepPoints ?? meta.points);
         }, 0),
     [steps],
   );
@@ -388,6 +406,10 @@ export default function RoadmapPage() {
           <div className="space-y-4">
             {steps.map((step) => {
               const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
+              const stepWhy = step.stepWhy ?? meta.why;
+              const stepImproves = step.stepImproves ?? meta.improves;
+              const stepBenefit = step.stepBenefit ?? meta.benefit;
+              const stepPoints = step.stepPoints ?? meta.points;
 
               return (
                 <div key={step.id} className="relative">
@@ -405,24 +427,24 @@ export default function RoadmapPage() {
                     >
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-                          ✦ {meta.why}
+                          ✦ {stepWhy}
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280] text-[10px]">
-                          ↑ {meta.improves}
+                          ↑ {stepImproves}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-                        <span className="text-xs text-[#6B7280]">{meta.benefit}</span>
+                        <span className="text-xs text-[#6B7280]">{stepBenefit}</span>
                         <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-[#FF4DB8]/30">
                           <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
-                          <span className="text-xs font-semibold text-[#FF4DB8]">+{meta.points} б.</span>
+                          <span className="text-xs font-semibold text-[#FF4DB8]">+{stepPoints} б.</span>
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-emerald-50 border-emerald-100 flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs text-emerald-700 font-medium">+{meta.points} баллов начислено</span>
+                      <span className="text-xs text-emerald-700 font-medium">+{stepPoints} баллов начислено</span>
                     </div>
                   )}
                 </div>

@@ -39,21 +39,21 @@ interface NavbarProps {
 }
 
 const DEFAULT_MAIN_MENU: MainMenuItem[] = [
-  { label: 'Каталог', hasIcon: true, trigger: true, href: '/catalog' },
-  { label: 'Бренды', href: '/brands' },
-  { label: 'Новинки', href: '/new' },
-  { label: 'Акции', href: '/promotions' },
-  { label: 'Для вас', href: '/for-you' },
-  { label: 'Магазины', href: '/stores' },
-  { label: 'Подарочные карты', href: '/gift-cards' },
+  { label: 'catalog', hasIcon: true, trigger: true, href: '/catalog' },
+  { label: 'brands', href: '/brands' },
+  { label: 'new', href: '/new' },
+  { label: 'promotions', href: '/promotions' },
+  { label: 'for you', href: '/for-you' },
+  { label: 'stores', href: '/stores' },
+  { label: 'gift cards', href: '/gift-cards' },
 ];
 
 const DEFAULT_PROFILE_MENU: MobileMenuItem[] = [
-  { label: 'Мой профиль', href: '/me', icon: <User className="w-4 h-4" /> },
-  { label: 'Мои товары', href: '/me/owned', icon: <Package className="w-4 h-4" /> },
-  { label: 'Roadmap', href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
-  { label: 'Моя рутина', href: '/me/routine', icon: <Clock className="w-4 h-4" /> },
-  { label: 'Транзакции', href: '/me/transactions', icon: <Receipt className="w-4 h-4" /> },
+  { label: 'my profile', href: '/me', icon: <User className="w-4 h-4" /> },
+  { label: 'my products', href: '/me/owned', icon: <Package className="w-4 h-4" /> },
+  { label: 'roadmap', href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
+  { label: 'my routine', href: '/me/routine', icon: <Clock className="w-4 h-4" /> },
+  { label: 'transactions', href: '/me/transactions', icon: <Receipt className="w-4 h-4" /> },
 ];
 
 const DEFAULT_MOBILE_CATEGORIES: MobileMenuCategory[] = [
@@ -61,7 +61,7 @@ const DEFAULT_MOBILE_CATEGORIES: MobileMenuCategory[] = [
   { label: 'Makeup', href: '/catalog?category=makeup' },
   { label: 'Haircare', href: '/catalog?category=haircare' },
   { label: 'Fragrance', href: '/catalog?category=fragrance' },
-  { label: 'Наборы', href: '/catalog?product_type=set' },
+  { label: 'sets', href: '/catalog?product_type=set' },
 ];
 
 export function Navbar({
@@ -85,6 +85,11 @@ export function Navbar({
     Array.isArray(profileMenuItems) && profileMenuItems.length > 0
       ? profileMenuItems
       : DEFAULT_PROFILE_MENU;
+  const guestProfileItems: MobileMenuItem[] = [
+    { label: 'sign in', href: '/login', icon: <User className="w-4 h-4" /> },
+    { label: 'create account', href: '/register', icon: <Shield className="w-4 h-4" /> },
+  ];
+  const accountItems = user ? profileItems : guestProfileItems;
   const mobileMenuItems: MobileMenuItem[] = menuItems.map((item) => ({
     label: item.label,
     href: item.href,
@@ -105,13 +110,13 @@ export function Navbar({
           <div className="flex items-center justify-between h-10">
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
               <Link to="/delivery-returns" className="hover:text-[#FF4DB8] transition-colors">
-                Доставка и оплата
+                delivery and returns
               </Link>
               <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
-                Контакты
+                contacts
               </Link>
               <Link to="/about" className="hover:text-[#FF4DB8] transition-colors">
-                О нас
+                about
               </Link>
               {isAdmin ? (
                 <Link
@@ -119,16 +124,16 @@ export function Navbar({
                   className="flex items-center gap-1 hover:text-[#FF4DB8] transition-colors font-medium text-[#111827]"
                 >
                   <Shield className="w-3 h-3" />
-                  Админ
+                  admin
                 </Link>
               ) : null}
             </div>
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
               <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
-                Помощь
+                help
               </Link>
               <Link to="/terms" className="hover:text-[#FF4DB8] transition-colors">
-                Программа лояльности
+                loyalty program
               </Link>
             </div>
           </div>
@@ -140,11 +145,11 @@ export function Navbar({
           <Link to="/" className="flex items-center gap-3 group flex-shrink-0">
             <img
               src={logoImage}
-              alt="Üilesim"
+              alt="Uilesim"
               className="w-9 h-9 lg:w-10 lg:h-10 object-contain transition-transform group-hover:scale-105"
             />
             <span className="text-[#111827] font-semibold text-base lg:text-lg tracking-tight">
-              Üilesim
+              Uilesim
             </span>
           </Link>
 
@@ -194,7 +199,7 @@ export function Navbar({
               className="flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-full bg-[#FFE1F2] border border-[#FF4DB8] text-[#FF4DB8] text-sm font-medium hover:bg-[#FF4DB8] hover:text-white transition-all group"
             >
               <Percent className="w-3.5 h-3.5" />
-              <span className="whitespace-nowrap">Скидки до −50%</span>
+              <span className="whitespace-nowrap">sale up to 50%</span>
             </Link>
           </div>
 
@@ -209,7 +214,7 @@ export function Navbar({
               }`}
             >
               <AlignJustify className="w-4 h-4" />
-              <span>Каталог</span>
+              <span>catalog</span>
               {isPathActive('/catalog') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -220,7 +225,7 @@ export function Navbar({
                 isPathActive('/brands') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
-              Бренды
+              brands
               {isPathActive('/brands') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -231,7 +236,7 @@ export function Navbar({
                 isPathActive('/new') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
-              Новинки
+              new
               {isPathActive('/new') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -239,10 +244,12 @@ export function Navbar({
             <Link
               to="/promotions"
               className={`px-3 py-2 text-sm font-medium transition-colors relative ${
-                isPathActive('/promotions') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
+                isPathActive('/promotions')
+                  ? 'text-[#111827]'
+                  : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
-              Акции
+              promotions
               {isPathActive('/promotions') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -262,16 +269,23 @@ export function Navbar({
 
             <div className="hidden md:block relative">
               <button
-                onClick={() => setProfileMenuOpen((prev) => !prev)}
+                onClick={() => {
+                  if (!user) {
+                    navigate('/login', { state: { from: location.pathname } });
+                    return;
+                  }
+
+                  setProfileMenuOpen((prev) => !prev);
+                }}
                 onBlur={() => setTimeout(() => setProfileMenuOpen(false), 200)}
                 className="w-10 h-10 flex items-center justify-center rounded-full bg-white/80 border border-[#EAE6EF] text-[#111827] hover:bg-white hover:shadow-md transition-all"
               >
                 <User className="w-5 h-5" />
               </button>
 
-              {profileMenuOpen && (
+              {user && profileMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                  {profileItems.map((item) => (
+                  {accountItems.map((item) => (
                     <Link
                       key={item.href}
                       to={item.href}
@@ -294,7 +308,7 @@ export function Navbar({
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Выйти</span>
+                    <span>sign out</span>
                   </button>
                 </div>
               )}
@@ -323,8 +337,9 @@ export function Navbar({
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
         menuItems={mobileMenuItems}
-        profileItems={profileItems}
+        profileItems={accountItems}
         categories={mobileCategories}
+        showLoginButton={!user}
       />
     </nav>
   );

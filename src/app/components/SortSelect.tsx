@@ -9,11 +9,11 @@ interface SortSelectProps {
 }
 
 const defaultOptions = [
-  { value: 'popular' as const, label: 'Популярные' },
-  { value: 'new' as const, label: 'Новинки' },
-  { value: 'price_asc' as const, label: 'Цена: по возрастанию' },
-  { value: 'price_desc' as const, label: 'Цена: по убыванию' },
-  { value: 'rating' as const, label: 'По рейтингу' },
+  { value: 'popular' as const, label: 'popular' },
+  { value: 'new' as const, label: 'new' },
+  { value: 'price_asc' as const, label: 'price: low to high' },
+  { value: 'price_desc' as const, label: 'price: high to low' },
+  { value: 'rating' as const, label: 'rating' },
 ];
 
 function normalizeSortValue(value: SortOption): SortOption {

@@ -151,6 +151,10 @@ export function ProductCard({
   const isAuthError = (error: unknown): error is ApiError =>
     error instanceof ApiError && (error.status === 401 || error.status === 403);
 
+  const handleProductClick = () => {
+    onEvent?.('click', { product_id: eventProductId });
+  };
+
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -230,7 +234,7 @@ export function ProductCard({
 
   if (variant === 'list') {
     return (
-      <Link to={`/product/${productId}`}>
+      <Link to={`/product/${productId}`} onClick={handleProductClick}>
         <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-[#EAE6EF] hover:shadow-md transition-all group">
           <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50">
             <img src={productImage} alt={productName} className="w-full h-full object-cover" />
@@ -264,7 +268,7 @@ export function ProductCard({
 
   if (variant === 'carousel') {
     return (
-      <Link to={`/product/${productId}`} className="block">
+      <Link to={`/product/${productId}`} className="block" onClick={handleProductClick}>
         <div className="group relative bg-white rounded-xl overflow-hidden border border-[#EAE6EF] hover:shadow-lg transition-all w-[220px]">
           <div className="relative aspect-square overflow-hidden bg-gray-50">
             <img
@@ -328,7 +332,7 @@ export function ProductCard({
   }
 
   return (
-    <Link to={`/product/${productId}`} className="block">
+    <Link to={`/product/${productId}`} className="block" onClick={handleProductClick}>
       <div className="group relative bg-white rounded-2xl overflow-hidden border border-[#EAE6EF] hover:shadow-xl transition-all hover:-translate-y-0.5">
         <div className="relative aspect-square overflow-hidden bg-gray-50">
           <img

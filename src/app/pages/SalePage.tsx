@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { Percent } from 'lucide-react';
 
 import { ApiError } from '../../shared/api/ApiError';
@@ -13,9 +12,6 @@ import { extractProducts, mapApiProductToGrid } from '../utils/productGridMappin
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
 export default function SalePage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [saleProducts, setSaleProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,11 +42,11 @@ export default function SalePage() {
         }
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setSaleProducts([]);
           return;
         }
 
-        setLoadError('Не удалось загрузить товары со скидкой из API. Попробуйте ещё раз.');
+        setLoadError('failed to load sale items. please try again.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -58,19 +54,19 @@ export default function SalePage() {
       }
     };
 
-    loadSaleProducts();
+    void loadSaleProducts();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, reloadKey]);
+  }, [reloadKey]);
 
   const productCount = saleProducts.length;
   const headerSubtitle = useMemo(
     () =>
       productCount > 0
-        ? `${productCount} товаров со специальными ценами`
-        : 'Актуальные скидки из каталога',
+        ? `${productCount} products with special pricing`
+        : 'current discounts from the catalog',
     [productCount],
   );
 
@@ -78,7 +74,7 @@ export default function SalePage() {
     <div className="pt-20 lg:pt-28 min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Скидки' }]} />
+          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'sale' }]} />
         </div>
 
         <div className="mb-8 rounded-2xl border border-[#FF4DB8] bg-gradient-to-br from-[#FFE1F2] to-pink-50 p-8 lg:p-12">
@@ -87,17 +83,17 @@ export default function SalePage() {
               <Percent className="h-7 w-7 text-white" />
             </div>
             <div>
-              <h1 className="mb-2 text-3xl font-bold text-[#111827] lg:text-4xl">Скидки до −50%</h1>
+              <h1 className="mb-2 text-3xl font-bold text-[#111827] lg:text-4xl">sale up to 50%</h1>
               <p className="text-base text-[#6B7280]">{headerSubtitle}</p>
             </div>
           </div>
         </div>
 
         {isLoading ? (
-          <LoadingSpinner size="md" text="Загружаем скидки..." />
+          <LoadingSpinner size="md" text="loading sale items..." />
         ) : loadError ? (
           <ErrorState
-            title="Не удалось загрузить скидки"
+            title="failed to load sale items"
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
@@ -105,12 +101,10 @@ export default function SalePage() {
           <ProductGrid products={saleProducts} columns={4} />
         ) : (
           <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-            Сейчас нет доступных товаров со скидкой.
+            no sale items are available right now.
           </div>
         )}
       </div>
-
-      <div className="hidden">{/* Source: GET /api/products/?sale=true */}</div>
     </div>
   );
 }

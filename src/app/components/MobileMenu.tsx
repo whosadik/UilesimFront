@@ -26,26 +26,26 @@ interface MobileMenuProps {
 }
 
 const DEFAULT_MENU_ITEMS: MobileMenuItem[] = [
-  { label: 'Каталог', hasSubmenu: true, href: '/catalog' },
-  { label: 'Бренды', href: '/brands' },
-  { label: 'Новинки', href: '/new' },
-  { label: 'Акции', href: '/promotions' },
-  { label: 'Для вас', href: '/for-you' },
-  { label: 'Магазины', href: '/stores' },
-  { label: 'Подарочные карты', href: '/gift-cards' },
+  { label: 'catalog', hasSubmenu: true, href: '/catalog' },
+  { label: 'brands', href: '/brands' },
+  { label: 'new', href: '/new' },
+  { label: 'promotions', href: '/promotions' },
+  { label: 'for you', href: '/for-you' },
+  { label: 'stores', href: '/stores' },
+  { label: 'gift cards', href: '/gift-cards' },
 ];
 
 const DEFAULT_QUICK_ACTIONS: MobileMenuItem[] = [
-  { label: 'Поиск', href: '/search', icon: <Search className="w-4 h-4" /> },
-  { label: 'Избранное', href: '/wishlist', icon: <Heart className="w-4 h-4" /> },
+  { label: 'search', href: '/search', icon: <Search className="w-4 h-4" /> },
+  { label: 'wishlist', href: '/wishlist', icon: <Heart className="w-4 h-4" /> },
 ];
 
 const DEFAULT_PROFILE_ITEMS: MobileMenuItem[] = [
-  { label: 'Мой профиль', href: '/me' },
-  { label: 'Мои товары', href: '/me/owned' },
-  { label: 'Roadmap', href: '/me/roadmap' },
-  { label: 'Моя рутина', href: '/me/routine' },
-  { label: 'Транзакции', href: '/me/transactions' },
+  { label: 'my profile', href: '/me' },
+  { label: 'my products', href: '/me/owned' },
+  { label: 'roadmap', href: '/me/roadmap' },
+  { label: 'my routine', href: '/me/routine' },
+  { label: 'transactions', href: '/me/transactions' },
 ];
 
 const DEFAULT_CATEGORIES: MobileMenuCategory[] = [
@@ -53,7 +53,7 @@ const DEFAULT_CATEGORIES: MobileMenuCategory[] = [
   { label: 'Makeup', href: '/catalog?category=makeup' },
   { label: 'Haircare', href: '/catalog?category=haircare' },
   { label: 'Fragrance', href: '/catalog?category=fragrance' },
-  { label: 'Наборы', href: '/catalog?product_type=set' },
+  { label: 'sets', href: '/catalog?product_type=set' },
 ];
 
 function normalizeCount(value: unknown): number | undefined {
@@ -84,7 +84,7 @@ export function MobileMenu({
 
   const menu = Array.isArray(menuItems) && menuItems.length > 0 ? menuItems : DEFAULT_MENU_ITEMS;
   const actions = Array.isArray(quickActions) && quickActions.length > 0 ? quickActions : DEFAULT_QUICK_ACTIONS;
-  const profile = Array.isArray(profileItems) && profileItems.length > 0 ? profileItems : DEFAULT_PROFILE_ITEMS;
+  const profile = Array.isArray(profileItems) ? profileItems : DEFAULT_PROFILE_ITEMS;
   const categoryItems = Array.isArray(categories) && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
 
   const isPathActive = (path: string) =>
@@ -99,7 +99,7 @@ export function MobileMenu({
 
       <div className="fixed top-0 left-0 bottom-0 w-[85%] max-w-sm bg-white z-50 shadow-2xl overflow-y-auto lg:hidden animate-in slide-in-from-left duration-300">
         <div className="sticky top-0 bg-white border-b border-[#EAE6EF] px-6 py-4 flex items-center justify-between z-10">
-          <span className="text-lg font-bold text-[#111827]">Меню</span>
+          <span className="text-lg font-bold text-[#111827]">menu</span>
           <button
             onClick={onClose}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100 transition-colors"
@@ -116,7 +116,7 @@ export function MobileMenu({
           >
             <div className="flex items-center gap-2">
               <Percent className="w-4 h-4" />
-              <span>Скидки до −50%</span>
+              <span>sale up to 50%</span>
             </div>
             <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </Link>
@@ -165,36 +165,36 @@ export function MobileMenu({
           </ul>
         </nav>
 
-        <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
-          <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">Профиль</h3>
-          <ul className="space-y-1">
-            {profile.map((item) => {
-              const active = isPathActive(item.href);
+        {profile.length > 0 && (
+          <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
+            <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">account</h3>
+            <ul className="space-y-1">
+              {profile.map((item) => {
+                const active = isPathActive(item.href);
 
-              return (
-                <li key={item.label}>
-                  <Link
-                    to={item.href}
-                    onClick={onClose}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors ${
-                      active
-                        ? 'text-[#111827] bg-[#FFE1F2]/40'
-                        : 'text-[#111827] hover:bg-gray-50'
-                    }`}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                return (
+                  <li key={item.label}>
+                    <Link
+                      to={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                        active
+                          ? 'text-[#111827] bg-[#FFE1F2]/40'
+                          : 'text-[#111827] hover:bg-gray-50'
+                      }`}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
-          <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">
-            Популярные категории
-          </h3>
+          <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">popular categories</h3>
           <ul className="space-y-1">
             {categoryItems.map((category) => {
               const count = normalizeCount(category.count);
@@ -225,16 +225,16 @@ export function MobileMenu({
               onClick={onClose}
               className="block text-center px-4 py-3 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors"
             >
-              Войти в аккаунт
+              sign in
             </Link>
           )}
           <div className="flex items-center justify-center gap-4 text-xs text-[#6B7280]">
             <Link to="/help" onClick={onClose} className="hover:text-[#FF4DB8] transition-colors">
-              Помощь
+              help
             </Link>
-            <span>•</span>
+            <span>&bull;</span>
             <Link to="/help" onClick={onClose} className="hover:text-[#FF4DB8] transition-colors">
-              Контакты
+              contacts
             </Link>
           </div>
         </div>

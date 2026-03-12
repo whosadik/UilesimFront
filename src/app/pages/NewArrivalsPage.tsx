@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { ProductGrid, type Product } from '../components/ProductGrid';
 import { Badge } from '../components/Badge';
@@ -11,18 +10,15 @@ import { extractProducts, mapApiProductToGrid } from '../utils/productGridMappin
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 const CATEGORY_FILTERS = [
-  { id: 'all', label: 'Все категории' },
-  { id: 'skincare', label: 'Skincare' },
-  { id: 'makeup', label: 'Makeup' },
-  { id: 'haircare', label: 'Haircare' },
+  { id: 'all', label: 'all categories' },
+  { id: 'skincare', label: 'skincare' },
+  { id: 'makeup', label: 'makeup' },
+  { id: 'haircare', label: 'haircare' },
 ] as const;
 
 type CategoryFilterId = (typeof CATEGORY_FILTERS)[number]['id'];
 
 export default function NewArrivalsPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilterId>('all');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -55,12 +51,12 @@ export default function NewArrivalsPage() {
         }
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setProducts([]);
           return;
         }
 
         setProducts([]);
-        setLoadError('Не удалось загрузить новинки из API. Попробуйте еще раз.');
+        setLoadError('failed to load new arrivals. please try again.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -68,12 +64,12 @@ export default function NewArrivalsPage() {
       }
     };
 
-    loadProducts();
+    void loadProducts();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, reloadKey]);
+  }, [reloadKey]);
 
   const visibleProducts = useMemo(
     () =>
@@ -90,24 +86,15 @@ export default function NewArrivalsPage() {
     <div className="pt-20 lg:pt-28 min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs
-            items={[
-              { label: 'Главная', href: '/' },
-              { label: 'Новинки' },
-            ]}
-          />
+          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'new arrivals' }]} />
         </div>
 
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
-            <h1 className="text-3xl lg:text-4xl font-bold text-[#111827]">
-              Новинки
-            </h1>
-            <Badge>{products.length} товаров</Badge>
+            <h1 className="text-3xl lg:text-4xl font-bold text-[#111827]">new arrivals</h1>
+            <Badge>{products.length} products</Badge>
           </div>
-          <p className="text-base text-[#6B7280]">
-            Свежие релизы из окна новых поступлений в каталоге
-          </p>
+          <p className="text-base text-[#6B7280]">fresh releases from the current catalog</p>
         </div>
 
         <div className="flex items-center gap-3 mb-8 pb-6 border-b border-[#EAE6EF]">
@@ -131,15 +118,15 @@ export default function NewArrivalsPage() {
               checked={onlyInStock}
               onChange={(event) => setOnlyInStock(event.target.checked)}
             />
-            <span className="text-sm text-[#6B7280]">В наличии</span>
+            <span className="text-sm text-[#6B7280]">in stock only</span>
           </label>
         </div>
 
         {isLoading ? (
-          <LoadingSpinner size="md" text="Загружаем новинки..." />
+          <LoadingSpinner size="md" text="loading new arrivals..." />
         ) : loadError ? (
           <ErrorState
-            title="Не удалось загрузить новинки"
+            title="failed to load new arrivals"
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
@@ -147,13 +134,9 @@ export default function NewArrivalsPage() {
           <ProductGrid products={visibleProducts} columns={4} />
         ) : (
           <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-            Новинки по выбранным фильтрам пока не найдены.
+            no products match the selected filters.
           </div>
         )}
-      </div>
-
-      <div className="hidden">
-        {/* Source: GET /api/products/?new=true */}
       </div>
     </div>
   );

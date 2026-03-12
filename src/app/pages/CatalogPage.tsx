@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { SlidersHorizontal } from 'lucide-react';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { FilterSidebar } from '../components/FilterSidebar';
@@ -15,17 +14,17 @@ import { extractProducts, mapApiProductToGrid } from '../utils/productGridMappin
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  skincare: 'Уход за кожей',
-  makeup: 'Макияж',
-  haircare: 'Уход за волосами',
-  fragrance: 'Парфюмерия',
+  skincare: 'skincare',
+  makeup: 'makeup',
+  haircare: 'haircare',
+  fragrance: 'fragrance',
 };
 
 const FALLBACK_CATEGORY_OPTIONS = [
-  { id: 'skincare', label: 'Уход за кожей', count: 0 },
-  { id: 'makeup', label: 'Макияж', count: 0 },
-  { id: 'haircare', label: 'Уход за волосами', count: 0 },
-  { id: 'fragrance', label: 'Парфюмерия', count: 0 },
+  { id: 'skincare', label: 'skincare', count: 0 },
+  { id: 'makeup', label: 'makeup', count: 0 },
+  { id: 'haircare', label: 'haircare', count: 0 },
+  { id: 'fragrance', label: 'fragrance', count: 0 },
 ];
 
 const toBrandSlug = (value: string): string =>
@@ -87,26 +86,26 @@ const buildFilters = (items: Product[]) => {
   return [
     {
       id: 'category',
-      title: 'Категория',
+      title: 'category',
       options: categoryOptions.length > 0 ? categoryOptions : FALLBACK_CATEGORY_OPTIONS,
     },
     {
       id: 'brand',
-      title: 'Бренд',
+      title: 'brand',
       options: brandOptions,
     },
     {
       id: 'in_stock',
-      title: 'Наличие',
+      title: 'availability',
       options: [
-        { id: 'in_stock', label: 'В наличии', count: inStockCount },
-        { id: 'new', label: 'Новинки', count: newCount },
-        { id: 'sale', label: 'Со скидкой', count: saleCount },
+        { id: 'in_stock', label: 'in stock', count: inStockCount },
+        { id: 'new', label: 'new', count: newCount },
+        { id: 'sale', label: 'sale', count: saleCount },
       ],
     },
     {
       id: 'price',
-      title: 'Цена',
+      title: 'price',
       type: 'range' as const,
       options: [],
     },
@@ -114,8 +113,6 @@ const buildFilters = (items: Product[]) => {
 };
 
 export default function CatalogPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [showFilters, setShowFilters] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -150,12 +147,12 @@ export default function CatalogPage() {
         }
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setProducts([]);
           return;
         }
 
         setProducts([]);
-        setLoadError('Не удалось загрузить каталог из API. Попробуйте ещё раз.');
+        setLoadError('failed to load catalog data. please try again.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -163,39 +160,27 @@ export default function CatalogPage() {
       }
     };
 
-    loadProducts();
+    void loadProducts();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, reloadKey]);
+  }, [reloadKey]);
 
   const productsCount = products.length;
 
   return (
     <div className="pt-20 lg:pt-28 min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
-        {/* Breadcrumbs */}
         <div className="mb-6">
-          <Breadcrumbs
-            items={[
-              { label: 'Главная', href: '/' },
-              { label: 'Каталог' },
-            ]}
-          />
+          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'catalog' }]} />
         </div>
 
-        {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">
-            Каталог
-          </h1>
-          <p className="text-base text-[#6B7280]">
-            {productsCount} товаров в наличии
-          </p>
+          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">catalog</h1>
+          <p className="text-base text-[#6B7280]">{productsCount} products available</p>
         </div>
 
-        {/* Mobile Filters Toggle */}
         <div className="lg:hidden mb-6">
           <Button
             variant="ghost"
@@ -204,61 +189,47 @@ export default function CatalogPage() {
           >
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="w-4 h-4" />
-              <span>Фильтры</span>
+              <span>filters</span>
             </div>
-            <span className="text-xs text-[#6B7280]">3 активных</span>
+            <span className="text-xs text-[#6B7280]">3 active</span>
           </Button>
         </div>
 
         <div className="grid lg:grid-cols-[280px,1fr] gap-8">
-          {/* Sidebar Filters */}
           <aside className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
             <FilterSidebar filters={filters} />
           </aside>
 
-          {/* Main Content */}
           <div className="space-y-6">
-            {/* Sort Bar */}
             <div className="flex items-center justify-between pb-4 border-b border-[#EAE6EF]">
               <p className="text-sm text-[#6B7280]">
-                Найдено <span className="font-semibold text-[#111827]">{productsCount}</span> товаров
+                found <span className="font-semibold text-[#111827]">{productsCount}</span> products
               </p>
-
               <SortSelect value={sortBy} onChange={setSortBy} />
             </div>
 
             {isLoading ? (
-              <LoadingSpinner size="md" text="Загружаем товары..." />
+              <LoadingSpinner size="md" text="loading products..." />
             ) : loadError ? (
               <ErrorState
-                title="Не удалось загрузить каталог"
+                title="failed to load catalog"
                 description={loadError}
                 onRetry={() => setReloadKey((value) => value + 1)}
               />
             ) : productsCount > 0 ? (
               <>
-                {/* Products Grid */}
                 <ProductGrid products={products} columns={3} />
-
-                {/* Load More */}
                 <div className="flex justify-center pt-8">
-                  <Button variant="ghost">
-                    Показать ещё
-                  </Button>
+                  <Button variant="ghost">show more</Button>
                 </div>
               </>
             ) : (
               <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-                В каталоге пока нет товаров.
+                no products in catalog yet.
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Dev Note (hidden) */}
-      <div className="hidden">
-        {/* API: GET /api/products/?category=&product_type=&brand=&in_stock= */}
       </div>
     </div>
   );

@@ -8,6 +8,39 @@ export type Profile = Record<string, unknown> & {
   city?: string;
 };
 
+export type ProfileTaxonomyOption = {
+  value: string;
+  label: string;
+  aliases?: string[];
+};
+
+export type ProfileTaxonomyBudgetOption = ProfileTaxonomyOption & {
+  min?: number | null;
+  max?: number | null;
+  currency?: string | null;
+};
+
+export type ProfileTaxonomyStep = {
+  id: number;
+  key: string;
+  title: string;
+  description: string;
+  optional?: boolean;
+};
+
+export type ProfileTaxonomy = {
+  steps: ProfileTaxonomyStep[];
+  skin_types: ProfileTaxonomyOption[];
+  goals: ProfileTaxonomyOption[];
+  avoid_flags: ProfileTaxonomyOption[];
+  budget_options: ProfileTaxonomyBudgetOption[];
+  hair_types: ProfileTaxonomyOption[];
+  hair_concerns: ProfileTaxonomyOption[];
+  coverage_options: ProfileTaxonomyOption[];
+  fragrance_notes: ProfileTaxonomyOption[];
+  intensity_options: ProfileTaxonomyOption[];
+};
+
 export type Loyalty = {
   tier: string | null;
   points_balance: number;
@@ -67,4 +100,24 @@ export function getFavoriteCategory(): Promise<FavoriteCategory> {
     method: 'GET',
     skipCsrf: true,
   });
+}
+
+type ProfileTaxonomyResponse =
+  | ProfileTaxonomy
+  | {
+      ok?: boolean;
+      taxonomy?: ProfileTaxonomy;
+    };
+
+export async function getProfileTaxonomy(): Promise<ProfileTaxonomy> {
+  const response = await apiFetch<ProfileTaxonomyResponse>('/api/me/profile-taxonomy', {
+    method: 'GET',
+    skipCsrf: true,
+  });
+
+  if (response && typeof response === 'object' && 'taxonomy' in response && response.taxonomy) {
+    return response.taxonomy;
+  }
+
+  return response as ProfileTaxonomy;
 }

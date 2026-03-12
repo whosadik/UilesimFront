@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { ProductCard, ProductCardSkeleton } from '../components/ProductCard';
 import { EmptyState } from '../components/EmptyState';
@@ -53,7 +53,7 @@ function toNumber(value: unknown): number | undefined {
 
 function mapApiProduct(item: ApiProduct, index: number): BrandProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `product-${index}`;
-  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `Товар #${id}`;
+  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `product #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
   const originalPrice = toNumber(item.original_price);
@@ -96,7 +96,6 @@ function extractItems(payload: unknown): ApiProduct[] {
 
 export function BrandSpotlightSection() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [brandData, setBrandData] = useState<BrandData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,12 +145,12 @@ export function BrandSpotlightSection() {
         }
 
         if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setBrandData(null);
           return;
         }
 
         setBrandData(null);
-        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить подборку бренда');
+        setError(loadError instanceof Error ? loadError.message : 'could not load brand spotlight');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -159,21 +158,21 @@ export function BrandSpotlightSection() {
       }
     };
 
-    loadBrandData();
+    void loadBrandData();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [navigate, retryKey]);
 
   if (error) {
     return (
       <section className="py-12">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">Бренд недели</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">brand spotlight</h2>
           <ErrorState
-            title="Не удалось загрузить бренд недели"
-            description="Произошла ошибка при загрузке данных бренда. Попробуйте еще раз."
+            title="could not load brand spotlight"
+            description="something went wrong while loading the featured brand. try again."
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         </div>
@@ -185,12 +184,12 @@ export function BrandSpotlightSection() {
     return (
       <section className="py-12">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">Бренд недели</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">brand spotlight</h2>
           <EmptyState
-            title="Пока нет данных по брендам"
-            description="Сейчас не удалось собрать товары бренда. Попробуйте обновить позже."
+            title="no featured brand yet"
+            description="the storefront does not have enough brand data to build this block right now."
             action={{
-              label: 'Обновить',
+              label: 'refresh',
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />
@@ -208,7 +207,7 @@ export function BrandSpotlightSection() {
   return (
     <section className="py-12">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">Бренд недели</h2>
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">brand spotlight</h2>
 
         <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
           <div className="relative rounded-3xl p-6 md:p-8 lg:p-10 bg-gradient-to-br from-[#FFE1F2] via-pink-50 to-rose-50 border border-[#FFE1F2] overflow-hidden">
@@ -217,12 +216,16 @@ export function BrandSpotlightSection() {
 
             <div className="relative z-10">
               <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-[#FF4DB8] to-[#FF2AA8] flex items-center justify-center mb-4 md:mb-6 shadow-lg">
-                <span className="text-white font-bold text-2xl md:text-3xl">{brandName[0]?.toUpperCase() ?? 'B'}</span>
+                <span className="text-white font-bold text-2xl md:text-3xl">
+                  {brandName[0]?.toUpperCase() ?? 'B'}
+                </span>
               </div>
 
-              <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#111827] mb-2 md:mb-3">{brandName}</h3>
+              <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#111827] mb-2 md:mb-3">
+                {brandName}
+              </h3>
               <p className="text-[#6B7280] text-sm leading-relaxed mb-6 md:mb-8 max-w-md">
-                {brandData?.description ?? 'Описание бренда пока недоступно.'}
+                {brandData?.description ?? 'brand description is not available yet.'}
               </p>
 
               <Button
@@ -234,28 +237,28 @@ export function BrandSpotlightSection() {
                   }
                 }}
               >
-                Смотреть бренд
+                view brand
               </Button>
 
               <div className="mt-6 md:mt-8 pt-6 border-t border-pink-200/50 flex gap-6 md:gap-8">
                 <div>
                   <div className="text-xl md:text-2xl font-bold text-[#111827]">{productCount}</div>
-                  <div className="text-xs text-[#6B7280]">Товаров</div>
+                  <div className="text-xs text-[#6B7280]">products</div>
                 </div>
                 <div>
                   <div className="text-xl md:text-2xl font-bold text-[#111827]">{newProductsCount}</div>
-                  <div className="text-xs text-[#6B7280]">Новинок</div>
+                  <div className="text-xs text-[#6B7280]">new</div>
                 </div>
                 <div>
                   <div className="text-xl md:text-2xl font-bold text-[#111827]">{saleProductsCount}</div>
-                  <div className="text-xs text-[#6B7280]">Со скидкой</div>
+                  <div className="text-xs text-[#6B7280]">on sale</div>
                 </div>
               </div>
             </div>
           </div>
 
           <div>
-            <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Хиты бренда</h4>
+            <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">featured products</h4>
             <div className="grid grid-cols-2 gap-4">
               {isLoading
                 ? [...Array(4)].map((_, index) => <ProductCardSkeleton key={index} variant="grid" />)

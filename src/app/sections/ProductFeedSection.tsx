@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { FilterBar } from '../components/FilterBar';
 import { ProductGrid, type Product } from '../components/ProductGrid';
 import { Button } from '../components/Button';
@@ -30,7 +29,7 @@ function toNumber(value: unknown): number | undefined {
 
 function mapApiProduct(item: ApiProduct, index: number): Product {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `product-${index}`;
-  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `Товар #${id}`;
+  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `product #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
   const originalPrice = toNumber(item.original_price);
@@ -75,8 +74,6 @@ function toPagedPayload(payload: Product[] | ProductListResponse): ProductListRe
 }
 
 export function ProductFeedSection() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [nextPage, setNextPage] = useState<number | null>(null);
@@ -108,14 +105,16 @@ export function ProductFeedSection() {
         }
 
         if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setProducts([]);
+          setTotalCount(0);
+          setNextPage(null);
           return;
         }
 
         setProducts([]);
         setTotalCount(0);
         setNextPage(null);
-        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить товары');
+        setError(loadError instanceof Error ? loadError.message : 'could not load products');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -123,12 +122,12 @@ export function ProductFeedSection() {
       }
     };
 
-    loadProducts();
+    void loadProducts();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [retryKey]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || nextPage === null) {
@@ -150,11 +149,11 @@ export function ProductFeedSection() {
       setNextPage(payload.next ? nextPage + 1 : null);
     } catch (loadError) {
       if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
-        navigate('/login', { replace: true, state: { from: location.pathname } });
+        setNextPage(null);
         return;
       }
 
-      setError(loadError instanceof Error ? loadError.message : 'Не удалось догрузить товары');
+      setError(loadError instanceof Error ? loadError.message : 'could not load more products');
     } finally {
       setIsLoadingMore(false);
     }
@@ -164,13 +163,11 @@ export function ProductFeedSection() {
     return (
       <section className="py-12 bg-gray-50/50">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
-            Все товары
-          </h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">all products</h2>
           <FilterBar />
           <ErrorState
-            title="Не удалось загрузить товары"
-            description="Произошла ошибка при загрузке товаров. Попробуйте еще раз."
+            title="could not load products"
+            description="something went wrong while loading the feed. try again."
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         </div>
@@ -182,15 +179,13 @@ export function ProductFeedSection() {
     return (
       <section className="py-12 bg-gray-50/50">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
-            Все товары
-          </h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">all products</h2>
           <FilterBar />
           <EmptyState
-            title="Ничего не найдено"
-            description="Пока нет доступных товаров. Обновите список позже."
+            title="nothing found"
+            description="there are no products available right now. refresh later."
             action={{
-              label: 'Обновить список',
+              label: 'refresh list',
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />
@@ -202,9 +197,7 @@ export function ProductFeedSection() {
   return (
     <section className="py-12 bg-gray-50/50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
-          Все товары
-        </h2>
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">all products</h2>
 
         <FilterBar />
 
@@ -218,14 +211,14 @@ export function ProductFeedSection() {
 
         <div className="flex flex-col items-center gap-4 mt-8">
           <div className="text-sm text-gray-600">
-            Показано {products.length} из {totalCount || products.length} товаров
+            showing {products.length} of {totalCount || products.length} products
           </div>
           {nextPage !== null ? (
             <Button onClick={handleLoadMore} variant="ghost" disabled={isLoadingMore}>
-              {isLoadingMore ? 'Загружаем...' : 'Показать ещё'}
+              {isLoadingMore ? 'loading...' : 'show more'}
             </Button>
           ) : (
-            <div className="text-xs text-gray-500">Вы показали все товары из API</div>
+            <div className="text-xs text-gray-500">you have reached the end of the feed</div>
           )}
         </div>
       </div>

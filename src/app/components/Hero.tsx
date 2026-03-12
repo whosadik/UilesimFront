@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type TransitionEvent
 import { useNavigate } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 
+import { getHomeHero, type HomeHeroSlideContent } from '../../shared/api/home';
 import heroMainVideo from '../../assets/banner.mp4';
 import jpgBrandVideo from '../../assets/jpgbanner.mp4';
 
@@ -202,6 +203,9 @@ function getContentWidth(position: SlideContentPosition) {
 
 export function Hero() {
   const navigate = useNavigate();
+  const [slideContentOverrides, setSlideContentOverrides] = useState<
+    Record<string, Omit<HomeHeroSlideContent, 'id'>>
+  >({});
   const [activeIndex, setActiveIndex] = useState(0);
   const [trackIndex, setTrackIndex] = useState(0);
   const [isSliding, setIsSliding] = useState(false);
@@ -209,8 +213,60 @@ export function Hero() {
   const timerRef = useRef<number | null>(null);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
 
-  const activeSlide = useMemo(() => slides[activeIndex], [activeIndex]);
-  const slidesWithLoop = useMemo(() => [...slides, slides[0]], []);
+  const resolvedSlides = useMemo(
+    () =>
+      slides.map((slide) => {
+        const override = slideContentOverrides[slide.id];
+        if (!override || !slide.content) {
+          return slide;
+        }
+
+        return {
+          ...slide,
+          content: {
+            ...slide.content,
+            ...override,
+          },
+        };
+      }),
+    [slideContentOverrides],
+  );
+  const activeSlide = useMemo(() => resolvedSlides[activeIndex], [activeIndex, resolvedSlides]);
+  const slidesWithLoop = useMemo(() => [...resolvedSlides, resolvedSlides[0]], [resolvedSlides]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void getHomeHero()
+      .then((response) => {
+        if (!isMounted || !Array.isArray(response.slides)) {
+          return;
+        }
+
+        const nextOverrides = response.slides.reduce<Record<string, Omit<HomeHeroSlideContent, 'id'>>>(
+          (acc, slide) => {
+            acc[slide.id] = {
+              eyebrow: slide.eyebrow,
+              title: slide.title,
+              description: slide.description,
+              buttonText: slide.buttonText,
+              buttonTo: slide.buttonTo,
+            };
+            return acc;
+          },
+          {},
+        );
+
+        setSlideContentOverrides(nextOverrides);
+      })
+      .catch(() => {
+        // Keep the built-in hero content when the API is unavailable.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const goToNext = useCallback(() => {
     if (isSliding) {
@@ -341,7 +397,7 @@ export function Hero() {
             const buttonClass = isLightTone
               ? 'bg-white text-[#111827] border border-white/80 hover:bg-white/90'
               : 'bg-[#111827] text-white border border-[#111827] hover:bg-[#0B1220]';
-            const buttonTo = HERO_CTA_ROUTES[slide.id];
+            const buttonTo = slide.content?.buttonTo ?? HERO_CTA_ROUTES[slide.id];
             const textBox = slide.textBox;
             const contentWidthClass = getContentWidth(slide.contentPosition);
             const textAlignClass = textBox?.align

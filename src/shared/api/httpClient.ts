@@ -19,7 +19,7 @@ export interface ApiFetchOptions extends RequestInit {
 const MUTATION_METHODS = new Set<Method | string>(['POST', 'PUT', 'PATCH', 'DELETE']);
 let csrfBootstrapPromise: Promise<void> | null = null;
 
-function createRequestId(): string {
+export function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }

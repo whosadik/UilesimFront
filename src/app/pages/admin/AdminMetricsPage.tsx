@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
-import { getAdminMetrics } from '../../../shared/api/adminMetrics';
+import { downloadAdminMetricsCsv, getAdminMetrics } from '../../../shared/api/adminMetrics';
 import { ErrorState } from '../../components/ErrorState';
 
 type Summary = {
@@ -75,10 +75,33 @@ type RecsAlgoRow = {
   conversionPct: number;
 };
 
+type DailySeriesRow = {
+  day: string;
+  transactions: number;
+  revenue: number;
+  assignments: number;
+  redemptions: number;
+  offerExposed: number;
+  offerClicked: number;
+  offerRedeemed: number;
+  recImpressions: number;
+  recClicks: number;
+  recPurchases: number;
+};
+
+type ChannelBreakdownRow = {
+  channel: string;
+  transactions: number;
+  revenue: number;
+  offerRedemptions: number;
+};
+
 type MetricsViewModel = {
   summary: Summary;
   retention: RetentionRow[];
   offerEvents: OfferEventRow[];
+  dailySeries: DailySeriesRow[];
+  channels: ChannelBreakdownRow[];
   tiers: TierRow[];
   segments: SegmentRow[];
   routines: RoutineRow[];
@@ -129,76 +152,6 @@ const formatMoney = (value: number | null): string =>
 
 const formatMultiplier = (value: number | null): string =>
   value === null ? 'нет данных' : `${value.toFixed(2)}x`;
-
-const csvEscape = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return '';
-  }
-
-  const stringified = String(value);
-  if (/[;"\n]/.test(stringified)) {
-    return `"${stringified.replace(/"/g, '""')}"`;
-  }
-
-  return stringified;
-};
-
-const buildMetricsCsv = (model: MetricsViewModel): string => {
-  const lines: string[] = [];
-  const push = (...cells: unknown[]) => {
-    lines.push(cells.map(csvEscape).join(';'));
-  };
-
-  push('section', 'metric', 'value');
-  push('summary', 'assignments_total', model.summary.assignmentsTotal);
-  push('summary', 'redemptions_total', model.summary.redemptionsTotal);
-  push('summary', 'redemption_rate_pct', model.summary.redemptionRatePct);
-  push('summary', 'promo_efficiency_30d', model.summary.promoEfficiency);
-  push('summary', 'budget_left', model.summary.budgetLeft);
-  push('summary', 'earned_points_total', model.summary.earnedPointsTotal);
-
-  for (const row of model.retention) {
-    push('retention', `repeat_rate_pct_${row.window}`, row.repeatRatePct);
-    push('retention', `active_users_${row.window}`, row.activeUsers);
-    push('retention', `repeat_users_${row.window}`, row.repeatUsers);
-  }
-
-  for (const row of model.offerEvents) {
-    push('offer_events', `exposed_${row.window}`, row.exposed);
-    push('offer_events', `clicked_${row.window}`, row.clicked);
-    push('offer_events', `redeemed_${row.window}`, row.redeemed);
-    push('offer_events', `ctr_pct_${row.window}`, row.ctrPct);
-    push('offer_events', `redemption_rate_pct_${row.window}`, row.redemptionRatePct);
-  }
-
-  for (const row of model.tiers) {
-    push('tiers', row.tier, row.users);
-  }
-
-  for (const row of model.segments) {
-    push('segments', row.segment, row.count);
-  }
-
-  for (const row of model.routines) {
-    push('routines_top_missing_30d', row.step, row.count);
-  }
-
-  for (const row of model.campaigns) {
-    push('campaigns_30d', `${row.campaign}_assignments`, row.assignments);
-    push('campaigns_30d', `${row.campaign}_redemptions`, row.redemptions);
-    push('campaigns_30d', `${row.campaign}_redemption_rate_pct`, row.redemptionRatePct);
-  }
-
-  for (const row of model.recsByAlgo) {
-    push('recs_by_algo_30d', `${row.algo}_impressions`, row.impressions);
-    push('recs_by_algo_30d', `${row.algo}_clicks`, row.clicks);
-    push('recs_by_algo_30d', `${row.algo}_purchases`, row.purchases);
-    push('recs_by_algo_30d', `${row.algo}_ctr_pct`, row.ctrPct);
-    push('recs_by_algo_30d', `${row.algo}_conversion_pct`, row.conversionPct);
-  }
-
-  return lines.join('\n');
-};
 
 const createExportFileName = () => {
   const now = new Date();
@@ -295,6 +248,31 @@ const adaptMetrics = (response: unknown): MetricsViewModel => {
     .filter((row) => row.assignments > 0 || row.redemptions > 0)
     .slice(0, 10);
 
+  const dailySeries: DailySeriesRow[] = asRecordArray(payload.series)
+    .map((row) => ({
+      day: String(row.day ?? ''),
+      transactions: toNumber(row.transactions) ?? 0,
+      revenue: toNumber(row.revenue) ?? 0,
+      assignments: toNumber(row.assignments) ?? 0,
+      redemptions: toNumber(row.redemptions) ?? 0,
+      offerExposed: toNumber(row.offer_exposed) ?? 0,
+      offerClicked: toNumber(row.offer_clicked) ?? 0,
+      offerRedeemed: toNumber(row.offer_redeemed) ?? 0,
+      recImpressions: toNumber(row.rec_impressions) ?? 0,
+      recClicks: toNumber(row.rec_clicks) ?? 0,
+      recPurchases: toNumber(row.rec_purchases) ?? 0,
+    }))
+    .filter((row) => row.day);
+
+  const channelRows: ChannelBreakdownRow[] = asRecordArray(payload.channels)
+    .map((row) => ({
+      channel: String(row.channel ?? 'unknown'),
+      transactions: toNumber(row.transactions) ?? 0,
+      revenue: toNumber(row.revenue) ?? 0,
+      offerRedemptions: toNumber(row.offer_redemptions) ?? 0,
+    }))
+    .filter((row) => row.transactions > 0 || row.revenue > 0 || row.offerRedemptions > 0);
+
   const recsAlgoRowsMapped: RecsAlgoRow[] = Object.entries(recsByAlgo)
     .map(([algo, raw]) => {
       const row = asRecord(raw) ?? {};
@@ -320,6 +298,8 @@ const adaptMetrics = (response: unknown): MetricsViewModel => {
     },
     retention: retentionRows,
     offerEvents,
+    dailySeries,
+    channels: channelRows,
     tiers,
     segments: segmentRows,
     routines: routineRows,
@@ -357,6 +337,7 @@ export default function AdminMetricsPage() {
   const [channel, setChannel] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [metrics, setMetrics] = useState<MetricsViewModel | null>(null);
@@ -419,6 +400,8 @@ export default function AdminMetricsPage() {
       summary.earnedPointsTotal !== null ||
       metrics.retention.length > 0 ||
       metrics.offerEvents.length > 0 ||
+      metrics.dailySeries.length > 0 ||
+      metrics.channels.length > 0 ||
       metrics.tiers.length > 0 ||
       metrics.segments.length > 0 ||
       metrics.routines.length > 0 ||
@@ -431,23 +414,46 @@ export default function AdminMetricsPage() {
     void loadMetrics(true);
   };
 
-  const handleExport = () => {
-    if (!metrics) {
-      toast.error('Нет данных для экспорта.');
+  const handleExport = async () => {
+    if (isAuthLoading || isExporting) {
       return;
     }
 
-    const csv = buildMetricsCsv(metrics);
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-    const href = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = href;
-    anchor.download = createExportFileName();
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(href);
-    toast.success('CSV экспортирован');
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const { blob, fileName } = await downloadAdminMetricsCsv({
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        category: category || undefined,
+        offer_type: offerType || undefined,
+        channel: channel || undefined,
+      });
+
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = href;
+      anchor.download = fileName || createExportFileName();
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(href);
+      toast.success('CSV экспортирован');
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        navigate('/login', { replace: true, state: { from: location.pathname } });
+        return;
+      }
+
+      toast.error(error instanceof Error ? error.message : 'Не удалось экспортировать CSV.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -467,10 +473,11 @@ export default function AdminMetricsPage() {
           </button>
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Download className="w-3.5 h-3.5" />
-            Экспорт CSV
+            <Download className={`w-3.5 h-3.5 ${isExporting ? 'animate-pulse' : ''}`} />
+            {isExporting ? 'Экспорт...' : 'Экспорт CSV'}
           </button>
         </div>
       </div>
@@ -569,6 +576,58 @@ export default function AdminMetricsPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs text-gray-500 mb-1">Эффективность промо (30д)</p>
               <p className="text-xl font-semibold text-gray-900">{formatMultiplier(metrics.summary.promoEfficiency)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Дневная активность</h3>
+              {metrics.dailySeries.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={metrics.dailySeries}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="transactions" stroke="#111827" strokeWidth={2} dot={false} name="Транзакции" />
+                    <Line type="monotone" dataKey="assignments" stroke="#FF4DB8" strokeWidth={2} dot={false} name="Назначения" />
+                    <Line type="monotone" dataKey="redemptions" stroke="#0ea5e9" strokeWidth={2} dot={false} name="Погашения" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет daily series.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Выручка по каналам</h3>
+              {metrics.channels.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={metrics.channels}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis dataKey="channel" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="revenue" fill="#111827" radius={[4, 4, 0, 0]} name="Выручка" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-3 space-y-2">
+                    {metrics.channels.map((row) => (
+                      <div key={row.channel} className="grid grid-cols-4 gap-2 text-sm border-b border-gray-100 pb-2">
+                        <span className="font-medium text-gray-700">{row.channel}</span>
+                        <span className="text-gray-600">транзакции: {row.transactions}</span>
+                        <span className="text-gray-600">погашения: {row.offerRedemptions}</span>
+                        <span className="text-gray-600">{formatMoney(row.revenue)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">В ответе API нет channel breakdown.</p>
+              )}
             </div>
           </div>
 

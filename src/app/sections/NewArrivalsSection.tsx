@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { CarouselHeader } from '../components/CarouselHeader';
 import { ProductCarousel } from '../components/ProductCarousel';
 import { EmptyState } from '../components/EmptyState';
@@ -43,7 +42,7 @@ function toNumber(value: unknown): number | undefined {
 
 function mapApiProduct(item: ApiProduct, index: number): CarouselProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `product-${index}`;
-  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `Товар #${id}`;
+  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `product #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
   const originalPrice = toNumber(item.original_price);
@@ -83,8 +82,6 @@ function toResults(payload: CarouselProduct[] | ProductListResponse): ApiProduct
 }
 
 export function NewArrivalsSection() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [products, setProducts] = useState<CarouselProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,12 +107,12 @@ export function NewArrivalsSection() {
         }
 
         if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setProducts([]);
           return;
         }
 
         setProducts([]);
-        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить новинки');
+        setError(loadError instanceof Error ? loadError.message : 'could not load new arrivals');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -123,30 +120,30 @@ export function NewArrivalsSection() {
       }
     };
 
-    loadProducts();
+    void loadProducts();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [retryKey]);
 
   return (
     <section className="py-12">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title="Новинки" subtitle="Свежие релизы из текущего каталога" />
+        <CarouselHeader title="new arrivals" subtitle="fresh releases from the current catalog" />
 
         {error ? (
           <ErrorState
-            title="Не удалось загрузить новинки"
-            description="Произошла ошибка при загрузке новинок. Попробуйте еще раз."
+            title="could not load new arrivals"
+            description="something went wrong while loading this section. try again."
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : !isLoading && products.length === 0 ? (
           <EmptyState
-            title="Новинок пока нет"
-            description="Сейчас в API нет товаров, попадающих в окно новых поступлений."
+            title="no new arrivals yet"
+            description="the catalog API does not return items flagged as new right now."
             action={{
-              label: 'Обновить',
+              label: 'refresh',
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />

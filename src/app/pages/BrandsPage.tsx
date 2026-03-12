@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Search } from 'lucide-react';
 
 import { ApiError } from '../../shared/api/ApiError';
@@ -13,7 +13,6 @@ const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export default function BrandsPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [brands, setBrands] = useState<BrandSummary[]>([]);
@@ -39,12 +38,12 @@ export default function BrandsPage() {
         }
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+          setBrands([]);
           return;
         }
 
         setBrands([]);
-        setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить список брендов.');
+        setLoadError(error instanceof Error ? error.message : 'failed to load brands.');
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -52,12 +51,12 @@ export default function BrandsPage() {
       }
     };
 
-    loadBrandList();
+    void loadBrandList();
 
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, reloadKey]);
+  }, [reloadKey]);
 
   const filteredBrands = useMemo(
     () =>
@@ -73,13 +72,13 @@ export default function BrandsPage() {
     <div className="pt-20 lg:pt-28 min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 py-8 lg:px-[140px] lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Бренды' }]} />
+          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'brands' }]} />
         </div>
 
         <div className="mb-8">
-          <h1 className="mb-3 text-3xl font-bold text-[#111827] lg:text-4xl">Бренды</h1>
+          <h1 className="mb-3 text-3xl font-bold text-[#111827] lg:text-4xl">brands</h1>
           <p className="text-base text-[#6B7280]">
-            {brands.length > 0 ? `${brands.length} брендов в каталоге` : 'Подборка брендов из каталога'}
+            {brands.length > 0 ? `${brands.length} brands in catalog` : 'browse brands from the catalog'}
           </p>
         </div>
 
@@ -88,7 +87,7 @@ export default function BrandsPage() {
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#6B7280]" />
             <input
               type="text"
-              placeholder="Найти бренд..."
+              placeholder="find a brand..."
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full rounded-xl border border-[#EAE6EF] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] placeholder:text-[#6B7280] focus:border-[#FF4DB8] focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20"
@@ -106,7 +105,7 @@ export default function BrandsPage() {
                   : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100'
               }`}
             >
-              Все
+              all
             </button>
             {alphabet.map((letter) => (
               <button
@@ -128,7 +127,7 @@ export default function BrandsPage() {
           <LoadingSpinner />
         ) : loadError ? (
           <ErrorState
-            title="Не удалось загрузить бренды"
+            title="failed to load brands"
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
@@ -136,7 +135,7 @@ export default function BrandsPage() {
           <>
             {!searchQuery && !selectedLetter && brands.length > 0 && (
               <div className="mb-12">
-                <h2 className="mb-6 text-xl font-bold text-[#111827]">Популярные бренды</h2>
+                <h2 className="mb-6 text-xl font-bold text-[#111827]">popular brands</h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {brands.slice(0, 8).map((brand) => (
                     <BrandCard
@@ -152,9 +151,7 @@ export default function BrandsPage() {
 
             {(searchQuery || selectedLetter) && (
               <>
-                <h2 className="mb-6 text-xl font-bold text-[#111827]">
-                  {filteredBrands.length} {filteredBrands.length === 1 ? 'бренд' : 'брендов'}
-                </h2>
+                <h2 className="mb-6 text-xl font-bold text-[#111827]">{filteredBrands.length} results</h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {filteredBrands.map((brand) => (
                     <BrandCard
@@ -170,14 +167,12 @@ export default function BrandsPage() {
 
             {filteredBrands.length === 0 && (
               <div className="py-12 text-center">
-                <p className="text-[#6B7280]">Бренды не найдены</p>
+                <p className="text-[#6B7280]">no brands found</p>
               </div>
             )}
           </>
         )}
       </div>
-
-      <div className="hidden">{/* Source: GET /api/brands/ */}</div>
     </div>
   );
 }

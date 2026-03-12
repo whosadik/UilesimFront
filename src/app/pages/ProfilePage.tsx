@@ -13,9 +13,25 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
 import { ApiError } from '../../shared/api/ApiError';
-import { getFavoriteCategory, getLoyalty, getProfile, updateProfile } from '../../shared/api/me';
+import {
+  getFavoriteCategory,
+  getLoyalty,
+  getProfile,
+  getProfileTaxonomy,
+  type ProfileTaxonomy,
+  updateProfile,
+} from '../../shared/api/me';
 import { home } from '../../shared/api/recommendations';
 import { formatMoney } from '../utils/formatters';
+import {
+  getProfileOptionLabels,
+  mapBudgetMaxToApiValue,
+  mapProfileMultiApiToLabels,
+  mapProfileLabelsToApiValues,
+  mapProfileSingleApiToLabel,
+  mapProfileSingleLabelToApiValue,
+  resolveProfileTaxonomy,
+} from '../../shared/profile/taxonomy';
 
 import { clickOffer, getNextOffer } from '../../shared/api/offers';
 
@@ -291,12 +307,14 @@ export default function ProfilePage() {
     initials: (user?.username?.charAt(0) || '').toUpperCase(),
     completionPercentage: 0,
   });
+  const [currentProfile, setCurrentProfile] = useState<Record<string, unknown>>({});
   const [personalDetails, setPersonalDetails] = useState<PersonalDetailsState>({
     firstName: '',
     lastName: '',
     phone: '',
     city: '',
   });
+  const [profileTaxonomy, setProfileTaxonomy] = useState<ProfileTaxonomy | null>(null);
   const [isPersonalDetailsSaving, setIsPersonalDetailsSaving] = useState(false);
 
   const [loyalty, setLoyaltyState] = useState({
@@ -328,8 +346,80 @@ export default function ProfilePage() {
     }
     return 'active';
   }, [offer]);
+  const resolvedProfileTaxonomy = useMemo(
+    () => resolveProfileTaxonomy(profileTaxonomy),
+    [profileTaxonomy],
+  );
+  const profileWizardOptions = useMemo(
+    () => ({
+      steps: resolvedProfileTaxonomy.steps.map((step) => ({
+        id: step.id,
+        title: step.title,
+        description: step.description,
+      })),
+      skinTypes: getProfileOptionLabels(resolvedProfileTaxonomy.skin_types),
+      skinGoals: getProfileOptionLabels(resolvedProfileTaxonomy.goals),
+      avoidFlags: getProfileOptionLabels(resolvedProfileTaxonomy.avoid_flags),
+      hairTypes: getProfileOptionLabels(resolvedProfileTaxonomy.hair_types),
+      hairConcerns: getProfileOptionLabels(resolvedProfileTaxonomy.hair_concerns),
+      coverageOptions: getProfileOptionLabels(resolvedProfileTaxonomy.coverage_options),
+      fragranceNotes: getProfileOptionLabels(resolvedProfileTaxonomy.fragrance_notes),
+      intensityOptions: getProfileOptionLabels(resolvedProfileTaxonomy.intensity_options),
+    }),
+    [resolvedProfileTaxonomy],
+  );
+  const profileWizardInitialData = useMemo<ProfileWizardData>(() => {
+    const hairProfile = isRecord(currentProfile.hair_profile) ? currentProfile.hair_profile : {};
+    const makeupProfile = isRecord(currentProfile.makeup_profile) ? currentProfile.makeup_profile : {};
+    const fragranceProfile = isRecord(currentProfile.fragrance_profile) ? currentProfile.fragrance_profile : {};
+    const budgetOption = resolvedProfileTaxonomy.budget_options.find(
+      (option) => option.value === currentProfile.budget,
+    );
+    const budgetMin =
+      typeof budgetOption?.min === 'number' ? budgetOption.min : 500;
+    const budgetMax =
+      typeof budgetOption?.max === 'number' ? budgetOption.max : 10000;
+
+    return {
+      skinType: (() => {
+        const label = mapProfileSingleApiToLabel(resolvedProfileTaxonomy.skin_types, currentProfile.skin_type);
+        return label ? [label] : [];
+      })(),
+      goals: mapProfileMultiApiToLabels(resolvedProfileTaxonomy.goals, currentProfile.goals),
+      avoidFlags: mapProfileMultiApiToLabels(resolvedProfileTaxonomy.avoid_flags, currentProfile.avoid_flags),
+      budgetMin,
+      budgetMax,
+      hairProfile: {
+        type: (() => {
+          const legacyHairType = Array.isArray(hairProfile.type) ? hairProfile.type[0] : hairProfile.type;
+          const label = mapProfileSingleApiToLabel(
+            resolvedProfileTaxonomy.hair_types,
+            hairProfile.hair_type ?? legacyHairType,
+          );
+          return label ? [label] : [];
+        })(),
+        concerns: mapProfileMultiApiToLabels(resolvedProfileTaxonomy.hair_concerns, hairProfile.concerns),
+      },
+      makeupProfile: {
+        coverage:
+          mapProfileSingleApiToLabel(
+            resolvedProfileTaxonomy.coverage_options,
+            Array.isArray(makeupProfile.coverage_pref) ? makeupProfile.coverage_pref[0] : makeupProfile.coverage,
+          ) ?? undefined,
+      },
+      fragranceProfile: {
+        notes: mapProfileMultiApiToLabels(resolvedProfileTaxonomy.fragrance_notes, fragranceProfile.liked_notes ?? fragranceProfile.notes),
+        intensity:
+          mapProfileSingleApiToLabel(
+            resolvedProfileTaxonomy.intensity_options,
+            fragranceProfile.intensity_pref ?? fragranceProfile.intensity,
+          ) ?? undefined,
+      },
+    };
+  }, [currentProfile, resolvedProfileTaxonomy]);
 
   const applyProfileSnapshot = (profile: Record<string, unknown>) => {
+    setCurrentProfile(profile);
     setProfileSummary(buildProfileSummaryState(profile, user));
     setPersonalDetails(extractPersonalDetails(profile));
   };
@@ -349,8 +439,9 @@ export default function ProfilePage() {
       setLoadError(null);
 
       try {
-        const [profileResp, loyaltyResp, favResp, offerResp, homeResp] = await Promise.all([
+        const [profileResp, profileTaxonomyResp, loyaltyResp, favResp, offerResp, homeResp] = await Promise.all([
           getProfile(),          // GET /api/me/profile :contentReference[oaicite:18]{index=18}
+          getProfileTaxonomy().catch(() => null),
           getLoyalty(),          // GET /api/me/loyalty :contentReference[oaicite:19]{index=19}
           getFavoriteCategory(), // GET /api/me/favorite-category :contentReference[oaicite:20]{index=20}
           getNextOffer(),        // GET /api/me/next-offer :contentReference[oaicite:21]{index=21}
@@ -361,6 +452,9 @@ export default function ProfilePage() {
 
         const profileObj = isRecord(profileResp) ? profileResp : {};
         applyProfileSnapshot(profileObj);
+        if (profileTaxonomyResp && typeof profileTaxonomyResp === 'object') {
+          setProfileTaxonomy(profileTaxonomyResp as ProfileTaxonomy);
+        }
 
         const loyaltyObj = isRecord(loyaltyResp) ? loyaltyResp : {};
         setLoyaltyState({
@@ -841,15 +935,58 @@ export default function ProfilePage() {
             <Dialog.Title className="sr-only">Анкета профиля</Dialog.Title>
 
             <ProfileWizard
+              options={profileWizardOptions}
+              initialData={profileWizardInitialData}
               onComplete={async (data: ProfileWizardData) => {
+                const hairType = mapProfileSingleLabelToApiValue(
+                  resolvedProfileTaxonomy.hair_types,
+                  data.hairProfile?.type?.[0],
+                  '',
+                );
+                const hairConcerns = mapProfileLabelsToApiValues(
+                  resolvedProfileTaxonomy.hair_concerns,
+                  data.hairProfile?.concerns,
+                );
+                const makeupCoverage = mapProfileSingleLabelToApiValue(
+                  resolvedProfileTaxonomy.coverage_options,
+                  data.makeupProfile?.coverage,
+                  '',
+                );
+                const fragranceNotes = mapProfileLabelsToApiValues(
+                  resolvedProfileTaxonomy.fragrance_notes,
+                  data.fragranceProfile?.notes,
+                );
+                const fragranceIntensity = mapProfileSingleLabelToApiValue(
+                  resolvedProfileTaxonomy.intensity_options,
+                  data.fragranceProfile?.intensity,
+                  '',
+                );
                 const payload = {
-                  skin_type: mapSkinType(data.skinType?.[0]),
-                  goals: mapListValues(data.goals, GOAL_MAP),
-                  avoid_flags: mapListValues(data.avoidFlags, AVOID_FLAG_MAP),
-                  budget: mapBudgetEnum(data.budgetMax),
-                  hair_profile: data.hairProfile ?? {},
-                  makeup_profile: data.makeupProfile ?? {},
-                  fragrance_profile: data.fragranceProfile ?? {},
+                  skin_type: mapProfileSingleLabelToApiValue(
+                    resolvedProfileTaxonomy.skin_types,
+                    data.skinType?.[0],
+                    'normal',
+                  ),
+                  goals: mapProfileLabelsToApiValues(resolvedProfileTaxonomy.goals, data.goals),
+                  avoid_flags: mapProfileLabelsToApiValues(
+                    resolvedProfileTaxonomy.avoid_flags,
+                    data.avoidFlags,
+                  ),
+                  budget: mapBudgetMaxToApiValue(
+                    resolvedProfileTaxonomy.budget_options,
+                    data.budgetMax,
+                  ),
+                  hair_profile: {
+                    ...(hairType ? { hair_type: hairType } : {}),
+                    ...(hairConcerns.length > 0 ? { concerns: hairConcerns } : {}),
+                  },
+                  makeup_profile: {
+                    ...(makeupCoverage ? { coverage_pref: [makeupCoverage] } : {}),
+                  },
+                  fragrance_profile: {
+                    ...(fragranceNotes.length > 0 ? { liked_notes: fragranceNotes } : {}),
+                    ...(fragranceIntensity ? { intensity_pref: fragranceIntensity } : {}),
+                  },
                 };
 
                 try {

@@ -86,12 +86,21 @@ type TrendPoint = {
   users: number;
 };
 
+type KpiWindow = {
+  ctr: number | null;
+  cr: number | null;
+  uniqueBuyers: number | null;
+  promoRedemption: number | null;
+  activeUsers: number | null;
+};
+
 type OverviewData = {
   generatedAt: string | null;
   transactions: Record<'7d' | '30d', TxnWindow | null>;
   recs: Record<'7d' | '30d', RecsWindow | null>;
   offers: Record<'7d' | '30d', OffersWindow | null>;
   retention: Retention;
+  kpis: Record<'7d' | '30d' | '90d', KpiWindow>;
   trend: TrendPoint[];
   topOffers: OfferRow[];
   topCategories: CategoryRow[];
@@ -196,6 +205,25 @@ const parseOffersWindow = (value: unknown): OffersWindow | null => {
   };
 };
 
+const parseTrendPoint = (value: unknown): TrendPoint | null => {
+  const row = asRecord(value);
+  if (!row) {
+    return null;
+  }
+
+  const day = String(row.day ?? '').trim();
+  if (!day) {
+    return null;
+  }
+
+  return {
+    day,
+    ctr: toNumber(row.ctr) ?? 0,
+    cr: toNumber(row.cr) ?? 0,
+    users: toNumber(row.users) ?? 0,
+  };
+};
+
 const adaptOverview = (response: unknown): OverviewData => {
   const payload = asRecord(response) ?? {};
 
@@ -203,6 +231,7 @@ const adaptOverview = (response: unknown): OverviewData => {
   const recs = asRecord(payload.recs) ?? {};
   const offers = asRecord(payload.offers) ?? {};
   const retention = asRecord(payload.retention) ?? {};
+  const kpisPayload = asRecord(payload.kpis) ?? {};
 
   const tx7 = parseTxnWindow(transactions['7d']);
   const tx30 = parseTxnWindow(transactions['30d']);
@@ -219,6 +248,12 @@ const adaptOverview = (response: unknown): OverviewData => {
     name: String(row.campaign_name ?? `Campaign ${index + 1}`),
     type: 'campaign',
     cr: toNumber(row.redemption_rate_exposed),
+  }));
+  const serverTopOffers = asRecordArray(payload.top_offers).map((row, index) => ({
+    id: String(row.id ?? row.campaign_name ?? index + 1),
+    name: String(row.name ?? row.campaign_name ?? `Campaign ${index + 1}`),
+    type: String(row.type ?? 'campaign'),
+    cr: toNumber(row.cr ?? row.redemption_rate_exposed),
   }));
 
   const topCategories = asRecordArray(payload.top_categories).map((row, index) => ({
@@ -252,23 +287,30 @@ const adaptOverview = (response: unknown): OverviewData => {
     href: String(row.href ?? '/admin'),
   }));
 
-  const trend: TrendPoint[] = [];
-  if (recs7 || tx7) {
-    trend.push({
+  const trend = asRecordArray(payload.trend)
+    .map((row) => parseTrendPoint(row))
+    .filter((row): row is TrendPoint => row !== null);
+  const fallbackTrend: TrendPoint[] = [];
+  if (!trend.length && (recs7 || tx7)) {
+    fallbackTrend.push({
       day: '7d',
       ctr: toPercent(recs7?.ctr ?? null) ?? 0,
       cr: toPercent(recs7?.cr ?? null) ?? 0,
       users: tx7?.uniqueBuyers ?? 0,
     });
   }
-  if (recs30 || tx30) {
-    trend.push({
+  if (!trend.length && (recs30 || tx30)) {
+    fallbackTrend.push({
       day: '30d',
       ctr: toPercent(recs30?.ctr ?? null) ?? 0,
       cr: toPercent(recs30?.cr ?? null) ?? 0,
       users: tx30?.uniqueBuyers ?? 0,
     });
   }
+
+  const kpis7 = asRecord(kpisPayload['7d']);
+  const kpis30 = asRecord(kpisPayload['30d']);
+  const kpis90 = asRecord(kpisPayload['90d']);
 
   return {
     generatedAt: typeof payload.generated_at === 'string' ? payload.generated_at : null,
@@ -287,8 +329,31 @@ const adaptOverview = (response: unknown): OverviewData => {
     retention: {
       activeUsers90d: toNumber(retention.active_users_90d),
     },
-    trend,
-    topOffers: byCampaign30d,
+    kpis: {
+      '7d': {
+        ctr: toNumber(kpis7?.ctr) ?? recs7?.ctr ?? null,
+        cr: toNumber(kpis7?.cr) ?? recs7?.cr ?? null,
+        uniqueBuyers: toNumber(kpis7?.unique_buyers) ?? tx7?.uniqueBuyers ?? null,
+        promoRedemption: toNumber(kpis7?.promo_redemption) ?? offers7?.redemptionRateExposed ?? null,
+        activeUsers: null,
+      },
+      '30d': {
+        ctr: toNumber(kpis30?.ctr) ?? recs30?.ctr ?? null,
+        cr: toNumber(kpis30?.cr) ?? recs30?.cr ?? null,
+        uniqueBuyers: toNumber(kpis30?.unique_buyers) ?? tx30?.uniqueBuyers ?? null,
+        promoRedemption: toNumber(kpis30?.promo_redemption) ?? offers30?.redemptionRateExposed ?? null,
+        activeUsers: null,
+      },
+      '90d': {
+        ctr: null,
+        cr: null,
+        uniqueBuyers: null,
+        promoRedemption: null,
+        activeUsers: toNumber(kpis90?.active_users) ?? toNumber(retention.active_users_90d),
+      },
+    },
+    trend: trend.length > 0 ? trend : fallbackTrend,
+    topOffers: serverTopOffers.length > 0 ? serverTopOffers : byCampaign30d,
     topCategories,
     alerts,
     actions,
@@ -450,47 +515,30 @@ export default function AdminOverviewPage() {
       ];
     }
 
-    const recsPeriod = period === '90d' ? null : period;
-    const offersPeriod = period === '90d' ? null : period;
-    const txPeriod = period === '90d' ? null : period;
+    const ctrRatio = period === '90d' ? null : overview.kpis[period].ctr;
+    const crRatio = period === '90d' ? null : overview.kpis[period].cr;
+    const usersValue = period === '90d' ? overview.kpis['90d'].activeUsers : overview.kpis[period].uniqueBuyers;
+    const promoRatio = period === '90d' ? null : overview.kpis[period].promoRedemption;
 
-    const ctrRatio = recsPeriod ? overview.recs[recsPeriod]?.ctr ?? null : null;
-    const crRatio = recsPeriod ? overview.recs[recsPeriod]?.cr ?? null : null;
-    const usersValue = txPeriod
-      ? overview.transactions[txPeriod]?.uniqueBuyers ?? null
-      : overview.retention.activeUsers90d;
-    const promoRatio = offersPeriod ? overview.offers[offersPeriod]?.redemptionRateExposed ?? null : null;
+    const ctrUp =
+      overview.kpis['7d'].ctr !== null && overview.kpis['30d'].ctr !== null
+        ? (overview.kpis['7d'].ctr ?? 0) >= (overview.kpis['30d'].ctr ?? 0)
+        : null;
 
-    const hasShortWindow = overview.recs['7d'] && overview.recs['30d'];
-    const hasOfferWindows = overview.offers['7d'] && overview.offers['30d'];
-    const hasUserWindows = overview.transactions['7d'] && overview.transactions['30d'];
+    const crUp =
+      overview.kpis['7d'].cr !== null && overview.kpis['30d'].cr !== null
+        ? (overview.kpis['7d'].cr ?? 0) >= (overview.kpis['30d'].cr ?? 0)
+        : null;
 
-    const ctrUp = hasShortWindow
-      ? (overview.recs['7d']?.ctr ?? null) !== null && (overview.recs['30d']?.ctr ?? null) !== null
-        ? (overview.recs['7d']?.ctr ?? 0) >= (overview.recs['30d']?.ctr ?? 0)
-        : null
-      : null;
+    const usersUp =
+      overview.kpis['7d'].uniqueBuyers !== null && overview.kpis['30d'].uniqueBuyers !== null
+        ? (overview.kpis['7d'].uniqueBuyers ?? 0) >= (overview.kpis['30d'].uniqueBuyers ?? 0)
+        : null;
 
-    const crUp = hasShortWindow
-      ? (overview.recs['7d']?.cr ?? null) !== null && (overview.recs['30d']?.cr ?? null) !== null
-        ? (overview.recs['7d']?.cr ?? 0) >= (overview.recs['30d']?.cr ?? 0)
-        : null
-      : null;
-
-    const usersUp = hasUserWindows
-      ? (overview.transactions['7d']?.uniqueBuyers ?? null) !== null &&
-        (overview.transactions['30d']?.uniqueBuyers ?? null) !== null
-        ? (overview.transactions['7d']?.uniqueBuyers ?? 0) >= (overview.transactions['30d']?.uniqueBuyers ?? 0)
-        : null
-      : null;
-
-    const promoUp = hasOfferWindows
-      ? (overview.offers['7d']?.redemptionRateExposed ?? null) !== null &&
-        (overview.offers['30d']?.redemptionRateExposed ?? null) !== null
-        ? (overview.offers['7d']?.redemptionRateExposed ?? 0) >=
-          (overview.offers['30d']?.redemptionRateExposed ?? 0)
-        : null
-      : null;
+    const promoUp =
+      overview.kpis['7d'].promoRedemption !== null && overview.kpis['30d'].promoRedemption !== null
+        ? (overview.kpis['7d'].promoRedemption ?? 0) >= (overview.kpis['30d'].promoRedemption ?? 0)
+        : null;
 
     return [
       {
@@ -521,7 +569,7 @@ export default function AdminOverviewPage() {
         up: promoUp,
         note:
           period === '90d'
-            ? 'В /api/admin/overview нет окна offers 90d'
+            ? 'Promo redemption доступен для окон 7d и 30d'
             : promoUp === null
               ? 'Сравнение недоступно'
               : 'Сравнение 7d к 30d',
@@ -562,7 +610,7 @@ export default function AdminOverviewPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-semibold text-gray-900 text-xl">Overview</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Адаптер под /api/admin/overview</p>
+          <p className="text-sm text-gray-500 mt-0.5">Live snapshot from /api/admin/overview</p>
         </div>
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
           {(['7d', '30d', '90d'] as const).map((p) => (
@@ -644,7 +692,7 @@ export default function AdminOverviewPage() {
             </div>
           ) : (
             <div className="mb-6 p-4 rounded-xl border border-dashed border-gray-300 bg-white text-sm text-gray-500">
-              В /api/admin/overview нет блока alerts.
+              Сейчас активных alert-ов нет.
             </div>
           )}
 
@@ -683,7 +731,7 @@ export default function AdminOverviewPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-gray-900">CTR / CR / Users (7d vs 30d)</h2>
               <span className="text-xs text-gray-400">
-                {overview?.generatedAt ? `generated_at: ${overview.generatedAt}` : 'данные API'}
+                {overview?.generatedAt ? `generated_at: ${overview.generatedAt}` : 'live data'}
               </span>
             </div>
             {overview && overview.trend.length > 0 ? (
@@ -699,7 +747,7 @@ export default function AdminOverviewPage() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-sm text-gray-500">В /api/admin/overview нет данных для графика тренда.</div>
+              <div className="text-sm text-gray-500">Пока недостаточно данных для графика.</div>
             )}
           </div>
 
@@ -731,7 +779,7 @@ export default function AdminOverviewPage() {
                   ))}
                 </div>
               ) : (
-                <div className="p-5 text-sm text-gray-500">В /api/admin/overview нет блока recommended_actions.</div>
+                <div className="p-5 text-sm text-gray-500">Сейчас нет приоритетных действий для команды.</div>
               )}
             </div>
 
@@ -764,7 +812,7 @@ export default function AdminOverviewPage() {
                   </tbody>
                 </table>
               ) : (
-                <div className="p-5 text-sm text-gray-500">В /api/admin/overview нет данных by_campaign_30d для offers.</div>
+                <div className="p-5 text-sm text-gray-500">Пока нет данных по кампаниям для блока Top Offers.</div>
               )}
             </div>
 
@@ -807,7 +855,7 @@ export default function AdminOverviewPage() {
                   </tbody>
                 </table>
               ) : (
-                <div className="p-5 text-sm text-gray-500">В /api/admin/overview нет блока top_categories.</div>
+                <div className="p-5 text-sm text-gray-500">Пока нет данных по категориям за 30 дней.</div>
               )}
             </div>
           </div>

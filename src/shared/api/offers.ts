@@ -7,6 +7,21 @@ export function nextOffer(): Promise<Record<string, unknown>> {
   });
 }
 
+export type HomePromotionsResponse = {
+  ok: boolean;
+  count: number;
+  limit: number;
+  banners: Record<string, unknown>[];
+};
+
+export function listHomePromotions(limit = 6): Promise<HomePromotionsResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return apiFetch<HomePromotionsResponse>(`/api/me/home-promotions?${params.toString()}`, {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}
+
 export type RedeemOfferPayload = {
   assignment_id: number;
   transaction_id: number;

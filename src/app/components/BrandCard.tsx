@@ -34,11 +34,11 @@ export function BrandCard({
   product_count,
   onClick,
 }: BrandCardProps) {
-  const brandName = typeof name === 'string' && name.trim() ? name.trim() : 'Бренд';
+  const brandName = typeof name === 'string' && name.trim() ? name.trim() : 'brand';
   const logoSrc =
-    (typeof logo === 'string' && logo.trim() && logo.trim()) ||
-    (typeof logoUrl === 'string' && logoUrl.trim() && logoUrl.trim()) ||
-    (typeof logo_url === 'string' && logo_url.trim() && logo_url.trim()) ||
+    (typeof logo === 'string' && logo.trim()) ||
+    (typeof logoUrl === 'string' && logoUrl.trim()) ||
+    (typeof logo_url === 'string' && logo_url.trim()) ||
     undefined;
 
   const countRaw = toNumber(productCount ?? product_count);
@@ -58,7 +58,7 @@ export function BrandCard({
           </div>
         ) : (
           <div className="w-20 h-20 mx-auto rounded-xl bg-gradient-to-br from-[#FFE1F2] to-pink-50 flex items-center justify-center text-2xl font-bold text-[#FF4DB8]">
-            {brandName.charAt(0)}
+            {brandName.charAt(0).toUpperCase()}
           </div>
         )}
 
@@ -66,9 +66,7 @@ export function BrandCard({
           {brandName}
         </h3>
 
-        {count !== undefined && (
-          <p className="text-xs text-[#6B7280]">{count} товаров</p>
-        )}
+        {count !== undefined && <p className="text-xs text-[#6B7280]">{count} products</p>}
 
         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
           <ChevronRight className="w-4 h-4 text-[#FF4DB8]" />

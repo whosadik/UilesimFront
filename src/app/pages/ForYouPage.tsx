@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
   Sparkles, ArrowRight, TrendingUp, ShoppingBag,
@@ -8,7 +8,14 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
 import { ApiError } from '../../shared/api/ApiError';
-import { getLoyalty, getProfile, updateProfile } from '../../shared/api/me';
+import { createRequestId } from '../../shared/api/httpClient';
+import {
+  getLoyalty,
+  getProfile,
+  getProfileTaxonomy,
+  type ProfileTaxonomy,
+  updateProfile,
+} from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
@@ -17,6 +24,7 @@ import {
   getRoadmap,
   type RoadmapPlanApi,
   type RoadmapStepApi,
+  type RoadmapStepPresentationApi,
   type RoadmapStepSnapshotApi,
   type RoadmapSummaryApi,
 } from '../../shared/api/roadmap';
@@ -25,6 +33,14 @@ import {
   ROADMAP_CATEGORY_LABELS,
   getRoadmapStepMeta,
 } from '../../shared/roadmap/presentation';
+import {
+  getProfileOptionLabels,
+  mapProfileLabelsToApiValues,
+  mapProfileMultiApiToLabels,
+  mapProfileSingleApiToLabel,
+  mapProfileSingleLabelToApiValue,
+  resolveProfileTaxonomy,
+} from '../../shared/profile/taxonomy';
 
 /**
  * DEV NOTES:
@@ -332,6 +348,9 @@ const buildPersonalOfferCard = (value: Record<string, unknown>): PersonalOfferCa
 const isCompletedRoadmapStatus = (value: unknown): boolean =>
   value === 'completed' || value === 'owned' || value === 'skipped';
 
+const getRoadmapStepPresentationPayload = (value: unknown): RoadmapStepPresentationApi | null =>
+  isRecord(value) ? (value as RoadmapStepPresentationApi) : null;
+
 const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapLikeStep | null => {
   const steps = Array.isArray(plan.steps) ? plan.steps : [];
   const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null;
@@ -409,9 +428,16 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
     ),
   );
   const currentProductType = firstString(nextStep?.product_type);
-  const stepMeta = currentProductType
+  const nextStepPresentation = getRoadmapStepPresentationPayload(nextStep?.presentation);
+  const fallbackStepMeta = currentProductType
     ? getRoadmapStepMeta(currentProductType)
     : DEFAULT_ROADMAP_STEP_META;
+  const stepMeta = {
+    points: toNumber(nextStepPresentation?.points) ?? fallbackStepMeta.points,
+    why: firstString(nextStepPresentation?.why) ?? fallbackStepMeta.why,
+    improves: firstString(nextStepPresentation?.improves) ?? fallbackStepMeta.improves,
+    benefit: firstString(nextStepPresentation?.benefit) ?? fallbackStepMeta.benefit,
+  };
   const recommendedProduct = nextStep && isRecord(nextStep.recommended_product)
     ? nextStep.recommended_product
     : null;
@@ -419,13 +445,16 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
   const stepsForUi = rawSteps.slice(0, 5).map((step, index) => {
     const stepIndex = Math.max(1, Math.round(toNumber(step.step_index) ?? index + 1));
     const stepId = typeof step.id === 'number' ? step.id : undefined;
+    const stepPresentation = getRoadmapStepPresentationPayload(step.presentation);
     const isCurrent =
       (nextStepId !== undefined && stepId === nextStepId) ||
       (nextStepId === undefined && stepIndex === currentStepIndex && !isCompletedRoadmapStatus(step.status));
 
     return {
       key: stepId !== undefined ? `roadmap-step-${stepId}` : `roadmap-step-${stepIndex}`,
-      title: firstString(step.title, formatProductTypeLabel(step.product_type), `Шаг ${stepIndex}`) ?? `Шаг ${stepIndex}`,
+      title:
+        firstString(stepPresentation?.title, step.title, formatProductTypeLabel(step.product_type), `Шаг ${stepIndex}`) ??
+        `Шаг ${stepIndex}`,
       state: isCurrent ? 'current' : isCompletedRoadmapStatus(step.status) ? 'completed' : 'pending',
       stepIndex,
     };
@@ -434,10 +463,10 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
   return {
     nextStepId,
     nextStepTitle:
-      firstString(nextStep?.title, formatProductTypeLabel(nextStep?.product_type)) ??
+      firstString(nextStepPresentation?.title, nextStep?.title, formatProductTypeLabel(nextStep?.product_type)) ??
       'Следующий шаг roadmap',
     nextStepDescription:
-      firstString(nextStep?.description) ??
+      firstString(nextStepPresentation?.description, nextStep?.description) ??
       'Откройте roadmap, чтобы увидеть следующий шаг.',
     nextStepWhy:
       firstString(toTextList(nextStep?.why), stepMeta.why) ??
@@ -964,7 +993,7 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
 
 // Quick Prefs Panel
 function QuickPrefsPanel({
-  skinType, setSkinType, goals, setGoals, onSave, isSaving,
+  skinType, setSkinType, goals, setGoals, onSave, isSaving, skinTypeOptions, goalOptions,
 }: {
   skinType: string;
   setSkinType: (v: string) => void;
@@ -972,6 +1001,8 @@ function QuickPrefsPanel({
   setGoals: (v: string[]) => void;
   onSave: () => void;
   isSaving: boolean;
+  skinTypeOptions: string[];
+  goalOptions: string[];
 }) {
   const toggleGoal = (g: string) => {
     setGoals(goals.includes(g) ? goals.filter(x => x !== g) : [...goals, g]);
@@ -988,7 +1019,7 @@ function QuickPrefsPanel({
       <div className="mb-4">
         <p className="text-xs text-[#6B7280] font-medium mb-2">Тип кожи</p>
         <div className="flex flex-wrap gap-1.5">
-          {SKIN_TYPES.map(s => (
+          {skinTypeOptions.map(s => (
             <button
               key={s}
               onClick={() => setSkinType(s)}
@@ -1008,7 +1039,7 @@ function QuickPrefsPanel({
       <div className="mb-4">
         <p className="text-xs text-[#6B7280] font-medium mb-2">Мои цели</p>
         <div className="flex flex-wrap gap-1.5">
-          {GOALS.map(g => (
+          {goalOptions.map(g => (
             <button
               key={g}
               onClick={() => toggleGoal(g)}
@@ -1071,11 +1102,15 @@ function ColdStartState({
   initialGoals,
   isSaving,
   onComplete,
+  skinTypeOptions,
+  goalOptions,
 }: {
   initialSkinType?: string;
   initialGoals?: string[];
   isSaving: boolean;
   onComplete: (payload: { skinType: string; goals: string[] }) => Promise<void>;
+  skinTypeOptions: string[];
+  goalOptions: string[];
 }) {
   const [step, setStep] = useState((initialGoals?.length ?? 0) > 0 ? 2 : 1);
   const [skinType, setSkinType] = useState(initialSkinType ?? '');
@@ -1122,7 +1157,7 @@ function ColdStartState({
           <div className="text-left mb-6">
             <p className="text-sm font-semibold text-[#111827] mb-3">Какой у вас тип кожи?</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {SKIN_TYPES.map((value) => (
+              {skinTypeOptions.map((value) => (
                 <button
                   key={value}
                   onClick={() => setSkinType(value)}
@@ -1155,7 +1190,7 @@ function ColdStartState({
           <p className="text-[#6B7280] mb-8">Можно выбрать несколько, а рекомендации и roadmap подстроятся автоматически.</p>
 
           <div className="flex flex-wrap gap-2 justify-center mb-8">
-            {GOALS.map((goal) => (
+            {goalOptions.map((goal) => (
               <button
                 key={goal}
                 onClick={() => toggleGoal(goal)}
@@ -1237,6 +1272,7 @@ export default function ForYouPage() {
 
   const [skinType, setSkinType] = useState('Жирная');
   const [goals, setGoals] = useState(['Увлажнение', 'Сияние']);
+  const [profileTaxonomy, setProfileTaxonomy] = useState<ProfileTaxonomy | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
   const [trendingRecommendations, setTrendingRecommendations] = useState<RecommendationCard[]>([]);
@@ -1252,6 +1288,10 @@ export default function ForYouPage() {
   const [isVerificationEmailSending, setIsVerificationEmailSending] = useState(false);
   const [onboardingInitialSkinType, setOnboardingInitialSkinType] = useState('');
   const [onboardingInitialGoals, setOnboardingInitialGoals] = useState<string[]>([]);
+  const recommendationRequestIdRef = useRef<string | null>(null);
+  const resolvedProfileTaxonomy = resolveProfileTaxonomy(profileTaxonomy);
+  const skinTypeOptions = getProfileOptionLabels(resolvedProfileTaxonomy.skin_types);
+  const goalOptions = getProfileOptionLabels(resolvedProfileTaxonomy.goals);
 
   const roadmapOverview = buildRoadmapOverview(roadmapPlan) ?? FALLBACK_ROADMAP_OVERVIEW;
   const roadmapHeading = roadmapOverview.totalSteps > 0
@@ -1287,13 +1327,16 @@ export default function ForYouPage() {
     const loadPersonalization = async () => {
       setIsDataLoading(true);
       setLoadError(null);
+      const recommendationRequestId = createRequestId();
+      recommendationRequestIdRef.current = recommendationRequestId;
 
       try {
-        const [homeResult, offerResult, profileResult, loyaltyResult] = await Promise.allSettled([
-          home(),
+        const [homeResult, offerResult, profileResult, loyaltyResult, profileTaxonomyResult] = await Promise.allSettled([
+          home({ requestId: recommendationRequestId }),
           nextOffer(),
           getProfile(),
           getLoyalty(),
+          getProfileTaxonomy(),
         ]);
 
         if (cancelled) {
@@ -1301,7 +1344,7 @@ export default function ForYouPage() {
         }
 
         const rejectedReasons: unknown[] = [];
-        for (const result of [homeResult, offerResult, profileResult, loyaltyResult]) {
+        for (const result of [homeResult, offerResult, profileResult, loyaltyResult, profileTaxonomyResult]) {
           if (result.status === 'rejected') {
             rejectedReasons.push(result.reason);
           }
@@ -1318,10 +1361,18 @@ export default function ForYouPage() {
           return;
         }
 
+        const activeProfileTaxonomy = resolveProfileTaxonomy(
+          profileTaxonomyResult.status === 'fulfilled' ? profileTaxonomyResult.value : null,
+        );
+        setProfileTaxonomy(activeProfileTaxonomy);
+
         if (profileResult.status === 'fulfilled') {
           const profile = profileResult.value as Record<string, unknown>;
-          const nextSkinType = mapApiSkinTypeToUi(profile.skin_type) ?? '';
-          const nextGoals = mapApiGoalsToUi(profile.goals);
+          const nextSkinType = mapProfileSingleApiToLabel(
+            activeProfileTaxonomy.skin_types,
+            profile.skin_type,
+          ) ?? '';
+          const nextGoals = mapProfileMultiApiToLabels(activeProfileTaxonomy.goals, profile.goals);
           const isProfileCompleted =
             typeof profile.profile_completed_at === 'string' &&
             profile.profile_completed_at.trim().length > 0;
@@ -1451,7 +1502,7 @@ export default function ForYouPage() {
       page: 'for_you',
       section_key: product.section,
       context: { assignment_id: personalOffer?.assignmentId },
-    }).catch(() => undefined);
+    }, { requestId: recommendationRequestIdRef.current ?? undefined }).catch(() => undefined);
   };
 
   const handleRecommendationAddToCart = async (product: RecommendationCard, quantity: number) => {
@@ -1472,7 +1523,7 @@ export default function ForYouPage() {
           page: 'for_you',
           section_key: product.section,
           context: { assignment_id: personalOffer?.assignmentId },
-        }).catch(() => undefined);
+        }, { requestId: recommendationRequestIdRef.current ?? undefined }).catch(() => undefined);
       }
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
@@ -1513,8 +1564,12 @@ export default function ForYouPage() {
     setIsSaving(true);
     try {
       await updateProfile({
-        skin_type: mapUiSkinTypeToApi(skinType),
-        goals: mapUiGoalsToApi(goals),
+        skin_type: mapProfileSingleLabelToApiValue(
+          resolvedProfileTaxonomy.skin_types,
+          skinType,
+          'normal',
+        ),
+        goals: mapProfileLabelsToApiValues(resolvedProfileTaxonomy.goals, goals),
       });
       setRetryKey((value) => value + 1);
       toast.success('Рекомендации обновлены!');
@@ -1544,8 +1599,12 @@ export default function ForYouPage() {
     setIsOnboardingSaving(true);
     try {
       await updateProfile({
-        skin_type: mapUiSkinTypeToApi(nextSkinType),
-        goals: mapUiGoalsToApi(nextGoals),
+        skin_type: mapProfileSingleLabelToApiValue(
+          resolvedProfileTaxonomy.skin_types,
+          nextSkinType,
+          'normal',
+        ),
+        goals: mapProfileLabelsToApiValues(resolvedProfileTaxonomy.goals, nextGoals),
       });
       setSkinType(nextSkinType);
       setGoals(nextGoals);
@@ -1611,6 +1670,8 @@ export default function ForYouPage() {
             initialGoals={onboardingInitialGoals}
             isSaving={isOnboardingSaving}
             onComplete={handleCompleteOnboarding}
+            skinTypeOptions={skinTypeOptions}
+            goalOptions={goalOptions}
           />
         </div>
       </div>
@@ -1877,6 +1938,8 @@ export default function ForYouPage() {
               setGoals={setGoals}
               onSave={handleSavePrefs}
               isSaving={isSaving}
+              skinTypeOptions={skinTypeOptions}
+              goalOptions={goalOptions}
             />
 
             {/* Quick actions */}

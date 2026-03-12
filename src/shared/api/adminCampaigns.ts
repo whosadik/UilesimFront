@@ -8,8 +8,12 @@ export type Campaign = {
   weekly_limit?: string | number | null;
   weekly_spent?: string | number | null;
   week_start_date?: string | null;
+  end_date?: string | null;
   allowed_categories?: string[];
   allowed_steps?: string[];
+  tiers?: string[];
+  promo_text?: string;
+  banner_url?: string;
   [k: string]: unknown;
 };
 

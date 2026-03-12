@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import * as Tabs from '@radix-ui/react-tabs';
 
 import { ApiError } from '../../shared/api/ApiError';
@@ -15,20 +15,15 @@ import { extractProducts, mapApiProductToGrid } from '../utils/productGridMappin
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
-const isAuthError = (error: unknown): error is ApiError =>
-  error instanceof ApiError && (error.status === 401 || error.status === 403);
-
 const categoryLabels: Record<string, string> = {
-  skincare: 'Skincare',
-  haircare: 'Haircare',
-  makeup: 'Makeup',
-  fragrance: 'Fragrance',
+  skincare: 'skincare',
+  haircare: 'haircare',
+  makeup: 'makeup',
+  fragrance: 'fragrance',
 };
 
 export default function BrandPage() {
   const { brand } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState('hits');
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,7 +36,7 @@ export default function BrandPage() {
     if (!brand) {
       setBrandDetails(null);
       setProducts([]);
-      setError('Бренд не найден.');
+      setError('brand not found.');
       setIsLoading(false);
       return;
     }
@@ -74,8 +69,9 @@ export default function BrandPage() {
           return;
         }
 
-        if (isAuthError(loadError)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
+        if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+          setBrandDetails(null);
+          setProducts([]);
           return;
         }
 
@@ -83,8 +79,8 @@ export default function BrandPage() {
         setProducts([]);
         setError(
           loadError instanceof ApiError && loadError.status === 404
-            ? 'Бренд не найден.'
-            : 'Не удалось загрузить страницу бренда из API. Попробуйте ещё раз.',
+            ? 'brand not found.'
+            : 'failed to load brand page. please try again.',
         );
       } finally {
         if (!cancelled) {
@@ -93,14 +89,14 @@ export default function BrandPage() {
       }
     };
 
-    loadBrandPage();
+    void loadBrandPage();
 
     return () => {
       cancelled = true;
     };
-  }, [brand, location.pathname, navigate, retryKey]);
+  }, [brand, retryKey]);
 
-  const brandName = brandDetails?.name ?? (brand ? fromBrandSlugToLabel(brand) || 'Бренд' : 'Бренд');
+  const brandName = brandDetails?.name ?? (brand ? fromBrandSlugToLabel(brand) || 'brand' : 'brand');
   const newProducts = useMemo(() => products.filter((product) => product.isNew), [products]);
   const hitsProducts = useMemo(() => products.slice(0, 8), [products]);
   const tabProducts = activeTab === 'new' ? newProducts : activeTab === 'all' ? products : hitsProducts;
@@ -113,29 +109,29 @@ export default function BrandPage() {
         <div className="relative mx-auto max-w-[1160px] px-6 lg:px-[140px]">
           <Breadcrumbs
             items={[
-              { label: 'Главная', href: '/' },
-              { label: 'Бренды', href: '/brands' },
+              { label: 'home', href: '/' },
+              { label: 'brands', href: '/brands' },
               { label: brandName },
             ]}
           />
 
           <div className="mt-8 flex items-center gap-6">
             <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl border border-[#EAE6EF] bg-white text-3xl font-bold text-[#FF4DB8] lg:h-24 lg:w-24">
-              {brandDetails?.logo_letter ?? brandName.charAt(0)}
+              {brandDetails?.logo_letter ?? brandName.charAt(0).toUpperCase()}
             </div>
 
             <div className="flex-1">
               <h1 className="mb-2 text-3xl font-bold text-[#111827] lg:text-4xl">{brandName}</h1>
               <p className="max-w-2xl text-base text-[#6B7280]">
-                {brandDetails?.description ?? 'Описание бренда пока недоступно.'}
+                {brandDetails?.description ?? 'brand description is not available yet.'}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge>{brandDetails?.product_count ?? products.length} товаров</Badge>
+                <Badge>{brandDetails?.product_count ?? products.length} products</Badge>
                 {(brandDetails?.new_products_count ?? newProducts.length) > 0 && (
-                  <Badge>{brandDetails?.new_products_count ?? newProducts.length} новинок</Badge>
+                  <Badge>{brandDetails?.new_products_count ?? newProducts.length} new</Badge>
                 )}
                 {(brandDetails?.sale_products_count ?? 0) > 0 && (
-                  <Badge>{brandDetails?.sale_products_count} со скидкой</Badge>
+                  <Badge>{brandDetails?.sale_products_count} on sale</Badge>
                 )}
                 {brandDetails?.categories.slice(0, 2).map((category) => (
                   <Badge key={category}>{categoryLabels[category] ?? category}</Badge>
@@ -148,10 +144,10 @@ export default function BrandPage() {
 
       <div className="mx-auto max-w-[1160px] px-6 py-8 lg:px-[140px] lg:py-12">
         {isLoading ? (
-          <LoadingSpinner size="lg" text="Загружаем товары бренда..." />
+          <LoadingSpinner size="lg" text="loading brand products..." />
         ) : error ? (
           <ErrorState
-            title="Не удалось загрузить бренд"
+            title="failed to load brand"
             description={error}
             onRetry={() => setRetryKey((value) => value + 1)}
           />
@@ -162,19 +158,19 @@ export default function BrandPage() {
                 value="hits"
                 className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
               >
-                Хиты
+                bestsellers
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="new"
                 className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
               >
-                Новинки
+                new
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="all"
                 className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
               >
-                Все товары
+                all products
               </Tabs.Trigger>
             </Tabs.List>
 
@@ -183,15 +179,13 @@ export default function BrandPage() {
                 <ProductGrid products={tabProducts} columns={4} />
               ) : (
                 <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-                  Для выбранной вкладки товары пока не найдены.
+                  no products found for this tab yet.
                 </div>
               )}
             </Tabs.Content>
           </Tabs.Root>
         )}
       </div>
-
-      <div className="hidden">{/* Source: GET /api/brands/:slug + GET /api/products/?brand=... */}</div>
     </div>
   );
 }

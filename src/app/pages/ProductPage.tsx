@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { toast } from 'sonner';
@@ -45,9 +45,9 @@ interface RecommendationCard {
 }
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&q=80';
-const FALLBACK_DESCRIPTION = 'Описание товара пока недоступно.';
-const FALLBACK_INGREDIENTS = 'Состав пока не указан.';
-const FALLBACK_USAGE = 'Способ применения пока не указан.';
+const FALLBACK_DESCRIPTION = 'product description is not available yet.';
+const FALLBACK_INGREDIENTS = 'ingredient list is not available yet.';
+const FALLBACK_USAGE = 'usage instructions are not available yet.';
 
 const toRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -135,7 +135,7 @@ const mapApiProductToView = (payload: Record<string, unknown>, fallbackId: strin
 
   return {
     id: String(payload.id ?? fallbackId),
-    name: firstString(payload.name) ?? `Товар #${fallbackId}`,
+    name: firstString(payload.name) ?? `product #${fallbackId}`,
     brand: firstString(payload.brand) ?? 'Uilesim',
     brandSlug: firstString(payload.brand_slug),
     price,
@@ -193,7 +193,7 @@ const mapBundleItemToCard = (item: RecItem, index: number): RecommendationCard =
       imageUrls[0] ??
       FALLBACK_IMAGE,
     brand: firstString(product.brand) ?? 'Uilesim',
-    name: firstString(product.name) ?? `Рекомендация #${index + 1}`,
+    name: firstString(product.name) ?? `recommended item #${index + 1}`,
     price,
     originalPrice,
     discount: discount !== undefined ? toRoundedNonNegative(discount) : undefined,
@@ -227,7 +227,7 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (!id) {
-      setError('Товар не найден.');
+      setError('product not found.');
       setIsLoading(false);
       setIsRecommendationsLoading(false);
       return;
@@ -251,13 +251,8 @@ export default function ProductPage() {
       }
 
       if (productResult.status === 'rejected') {
-        if (isAuthError(productResult.reason)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
-          return;
-        }
-
         setProduct(null);
-        setError('Не удалось загрузить товар из API. Попробуйте еще раз.');
+        setError('failed to load product details. please try again.');
       } else {
         const payload = toRecord(productResult.value);
         if (payload) {
@@ -265,18 +260,17 @@ export default function ProductPage() {
           setSelectedImage(0);
         } else {
           setProduct(null);
-          setError('Ответ API по товару имеет неожиданный формат.');
+          setError('product response format is invalid.');
         }
       }
 
       if (recommendationsResult.status === 'rejected') {
         if (isAuthError(recommendationsResult.reason)) {
-          navigate('/login', { replace: true, state: { from: location.pathname } });
-          return;
+          setRecommendations([]);
+        } else {
+          setRecommendations([]);
+          setRecommendationsError('failed to load related products. please try again.');
         }
-
-        setRecommendations([]);
-        setRecommendationsError('Не удалось загрузить рекомендации. Попробуйте еще раз.');
       } else {
         const mapped = extractBundleResults(recommendationsResult.value)
           .map((item, index) => mapBundleItemToCard(item, index))
@@ -288,19 +282,14 @@ export default function ProductPage() {
       setIsRecommendationsLoading(false);
     };
 
-    loadData().catch((loadError) => {
+    void loadData().catch(() => {
       if (cancelled) {
-        return;
-      }
-
-      if (isAuthError(loadError)) {
-        navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
 
       setProduct(null);
       setRecommendations([]);
-      setError('Не удалось загрузить страницу товара. Попробуйте еще раз.');
+      setError('failed to load product page. please try again.');
       setIsLoading(false);
       setIsRecommendationsLoading(false);
     });
@@ -308,7 +297,7 @@ export default function ProductPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, location.pathname, navigate, retryKey]);
+  }, [id, retryKey]);
 
   const cartQuantity = product ? getCartQuantity(product.id) : 0;
   const isProductInWishlist = product ? isInWishlist(product.id) : false;
@@ -335,7 +324,7 @@ export default function ProductPage() {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error('Не удалось добавить товар в корзину');
+      toast.error('failed to add item to cart');
     } finally {
       setIsCartPending(false);
     }
@@ -354,17 +343,28 @@ export default function ProductPage() {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error('Не удалось обновить избранное');
+      toast.error('failed to update wishlist');
     } finally {
       setIsWishlistPending(false);
     }
   };
 
+  const productBadges = useMemo(() => {
+    const badges: string[] = [];
+    if (product?.discount !== undefined && product.discount > 0) {
+      badges.push(`-${product.discount}%`);
+    }
+    if (product?.inStock) {
+      badges.push('in stock');
+    }
+    return badges;
+  }, [product]);
+
   if (isLoading && !product) {
     return (
       <div className="pt-20 lg:pt-28 min-h-screen">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
-          <LoadingSpinner size="lg" text="Загружаем товар..." />
+          <LoadingSpinner size="lg" text="loading product..." />
         </div>
       </div>
     );
@@ -375,12 +375,12 @@ export default function ProductPage() {
       <div className="pt-20 lg:pt-28 min-h-screen">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
           <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-6">
-            <p className="text-sm text-[#B42318]">{error ?? 'Товар недоступен.'}</p>
+            <p className="text-sm text-[#B42318]">{error ?? 'product is not available.'}</p>
             <button
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-3 text-sm font-medium text-[#111827] underline underline-offset-2"
             >
-              Повторить
+              retry
             </button>
           </div>
         </div>
@@ -401,7 +401,7 @@ export default function ProductPage() {
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
             >
-              Повторить
+              retry
             </button>
           </div>
         )}
@@ -409,8 +409,8 @@ export default function ProductPage() {
         <div className="mb-6">
           <Breadcrumbs
             items={[
-              { label: 'Главная', href: '/' },
-              { label: 'Каталог', href: '/catalog' },
+              { label: 'home', href: '/' },
+              { label: 'catalog', href: '/catalog' },
               { label: product.brand, href: `/brands/${brandSlug}` },
               { label: product.name },
             ]}
@@ -444,27 +444,28 @@ export default function ProductPage() {
 
               {product.reviews > 0 && product.rating > 0 ? (
                 <div className="flex items-center gap-2 mb-4">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 ${
-                        i < Math.floor(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-[#6B7280]">
-                  {product.rating} ({product.reviews} отзывов)
-                </span>
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < Math.floor(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-[#6B7280]">
+                    {product.rating} ({product.reviews} reviews)
+                  </span>
                 </div>
               ) : (
-                <p className="mb-4 text-sm text-[#6B7280]">РћС‚Р·С‹РІРѕРІ РїРѕРєР° РЅРµС‚</p>
+                <p className="mb-4 text-sm text-[#6B7280]">no reviews yet</p>
               )}
 
               <div className="flex items-center gap-2">
-                {product.discount !== undefined && product.discount > 0 && <Badge>−{product.discount}%</Badge>}
-                {product.inStock && <Badge>В наличии</Badge>}
+                {productBadges.map((badge) => (
+                  <Badge key={badge}>{badge}</Badge>
+                ))}
               </div>
             </div>
 
@@ -476,7 +477,7 @@ export default function ProductPage() {
             </div>
 
             {product.pointsEarned !== undefined && product.pointsEarned > 0 && (
-              <p className="text-sm font-medium text-[#FF4DB8]">+{product.pointsEarned} Р±Р°Р»Р»РѕРІ Р·Р° РїРѕРєСѓРїРєСѓ</p>
+              <p className="text-sm font-medium text-[#FF4DB8]">+{product.pointsEarned} bonus points</p>
             )}
 
             <p className="text-base text-[#6B7280] leading-relaxed">{product.description}</p>
@@ -487,7 +488,7 @@ export default function ProductPage() {
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="px-4 py-3 text-[#6B7280] hover:bg-gray-50 transition-colors"
                 >
-                  −
+                  -
                 </button>
                 <span className="px-6 py-3 font-semibold text-[#111827]">{quantity}</span>
                 <button
@@ -500,7 +501,7 @@ export default function ProductPage() {
 
               <Button variant="primary" className="flex-1" onClick={handleAddToCart} disabled={isCartPending}>
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                {isCartPending ? 'Добавляем...' : 'В корзину'}
+                {isCartPending ? 'adding...' : 'add to cart'}
               </Button>
 
               <button
@@ -515,7 +516,7 @@ export default function ProductPage() {
             <div className="pt-6 border-t border-[#EAE6EF] space-y-4">
               <details className="group">
                 <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3">
-                  Состав
+                  ingredients
                   <span className="text-[#6B7280] group-open:rotate-180 transition-transform">▾</span>
                 </summary>
                 <p className="text-sm text-[#6B7280] mt-2">{product.ingredients}</p>
@@ -523,7 +524,7 @@ export default function ProductPage() {
 
               <details className="group">
                 <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3 border-t border-[#EAE6EF]">
-                  Как использовать
+                  how to use
                   <span className="text-[#6B7280] group-open:rotate-180 transition-transform">▾</span>
                 </summary>
                 <p className="text-sm text-[#6B7280] mt-2">{product.howToUse}</p>
@@ -533,7 +534,7 @@ export default function ProductPage() {
         </div>
 
         <section>
-          <h2 className="text-2xl font-bold text-[#111827] mb-6">С этим товаром покупают</h2>
+          <h2 className="text-2xl font-bold text-[#111827] mb-6">related products</h2>
 
           {recommendationsError && (
             <div className="mb-4 rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-4">
@@ -542,7 +543,7 @@ export default function ProductPage() {
                 onClick={() => setRetryKey((value) => value + 1)}
                 className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
               >
-                Повторить
+                retry
               </button>
             </div>
           )}
@@ -552,7 +553,7 @@ export default function ProductPage() {
           ) : recommendations.length > 0 ? (
             <ProductCarousel products={recommendations} />
           ) : (
-            <p className="text-sm text-[#6B7280]">Рекомендации для этого товара пока недоступны.</p>
+            <p className="text-sm text-[#6B7280]">related products are not available yet.</p>
           )}
         </section>
       </div>

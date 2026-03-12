@@ -10,6 +10,7 @@ import {
   getRoadmap,
   type RoadmapPlanApi,
   type RoadmapStepApi,
+  type RoadmapStepPresentationApi,
   type RoadmapStepSnapshotApi,
   type RoadmapSummaryApi,
 } from '../../shared/api/roadmap';
@@ -233,6 +234,9 @@ const normalizeRoadmapCategory = (value: unknown): string | undefined => {
   return undefined;
 };
 
+const getRoadmapStepPresentationPayload = (value: unknown): RoadmapStepPresentationApi | null =>
+  isRecord(value) ? (value as RoadmapStepPresentationApi) : null;
+
 const parseCheckoutRoadmapStep = (
   payload: unknown,
 ): CheckoutRoadmapNextStep | null => {
@@ -261,15 +265,14 @@ const parseCheckoutRoadmapStep = (
     typeof payload.product_type === 'string' && payload.product_type
       ? payload.product_type
       : 'routine_step';
-  const presentation = getRoadmapStepPresentation(productType);
+  const serverPresentation = getRoadmapStepPresentationPayload(payload.presentation);
+  const fallbackPresentation = getRoadmapStepPresentation(productType);
   const title =
-    typeof payload.title === 'string' && payload.title.trim()
-      ? payload.title.trim()
-      : presentation.title;
+    firstString(serverPresentation?.title, payload.title) ??
+    fallbackPresentation.title;
   const description =
-    typeof payload.description === 'string' && payload.description.trim()
-      ? payload.description.trim()
-      : presentation.description;
+    firstString(serverPresentation?.description, payload.description) ??
+    fallbackPresentation.description;
   const productId =
     typeof payload.recommended_product_id === 'number'
       ? String(payload.recommended_product_id)

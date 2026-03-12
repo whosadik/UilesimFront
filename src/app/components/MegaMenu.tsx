@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Button } from './Button';
 
 export type MegaMenuCategory = {
@@ -23,57 +23,59 @@ const DEFAULT_CATEGORIES: MegaMenuCategory[] = [
   {
     title: 'Skincare',
     items: [
-      { label: 'Очищение', href: '/catalog?product_type=cleanser' },
-      { label: 'Тонизирование', href: '/catalog?product_type=toner' },
-      { label: 'Сыворотки', href: '/catalog?product_type=serum' },
-      { label: 'Увлажнение', href: '/catalog?product_type=moisturizer' },
-      { label: 'Маски', href: '/catalog?product_type=mask' },
-      { label: 'SPF защита', href: '/catalog?product_type=spf' },
+      { label: 'cleansers', href: '/catalog?product_type=cleanser' },
+      { label: 'toners', href: '/catalog?product_type=toner' },
+      { label: 'serums', href: '/catalog?product_type=serum' },
+      { label: 'moisturizers', href: '/catalog?product_type=moisturizer' },
+      { label: 'masks', href: '/catalog?product_type=mask' },
+      { label: 'spf', href: '/catalog?product_type=spf' },
     ],
   },
   {
     title: 'Makeup',
     items: [
-      { label: 'Лицо', href: '/catalog?category=makeup' },
-      { label: 'Глаза', href: '/catalog?product_type=eyeshadow' },
-      { label: 'Губы', href: '/catalog?product_type=lipstick' },
-      { label: 'Брови', href: '/catalog?product_type=brow' },
-      { label: 'Кисти', href: '/catalog?product_type=brush' },
-      { label: 'Наборы', href: '/catalog?product_type=set' },
+      { label: 'face', href: '/catalog?category=makeup' },
+      { label: 'eyes', href: '/catalog?product_type=eyeshadow' },
+      { label: 'lips', href: '/catalog?product_type=lipstick' },
+      { label: 'brows', href: '/catalog?product_type=brow' },
+      { label: 'brushes', href: '/catalog?product_type=brush' },
+      { label: 'sets', href: '/catalog?product_type=set' },
     ],
   },
   {
     title: 'Haircare',
     items: [
-      { label: 'Шампуни', href: '/catalog?product_type=shampoo' },
-      { label: 'Кондиционеры', href: '/catalog?product_type=conditioner' },
-      { label: 'Маски для волос', href: '/catalog?product_type=hair_mask' },
-      { label: 'Стайлинг', href: '/catalog?product_type=styling' },
-      { label: 'Специальный уход', href: '/catalog?category=haircare' },
+      { label: 'shampoos', href: '/catalog?product_type=shampoo' },
+      { label: 'conditioners', href: '/catalog?product_type=conditioner' },
+      { label: 'hair masks', href: '/catalog?product_type=hair_mask' },
+      { label: 'styling', href: '/catalog?product_type=styling' },
+      { label: 'treatments', href: '/catalog?category=haircare' },
     ],
   },
   {
     title: 'Fragrance',
     items: [
-      { label: 'Парфюм', href: '/catalog?category=fragrance' },
-      { label: 'Туалетная вода', href: '/catalog?product_type=edt' },
-      { label: 'Дорожные форматы', href: '/catalog?product_type=travel' },
-      { label: 'Наборы', href: '/catalog?product_type=set' },
-      { label: 'Свечи', href: '/catalog?product_type=candle' },
+      { label: 'perfume', href: '/catalog?category=fragrance' },
+      { label: 'eau de toilette', href: '/catalog?product_type=edt' },
+      { label: 'travel sizes', href: '/catalog?product_type=travel' },
+      { label: 'sets', href: '/catalog?product_type=set' },
+      { label: 'candles', href: '/catalog?product_type=candle' },
     ],
   },
 ];
 
 const DEFAULT_QUICK_LINKS: MegaMenuQuickLink[] = [
-  { label: 'В наличии', href: '/catalog?in_stock=true' },
-  { label: 'Мини-форматы', href: '/catalog?product_type=travel' },
-  { label: 'Наборы', href: '/catalog?product_type=set' },
-  { label: 'Подарки', href: '/gift-cards' },
-  { label: 'Бестселлеры', href: '/for-you' },
-  { label: 'Новинки месяца', href: '/new' },
+  { label: 'in stock', href: '/catalog?in_stock=true' },
+  { label: 'travel sizes', href: '/catalog?product_type=travel' },
+  { label: 'sets', href: '/catalog?product_type=set' },
+  { label: 'gifts', href: '/gift-cards' },
+  { label: 'bestsellers', href: '/for-you' },
+  { label: 'this month new', href: '/new' },
 ];
 
 export function MegaMenu({ isOpen, onClose, categories, quickLinks }: MegaMenuProps) {
+  const navigate = useNavigate();
+
   if (!isOpen) return null;
 
   const categorySections =
@@ -113,7 +115,7 @@ export function MegaMenu({ isOpen, onClose, categories, quickLinks }: MegaMenuPr
 
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-[#111827] mb-3">Быстрый доступ</h3>
+                <h3 className="text-sm font-semibold text-[#111827] mb-3">quick links</h3>
                 <ul className="space-y-2">
                   {links.map((item) => (
                     <li key={item.label}>
@@ -135,16 +137,23 @@ export function MegaMenu({ isOpen, onClose, categories, quickLinks }: MegaMenuPr
                 <div className="relative z-10">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FF4DB8] mb-3">
                     <Sparkles className="w-3 h-3 text-white" />
-                    <span className="text-xs font-medium text-white">Для вас</span>
+                    <span className="text-xs font-medium text-white">for you</span>
                   </div>
 
-                  <h4 className="text-base font-bold text-[#111827] mb-2">Персональный оффер</h4>
+                  <h4 className="text-base font-bold text-[#111827] mb-2">personal offer</h4>
                   <p className="text-xs text-[#6B7280] mb-3 leading-relaxed">
-                    Подберём уход под ваш тип кожи
+                    match products to your skin profile and goals
                   </p>
 
-                  <Button variant="primary" className="w-full text-xs py-2" onClick={onClose}>
-                    Пройти тест
+                  <Button
+                    variant="primary"
+                    className="w-full text-xs py-2"
+                    onClick={() => {
+                      onClose();
+                      navigate('/for-you');
+                    }}
+                  >
+                    take the quiz
                   </Button>
                 </div>
               </div>

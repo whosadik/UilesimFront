@@ -45,9 +45,24 @@ export type RecommendationEventPayload = {
   context?: Record<string, unknown>;
 };
 
-export function home(): Promise<HomeRecsResponse> {
+type RecommendationRequestOptions = {
+  requestId?: string;
+};
+
+function withRequestHeaders(options?: RecommendationRequestOptions): HeadersInit | undefined {
+  if (!options?.requestId) {
+    return undefined;
+  }
+
+  return {
+    'X-Request-ID': options.requestId,
+  };
+}
+
+export function home(options?: RecommendationRequestOptions): Promise<HomeRecsResponse> {
   return apiFetch<HomeRecsResponse>('/api/me/recommendations/home', {
     method: 'GET',
+    headers: withRequestHeaders(options),
     skipCsrf: true,
   });
 }
@@ -56,7 +71,7 @@ export function bundle(params: {
   product_id: number | string;
   limit?: number;
   algo?: 'cooc' | 'reranker' | 'auto';
-}): Promise<BundleRecsResponse> {
+}, options?: RecommendationRequestOptions): Promise<BundleRecsResponse> {
   const query = new URLSearchParams();
   query.set('product_id', String(params.product_id));
 
@@ -70,13 +85,18 @@ export function bundle(params: {
 
   return apiFetch<BundleRecsResponse>(`/api/me/recommendations/bundle?${query.toString()}`, {
     method: 'GET',
+    headers: withRequestHeaders(options),
     skipCsrf: true,
   });
 }
 
-export function sendEvent(payload: RecommendationEventPayload): Promise<{ ok: boolean } | void> {
+export function sendEvent(
+  payload: RecommendationEventPayload,
+  options?: RecommendationRequestOptions,
+): Promise<{ ok: boolean } | void> {
   return apiFetch<{ ok: boolean } | void>('/api/me/recommendations/event', {
     method: 'POST',
+    headers: withRequestHeaders(options),
     body: JSON.stringify(payload),
   });
 }
