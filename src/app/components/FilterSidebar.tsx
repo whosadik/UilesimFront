@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, ChevronDown, Check } from 'lucide-react';
 import * as Accordion from '@radix-ui/react-accordion';
 import * as Checkbox from '@radix-ui/react-checkbox';
@@ -23,6 +23,8 @@ interface FilterSidebarProps {
   onFilterChange?: (filterId: string, value: string[] | [number, number]) => void;
   onReset?: () => void;
   className?: string;
+  selectedFilters?: Record<string, string[]>;
+  priceRange?: [number, number];
   initialPriceRange?: [number, number];
   minPrice?: number;
   maxPrice?: number;
@@ -48,28 +50,53 @@ export function FilterSidebar({
   onFilterChange,
   onReset,
   className = '',
+  selectedFilters: selectedFiltersProp,
+  priceRange: priceRangeProp,
   initialPriceRange = [0, 10000],
   minPrice = 0,
   maxPrice = 10000,
 }: FilterSidebarProps) {
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
-  const [priceRange, setPriceRange] = useState<[number, number]>(initialPriceRange);
+  const [selectedFiltersState, setSelectedFiltersState] = useState<Record<string, string[]>>(selectedFiltersProp ?? {});
+  const [priceRangeState, setPriceRangeState] = useState<[number, number]>(priceRangeProp ?? initialPriceRange);
+
+  useEffect(() => {
+    if (selectedFiltersProp) {
+      setSelectedFiltersState(selectedFiltersProp);
+    }
+  }, [selectedFiltersProp]);
+
+  useEffect(() => {
+    if (priceRangeProp) {
+      setPriceRangeState(priceRangeProp);
+    }
+  }, [priceRangeProp]);
+
+  useEffect(() => {
+    if (!priceRangeProp) {
+      setPriceRangeState(initialPriceRange);
+    }
+  }, [initialPriceRange, priceRangeProp]);
+
+  const selectedFilters = selectedFiltersProp ?? selectedFiltersState;
+  const priceRange = priceRangeProp ?? priceRangeState;
 
   const handleCheckboxChange = (groupId: string, optionId: string, checked: boolean) => {
     const current = selectedFilters[groupId] || [];
     const updated = checked ? [...current, optionId] : current.filter((id) => id !== optionId);
 
-    setSelectedFilters((prev) => ({ ...prev, [groupId]: updated }));
+    setSelectedFiltersState((prev) => ({ ...prev, [groupId]: updated }));
     onFilterChange?.(groupId, updated);
   };
 
   const handleReset = () => {
-    setSelectedFilters({});
-    setPriceRange(initialPriceRange);
+    setSelectedFiltersState({});
+    setPriceRangeState(initialPriceRange);
     onReset?.();
   };
 
-  const activeFilterCount = Object.values(selectedFilters).flat().length;
+  const activeFilterCount =
+    Object.values(selectedFilters).flat().length +
+    (priceRange[0] !== initialPriceRange[0] || priceRange[1] !== initialPriceRange[1] ? 1 : 0);
 
   return (
     <div className={`sticky top-24 ${className}`}>
@@ -103,7 +130,7 @@ export function FilterSidebar({
                       value={priceRange}
                       onValueChange={([min, max]) => {
                         const next: [number, number] = [min, max];
-                        setPriceRange(next);
+                        setPriceRangeState(next);
                         onFilterChange?.(group.id, next);
                       }}
                       max={maxPrice}

@@ -148,10 +148,8 @@ export function mapApiProductToGrid(
     price: Math.max(0, Math.round(price)),
     originalPrice,
     image,
-    category:
-      firstString(item.category, item.product_type) ||
-      options.defaultCategory ||
-      DEFAULT_CATEGORY,
+    category: firstString(item.category) || options.defaultCategory || DEFAULT_CATEGORY,
+    productType: firstString(item.product_type),
     isNew,
     discount: discount !== undefined ? Math.max(0, Math.round(discount)) : undefined,
     inStock: item.in_stock === undefined ? true : Boolean(item.in_stock),

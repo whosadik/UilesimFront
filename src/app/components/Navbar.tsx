@@ -160,10 +160,14 @@ export function Navbar({
               return item.trigger ? (
                 <button
                   key={item.label}
+                  type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     setMegaMenuOpen((prev) => !prev);
                   }}
+                  aria-haspopup="dialog"
+                  aria-expanded={megaMenuOpen}
+                  aria-label="Open catalog menu"
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all relative group ${
                     isActive ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
                   }`}
@@ -205,10 +209,14 @@ export function Navbar({
 
           <div className="hidden lg:flex xl:hidden items-center gap-1 flex-1 justify-center px-4">
             <button
+              type="button"
               onClick={(e) => {
                 e.preventDefault();
                 setMegaMenuOpen((prev) => !prev);
               }}
+              aria-haspopup="dialog"
+              aria-expanded={megaMenuOpen}
+              aria-label="Open catalog menu"
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors relative ${
                 isPathActive('/catalog') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
               }`}
