@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Map, RefreshCw, Sparkles, Star } from "lucide-react";
 import { RoadmapStepCard, type RoadmapStep } from "../components/RoadmapStepCard";
@@ -365,7 +365,7 @@ export default function RoadmapPage() {
   const isFullyCompleted = totalSteps > 0 && completedCount >= totalSteps;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-start justify-between gap-4 mb-4">
@@ -474,10 +474,10 @@ export default function RoadmapPage() {
                     >
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-                          ✦ {stepWhy}
+                          ? {stepWhy}
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280] text-[10px]">
-                          ↑ {stepImproves}
+                          ^ {stepImproves}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 ml-auto flex-shrink-0">
@@ -548,3 +548,4 @@ export default function RoadmapPage() {
     </div>
   );
 }
+

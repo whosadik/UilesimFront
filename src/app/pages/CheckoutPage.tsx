@@ -1,8 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ArrowRight, CheckCircle, ChevronRight, Map, Sparkles } from 'lucide-react';
 import { ApiError } from '../../shared/api/ApiError';
 import { getLastCheckout } from '../../shared/api/checkout';
+import type { GiftCardSnapshot } from '../../shared/api/giftCards';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import {
@@ -25,6 +26,8 @@ type CheckoutResult = {
   transactionId: string;
   grossAmount: number;
   discount: number;
+  giftCardApplied: number;
+  giftCard?: GiftCardSnapshot | null;
   pointsUsed: number;
   netAmount: number;
   pointsEarned: number;
@@ -130,6 +133,8 @@ const parseCheckoutResult = (
   }
 
   const discount = toNumber(payload.discount_amount) ?? 0;
+  const giftCard = isRecord(payload.gift_card) ? (payload.gift_card as GiftCardSnapshot) : null;
+  const giftCardApplied = toNumber(giftCard?.applied_amount) ?? 0;
   const pointsUsed = toNumber(payload.points_redeemed) ?? 0;
   const pointsEarned =
     toNumber(payload.points_earned) ??
@@ -143,10 +148,13 @@ const parseCheckoutResult = (
     transactionId,
     grossAmount: Math.max(0, Math.round(gross)),
     discount: Math.max(0, Math.round(discount)),
+    giftCardApplied: Math.max(0, Math.round(giftCardApplied)),
     pointsUsed: Math.max(0, Math.round(pointsUsed)),
     netAmount: Math.max(0, Math.round(net)),
     pointsEarned: Math.max(0, Math.round(pointsEarned)),
   };
+
+  result.giftCard = giftCard;
 
   if (pointsBalance !== undefined) {
     result.pointsBalance = Math.max(0, Math.round(pointsBalance));
@@ -559,7 +567,7 @@ export default function CheckoutPage() {
 
   if (isDataLoading) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF] text-sm text-[#6B7280]">
             Загружаем данные checkout...
@@ -571,7 +579,7 @@ export default function CheckoutPage() {
 
   if (!result) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF]">
             <h1 className="text-2xl font-semibold text-[#111827] mb-2">
@@ -604,7 +612,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
         <div className="text-center mb-8">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
@@ -647,6 +655,16 @@ export default function CheckoutPage() {
                 <span className="text-[#6B7280]">Скидка</span>
                 <span className="font-semibold text-[#FF4DB8]">
                   -{result.discount.toLocaleString('ru')} тг
+                </span>
+              </div>
+            )}
+            {result.giftCardApplied > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-[#6B7280]">
+                  Gift card{result.giftCard?.masked_code ? ` (${result.giftCard.masked_code})` : ''}
+                </span>
+                <span className="font-semibold text-[#FF4DB8]">
+                  -{result.giftCardApplied.toLocaleString('ru')} KZT
                 </span>
               </div>
             )}
@@ -851,5 +869,6 @@ export default function CheckoutPage() {
     </div>
   );
 }
+
 
 

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { Receipt, Calendar, ChevronDown } from "lucide-react";
 import { TransactionRow, Transaction } from "../components/TransactionRow";
@@ -65,7 +65,7 @@ const toNullableNumber = (value: unknown): number | null => {
 
 const formatMoney = (value: unknown): string => {
   const amount = toNullableNumber(value);
-  return amount === null ? "—" : `${Math.round(amount).toLocaleString("ru-RU")} ₸`;
+  return amount === null ? "—" : `${Math.round(amount).toLocaleString("ru-RU")} ?`;
 };
 
 const formatStatusLabel = (value: unknown): string => {
@@ -339,10 +339,14 @@ export default function TransactionsPage() {
   const detailPointsRedeemed = toNullableNumber(selectedTransactionDetail?.points_redeemed);
   const detailNewBalance = toNullableNumber(selectedTransactionDetail?.new_balance);
   const detailTierAfter = selectedTransactionDetail?.new_tier ?? selectedTransactionDetail?.tier_after;
+  const detailGiftCard =
+    selectedTransactionDetail?.gift_card && isRecord(selectedTransactionDetail.gift_card)
+      ? selectedTransactionDetail.gift_card
+      : null;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="page-centered-with-navbar-offset bg-gray-50 flex items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -350,7 +354,7 @@ export default function TransactionsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="page-centered-with-navbar-offset bg-gray-50 flex items-center justify-center">
         <ErrorState
           title="Не удалось загрузить транзакции"
           description={error}
@@ -361,7 +365,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-4">
@@ -500,6 +504,21 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                     <div className="space-y-2 text-sm">
+                      {detailGiftCard &&
+                        toNullableNumber(detailGiftCard.applied_amount) !== null &&
+                        toNullableNumber(detailGiftCard.applied_amount)! > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">
+                              Gift card
+                              {typeof detailGiftCard.masked_code === "string"
+                                ? ` (${detailGiftCard.masked_code})`
+                                : ""}
+                            </span>
+                            <span className="font-semibold text-green-600">
+                              -{formatMoney(detailGiftCard.applied_amount)}
+                            </span>
+                          </div>
+                        )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">Дата</span>
                         <span className="text-gray-900">
@@ -521,14 +540,14 @@ export default function TransactionsPage() {
                       {detailDiscountAmount !== null && detailDiscountAmount > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Скидка</span>
-                          <span className="font-semibold text-green-600">−{formatMoney(detailDiscountAmount)}</span>
+                          <span className="font-semibold text-green-600">?{formatMoney(detailDiscountAmount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">Итого</span>
                         <span className="text-gray-900 font-semibold">
                           {detailNetAmount !== null
-                            ? `${detailNetAmount.toLocaleString("ru-RU")} ₸`
+                            ? `${detailNetAmount.toLocaleString("ru-RU")} ?`
                             : formatMoney(selectedTransaction.amount)}
                         </span>
                       </div>
@@ -541,14 +560,18 @@ export default function TransactionsPage() {
                       {detailPointsRedeemed !== null && detailPointsRedeemed > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Списано баллов</span>
-                          <span className="font-semibold text-red-600">−{Math.round(detailPointsRedeemed)} б.</span>
+                          <span className="font-semibold text-red-600">?{Math.round(detailPointsRedeemed)} б.</span>
                         </div>
                       )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">Чистое изменение</span>
                         <span
                           className={`font-semibold ${
-                            selectedTransaction.points_change > 0 ? "text-green-600" : "text-red-600"
+                            selectedTransaction.points_change > 0
+                              ? "text-green-600"
+                              : selectedTransaction.points_change < 0
+                                ? "text-red-600"
+                                : "text-gray-500"
                           }`}
                         >
                           {selectedTransaction.points_change > 0 ? "+" : ""}
@@ -581,6 +604,38 @@ export default function TransactionsPage() {
                     <p className="text-sm text-gray-600 mb-2">Описание</p>
                     <p className="text-sm text-gray-900">{selectedTransaction.description}</p>
                   </div>
+
+                  {detailGiftCard && (
+                    <div className="rounded-lg border border-[#EAE6EF] bg-white p-4">
+                      <p className="text-sm font-semibold text-[#111827] mb-3">Gift card details</p>
+                      <div className="space-y-2 text-sm">
+                        {typeof detailGiftCard.recipient_email === "string" && detailGiftCard.recipient_email && (
+                          <div className="flex justify-between gap-3">
+                            <span className="text-gray-600">Recipient</span>
+                            <span className="text-gray-900">{detailGiftCard.recipient_email}</span>
+                          </div>
+                        )}
+                        {typeof detailGiftCard.masked_code === "string" && detailGiftCard.masked_code && (
+                          <div className="flex justify-between gap-3">
+                            <span className="text-gray-600">Code</span>
+                            <span className="font-mono text-gray-900">{detailGiftCard.masked_code}</span>
+                          </div>
+                        )}
+                        {toNullableNumber(detailGiftCard.amount) !== null && (
+                          <div className="flex justify-between gap-3">
+                            <span className="text-gray-600">Initial amount</span>
+                            <span className="text-gray-900">{formatMoney(detailGiftCard.amount)}</span>
+                          </div>
+                        )}
+                        {toNullableNumber(detailGiftCard.remaining_amount) !== null && (
+                          <div className="flex justify-between gap-3">
+                            <span className="text-gray-600">Balance after</span>
+                            <span className="text-gray-900">{formatMoney(detailGiftCard.remaining_amount)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {roadmapStep && (
                     <div className="rounded-lg border border-[#EAE6EF] bg-[#FFF8FC] p-4">
@@ -681,7 +736,7 @@ export default function TransactionsPage() {
                               </div>
                             </div>
                             <p className="text-sm text-gray-600">
-                              {item.quantity} × {item.unitPrice.toLocaleString("ru-RU")} ₸
+                              {item.quantity} ? {item.unitPrice.toLocaleString("ru-RU")} ?
                             </p>
                           </div>
                         ))}
@@ -697,5 +752,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+
 
 

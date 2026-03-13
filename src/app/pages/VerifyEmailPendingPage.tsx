@@ -169,7 +169,7 @@ export default function VerifyEmailPendingPage() {
   const hasActiveSession = Boolean(user);
 
   return (
-    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12">
+    <div className="page-centered-with-navbar-offset flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl bg-white rounded-3xl border border-gray-100 shadow-sm p-8 md:p-10">
         <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-5">
           <Mail className="w-8 h-8" />
@@ -254,3 +254,4 @@ export default function VerifyEmailPendingPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
@@ -46,6 +46,12 @@ interface CartItem {
 interface CheckoutTotals {
   subtotal: number;
   discount: number;
+  giftCardApplied: number;
+  giftCard?: {
+    maskedCode: string;
+    balanceBefore: number;
+    balanceAfter: number;
+  } | null;
   pointsRedeemed: number;
   total: number;
   pointsEarned: number;
@@ -70,6 +76,12 @@ interface UpsellSuggestion {
   actionHref: string;
   actionLabel: string;
 }
+
+type GiftCardMessageTone = 'success' | 'error' | 'info';
+
+type CartLocationState = {
+  giftCardCodeToApply?: string;
+};
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&q=80';
 
@@ -112,6 +124,32 @@ const formatLabel = (value: unknown): string | undefined => {
 
 const formatTierName = (value: string): string =>
   value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : 'Bronze';
+
+const normalizeGiftCardErrorMessage = (message: string): string => {
+  const normalized = message.trim();
+  const lower = normalized.toLowerCase();
+
+  if (!normalized) {
+    return 'Не удалось применить подарочную карту.';
+  }
+  if (lower.includes('not found') || lower.includes('invalid')) {
+    return 'Неверный код подарочной карты.';
+  }
+  if (lower.includes('expired')) {
+    return 'Срок действия подарочной карты истек.';
+  }
+  if (lower.includes('balance is empty') || lower.includes('empty')) {
+    return 'У этой подарочной карты уже нет остатка.';
+  }
+  if (lower.includes('no longer active')) {
+    return 'Эта подарочная карта больше недоступна.';
+  }
+  if (lower.includes('required')) {
+    return 'Введите код подарочной карты.';
+  }
+
+  return normalized;
+};
 
 const parseActiveOffer = (value: unknown): ActiveOffer | null => {
   if (!isRecord(value) || !isRecord(value.offer)) {
@@ -221,7 +259,7 @@ const buildRoadmapUpsell = (plan: RoadmapPlanApi | null): UpsellSuggestion | nul
   const price = toNumber(product.price);
   const productName = firstString(product.name);
   const productDescription = productName && price !== undefined
-    ? `${productName} • ${price.toLocaleString('ru')} ₸`
+    ? `${productName} • ${price.toLocaleString('ru')} ?`
     : productName
       ? `${productName} рекомендован для следующего шага.`
       : description;
@@ -338,7 +376,7 @@ function LoyaltyCartWidget({
         <div className="text-right">
           <p className="text-xs text-[#6B7280] mb-0.5">Новый баланс</p>
           <p className="text-sm font-semibold text-[#111827]">
-            {currentBalance.toLocaleString('ru')} → <span className="text-[#FF4DB8]">{newBalance.toLocaleString('ru')}</span>
+            {currentBalance.toLocaleString('ru')} {'->'} <span className="text-[#FF4DB8]">{newBalance.toLocaleString('ru')}</span>
           </p>
         </div>
       </div>
@@ -365,6 +403,10 @@ export default function CartPage() {
   const [pendingCartActionId, setPendingCartActionId] = useState<string | null>(null);
   const [pointsToUse, setPointsToUse] = useState(0);
   const [previewTotals, setPreviewTotals] = useState<CheckoutTotals | null>(null);
+  const [giftCardCodeInput, setGiftCardCodeInput] = useState('');
+  const [appliedGiftCardCode, setAppliedGiftCardCode] = useState<string | null>(null);
+  const [giftCardMessage, setGiftCardMessage] = useState<string | null>(null);
+  const [giftCardMessageTone, setGiftCardMessageTone] = useState<GiftCardMessageTone | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [availablePoints, setAvailablePoints] = useState(1247);
   const [currentTier, setCurrentTier] = useState('gold');
@@ -373,6 +415,10 @@ export default function CartPage() {
   const [isMetaLoading, setIsMetaLoading] = useState(true);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [metaRetryKey, setMetaRetryKey] = useState(0);
+  const pendingGiftCardCodeFromProfile =
+    isRecord(location.state) && typeof (location.state as CartLocationState).giftCardCodeToApply === 'string'
+      ? (location.state as CartLocationState).giftCardCodeToApply!.trim()
+      : '';
 
   const updateQuantity = async (id: string, newQty: number) => {
     const productId = Number(id);
@@ -433,10 +479,14 @@ export default function CartPage() {
 
   const summarySubtotal = previewTotals?.subtotal ?? subtotal;
   const summaryDiscount = previewTotals?.discount ?? discount;
+  const summaryGiftCardApplied = previewTotals?.giftCardApplied ?? 0;
   const summaryPointsRedeemed = previewTotals?.pointsRedeemed ?? pointsRedeemed;
   const summaryTotal = previewTotals?.total ?? total;
   const summaryPointsEarned = previewTotals?.pointsEarned ?? totalPointsEarned;
-  const maxRedeemablePoints = Math.max(0, Math.floor(summarySubtotal - summaryDiscount));
+  const maxRedeemablePoints = Math.max(
+    0,
+    Math.floor(summarySubtotal - summaryDiscount - summaryGiftCardApplied),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -556,6 +606,23 @@ export default function CartPage() {
     setPointsToUse((value) => Math.min(value, availablePoints, maxRedeemablePoints));
   }, [availablePoints, maxRedeemablePoints]);
 
+  useEffect(() => {
+    if (isCartLoading || !pendingGiftCardCodeFromProfile) {
+      return;
+    }
+
+    setGiftCardCodeInput(pendingGiftCardCodeFromProfile);
+    setAppliedGiftCardCode(pendingGiftCardCodeFromProfile);
+    setGiftCardMessage(
+      cartItems.length > 0
+        ? 'Подарочная карта добавлена из профиля. Проверяем код для текущей корзины...'
+        : 'Код подарочной карты подставлен. Добавьте товары в корзину, и карта применится автоматически.',
+    );
+    setGiftCardMessageTone('info');
+
+    navigate(location.pathname, { replace: true, state: null });
+  }, [cartItems.length, isCartLoading, location.pathname, navigate, pendingGiftCardCodeFromProfile]);
+
   const buildCheckoutItems = () =>
     cartItems
       .map((item) => ({
@@ -568,6 +635,7 @@ export default function CartPage() {
     channel: 'online',
     items: buildCheckoutItems(),
     apply_assignment_id: offerApplicable ? activeOffer?.assignmentId : undefined,
+    gift_card_code: appliedGiftCardCode ?? undefined,
     redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
   });
 
@@ -595,6 +663,8 @@ export default function CartPage() {
 
         const gross = toNumber(response.gross_total) ?? toNumber(response.subtotal) ?? subtotal;
         const appliedDiscount = toNumber(response.discount_amount) ?? toNumber(response.discount) ?? discount;
+        const giftCard = isRecord(response.gift_card) ? response.gift_card : null;
+        const giftCardApplied = toNumber(giftCard?.applied_amount) ?? 0;
         const usedPoints = toNumber(response.points_redeemed) ?? pointsToUse;
         const net = toNumber(response.net_total) ?? total;
         const earned =
@@ -605,10 +675,26 @@ export default function CartPage() {
         setPreviewTotals({
           subtotal: Math.max(0, Math.round(gross)),
           discount: Math.max(0, Math.round(appliedDiscount)),
+          giftCardApplied: Math.max(0, Math.round(giftCardApplied)),
+          giftCard: giftCard
+            ? {
+                maskedCode:
+                  typeof giftCard.masked_code === 'string' ? giftCard.masked_code : 'gift card',
+                balanceBefore: Math.max(0, Math.round(toNumber(giftCard.balance_before) ?? 0)),
+                balanceAfter: Math.max(0, Math.round(toNumber(giftCard.balance_after) ?? 0)),
+              }
+            : null,
           pointsRedeemed: Math.max(0, Math.round(usedPoints)),
           total: Math.max(0, Math.round(net)),
           pointsEarned: Math.max(0, Math.round(earned)),
         });
+        if (giftCard) {
+          setGiftCardMessage('Подарочная карта применена к этому заказу.');
+          setGiftCardMessageTone('success');
+        } else if (!appliedGiftCardCode && giftCardMessageTone !== 'error') {
+          setGiftCardMessage(null);
+          setGiftCardMessageTone(null);
+        }
       } catch (error) {
         if (cancelled) {
           return;
@@ -616,6 +702,18 @@ export default function CartPage() {
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 400 &&
+          appliedGiftCardCode &&
+          /gift card/i.test(error.message)
+        ) {
+          setGiftCardMessage(normalizeGiftCardErrorMessage(error.message));
+          setGiftCardMessageTone('error');
+          setAppliedGiftCardCode(null);
           return;
         }
 
@@ -628,7 +726,27 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeOffer?.assignmentId, cartItems, location.pathname, navigate, offerApplicable, pointsToUse, subtotal, discount, total, totalPointsEarned]);
+  }, [activeOffer?.assignmentId, appliedGiftCardCode, cartItems, discount, giftCardMessageTone, location.pathname, navigate, offerApplicable, pointsToUse, subtotal, total, totalPointsEarned]);
+
+  const handleApplyGiftCard = () => {
+    const trimmedCode = giftCardCodeInput.trim().toUpperCase();
+    if (!trimmedCode) {
+      setGiftCardMessage('Введите код подарочной карты.');
+      setGiftCardMessageTone('error');
+      return;
+    }
+    setGiftCardCodeInput(trimmedCode);
+    setGiftCardMessage('Проверяем подарочную карту...');
+    setGiftCardMessageTone('info');
+    setAppliedGiftCardCode(trimmedCode);
+  };
+
+  const handleRemoveGiftCard = () => {
+    setAppliedGiftCardCode(null);
+    setGiftCardCodeInput('');
+    setGiftCardMessage(null);
+    setGiftCardMessageTone(null);
+  };
 
   const handleCheckout = async () => {
     const payload = buildCheckoutPayload();
@@ -652,6 +770,10 @@ export default function CartPage() {
       setCartItems([]);
       setPreviewTotals(null);
       setPointsToUse(0);
+      setAppliedGiftCardCode(null);
+      setGiftCardCodeInput('');
+      setGiftCardMessage(null);
+      setGiftCardMessageTone(null);
 
       navigate('/checkout', {
         state: {
@@ -693,9 +815,9 @@ export default function CartPage() {
     !activeOffer
       ? 'Когда для вас появится новый оффер, он автоматически отобразится здесь.'
       : summaryDiscount > 0 && offerApplicable
-      ? `Выгода по расчету: ${summaryDiscount.toLocaleString('ru')} ₸`
+      ? `Выгода по расчету: ${summaryDiscount.toLocaleString('ru')} ?`
       : activeOffer.scope === 'cart' && activeOffer.minBasketAmount !== undefined
-        ? `Оффер применится к корзине от ${activeOffer.minBasketAmount.toLocaleString('ru')} ₸.`
+        ? `Оффер применится к корзине от ${activeOffer.minBasketAmount.toLocaleString('ru')} ?.`
         : activeOffer.scope === 'cart'
           ? 'Оффер будет применен ко всей корзине при оформлении.'
           : activeOffer.scope === 'product_id' && roadmapUpsell
@@ -725,7 +847,7 @@ export default function CartPage() {
         });
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen bg-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Корзина' }]} />
@@ -775,7 +897,7 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#6B7280] mb-0.5">{item.brand}</p>
                     <h3 className="text-sm font-semibold text-[#111827] mb-2 line-clamp-1">{item.name}</h3>
-                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru')} ₸</p>
+                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru')} ?</p>
                     <p className="text-xs text-[#FF4DB8] mt-1 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       +{item.pointsEarned * item.quantity} баллов
@@ -797,7 +919,7 @@ export default function CartPage() {
                         disabled={pendingCartActionId === item.id}
                         className="px-3 py-1.5 text-[#6B7280] hover:bg-gray-50 text-sm"
                       >
-                        −
+                        ?
                       </button>
                       <span className="px-3 py-1.5 text-sm font-semibold text-[#111827]">{item.quantity}</span>
                       <button
@@ -858,6 +980,88 @@ export default function CartPage() {
                 )}
               </div>
 
+              <div
+                className={`p-5 rounded-2xl bg-white border ${
+                  giftCardMessageTone === 'error' ? 'border-[#FECACA] bg-[#FFF7F7]' : 'border-[#EAE6EF]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#111827]">Gift card</h3>
+                    <p className="text-xs text-[#6B7280]">Apply one code per checkout.</p>
+                  </div>
+                  {previewTotals?.giftCard && (
+                    <span className="text-xs font-medium text-[#FF4DB8]">
+                      -{summaryGiftCardApplied.toLocaleString('ru')} KZT
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={giftCardCodeInput}
+                    onChange={(event) => {
+                      setGiftCardCodeInput(event.target.value);
+                      if (!appliedGiftCardCode || giftCardMessageTone !== 'success') {
+                        setGiftCardMessage(null);
+                        setGiftCardMessageTone(null);
+                      }
+                    }}
+                    placeholder="ABCD-WXYZ-EFGH-JKLM"
+                    className="flex-1 px-3 py-2 rounded-xl border border-[#EAE6EF] text-sm uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                  />
+                  {appliedGiftCardCode ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveGiftCard}
+                      className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyGiftCard}
+                      className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+
+                {giftCardMessage && (
+                  <div
+                    className={`mt-3 rounded-xl border px-3 py-2 text-xs ${
+                      giftCardMessageTone === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : giftCardMessageTone === 'info'
+                          ? 'border-[#E5E7EB] bg-gray-50 text-[#4B5563]'
+                          : 'border-[#FECACA] bg-[#FEF2F2] text-[#B42318]'
+                    }`}
+                  >
+                    {giftCardMessage}
+                  </div>
+                )}
+
+                {previewTotals?.giftCard && (
+                  <div className="mt-3 rounded-xl bg-gray-50 px-3 py-3 text-xs text-[#4B5563] space-y-1.5">
+                    <div className="flex justify-between gap-3">
+                      <span>Code</span>
+                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.maskedCode}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span>Balance before</span>
+                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceBefore.toLocaleString('ru')} KZT</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span>Balance after</span>
+                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceAfter.toLocaleString('ru')} KZT</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Loyalty Points widget */}
               <LoyaltyCartWidget
                 pointsEarned={summaryPointsEarned}
@@ -891,7 +1095,7 @@ export default function CartPage() {
                 </div>
                 {pointsToUse > 0 && (
                   <p className="text-xs text-[#FF4DB8] mt-2">
-                    Спишем: {summaryPointsRedeemed.toLocaleString('ru')} баллов = {summaryPointsRedeemed.toLocaleString('ru')} ₸
+                    Спишем: {summaryPointsRedeemed.toLocaleString('ru')} баллов = {summaryPointsRedeemed.toLocaleString('ru')} ?
                   </p>
                 )}
               </div>
@@ -900,23 +1104,31 @@ export default function CartPage() {
               <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF] space-y-2.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Товары</span>
-                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru')} ₸</span>
+                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru')} ?</span>
                 </div>
                 {summaryDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">Скидка</span>
-                    <span className="font-semibold text-[#FF4DB8]">−{summaryDiscount.toLocaleString('ru')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">?{summaryDiscount.toLocaleString('ru')} ?</span>
+                  </div>
+                )}
+                {summaryGiftCardApplied > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6B7280]">
+                      Gift card{previewTotals?.giftCard?.maskedCode ? ` (${previewTotals.giftCard.maskedCode})` : ''}
+                    </span>
+                    <span className="font-semibold text-[#FF4DB8]">-{summaryGiftCardApplied.toLocaleString('ru')} KZT</span>
                   </div>
                 )}
                 {summaryPointsRedeemed > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">Списано баллов</span>
-                    <span className="font-semibold text-[#FF4DB8]">−{summaryPointsRedeemed.toLocaleString('ru')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">?{summaryPointsRedeemed.toLocaleString('ru')} ?</span>
                   </div>
                 )}
                 <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">
                   <span className="text-base font-semibold text-[#111827]">Итого</span>
-                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru')} ₸</span>
+                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru')} ?</span>
                 </div>
               </div>
 
@@ -939,4 +1151,6 @@ export default function CartPage() {
     </div>
   );
 }
+
+
 

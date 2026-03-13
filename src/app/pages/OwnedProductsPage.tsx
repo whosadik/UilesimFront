@@ -260,14 +260,14 @@ export default function OwnedProductsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="page-centered-with-navbar-offset bg-gray-50 flex items-center justify-center">
         <LoadingSpinner size="lg" text="Загружаем ваши товары" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-4">
@@ -482,3 +482,5 @@ export default function OwnedProductsPage() {
     </div>
   );
 }
+
+

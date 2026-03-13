@@ -8,7 +8,7 @@ import { Button } from '../components/Button';
 import { ProfileWizard } from '../components/ProfileWizard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
-import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock, User, Phone, MapPin, Mail } from 'lucide-react';
+import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock, User, Phone, MapPin, Mail, Gift } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
@@ -34,6 +34,7 @@ import {
 } from '../../shared/profile/taxonomy';
 
 import { clickOffer, getNextOffer } from '../../shared/api/offers';
+import { listReceivedGiftCards, type ReceivedGiftCardItem } from '../../shared/api/giftCards';
 
 type ProfileWizardData = {
   skinType?: string[]; // API ждёт string, берём первый
@@ -295,6 +296,21 @@ function buildProfileSummaryState(
   };
 }
 
+function formatGiftCardStatus(status?: string): string {
+  switch (String(status ?? '').toLowerCase()) {
+    case 'active':
+      return 'Активна';
+    case 'exhausted':
+      return 'Использована';
+    case 'expired':
+      return 'Истекла';
+    case 'refunded':
+      return 'Отменена';
+    default:
+      return 'Неизвестно';
+  }
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -333,6 +349,8 @@ export default function ProfilePage() {
   });
 
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
+  const [receivedGiftCards, setReceivedGiftCards] = useState<ReceivedGiftCardItem[]>([]);
+  const [copiedGiftCardId, setCopiedGiftCardId] = useState<number | null>(null);
   const [offer, setOffer] = useState<OfferState | null>(null);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -437,15 +455,17 @@ export default function ProfilePage() {
     const load = async () => {
       setIsPageLoading(true);
       setLoadError(null);
+      setReceivedGiftCards([]);
 
       try {
-        const [profileResp, profileTaxonomyResp, loyaltyResp, favResp, offerResp, homeResp] = await Promise.all([
+        const [profileResp, profileTaxonomyResp, loyaltyResp, favResp, offerResp, homeResp, receivedGiftCardsResp] = await Promise.all([
           getProfile(),          // GET /api/me/profile :contentReference[oaicite:18]{index=18}
           getProfileTaxonomy().catch(() => null),
           getLoyalty(),          // GET /api/me/loyalty :contentReference[oaicite:19]{index=19}
           getFavoriteCategory(), // GET /api/me/favorite-category :contentReference[oaicite:20]{index=20}
           getNextOffer(),        // GET /api/me/next-offer :contentReference[oaicite:21]{index=21}
           home(),                // GET /api/me/recommendations/home :contentReference[oaicite:22]{index=22}
+          listReceivedGiftCards().catch(() => ({ ok: true, count: 0, items: [] })),
         ]);
 
         if (cancelled) return;
@@ -500,6 +520,7 @@ export default function ProfilePage() {
           currency: currencyValue,
           explain: explainText,
         });
+        setReceivedGiftCards(Array.isArray(receivedGiftCardsResp?.items) ? receivedGiftCardsResp.items : []);
 
         // home: { ok, sections:[{key,title,results:[{product,score,...}]}] } :contentReference[oaicite:23]{index=23}
         let results: unknown[] = [];
@@ -588,6 +609,29 @@ export default function ProfilePage() {
     }));
   };
 
+  const handleCopyGiftCardCode = async (giftCardId: number, code?: string) => {
+    if (!code) {
+      toast.error('Полный код подарочной карты недоступен.');
+      return;
+    }
+
+    if (!('clipboard' in navigator) || typeof navigator.clipboard.writeText !== 'function') {
+      toast.error('Не удалось скопировать код автоматически.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedGiftCardId(giftCardId);
+      toast.success('Код подарочной карты скопирован.');
+      window.setTimeout(() => {
+        setCopiedGiftCardId((current) => (current === giftCardId ? null : current));
+      }, 2000);
+    } catch {
+      toast.error('Не удалось скопировать код автоматически.');
+    }
+  };
+
   const handleSavePersonalDetails = async () => {
     setIsPersonalDetailsSaving(true);
 
@@ -627,7 +671,7 @@ export default function ProfilePage() {
 
   if (isAuthLoading || isPageLoading) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
           <LoadingSpinner size="lg" />
         </div>
@@ -637,7 +681,7 @@ export default function ProfilePage() {
 
   if (loadError) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
           <ErrorState onRetry={() => setRetryKey((prev) => prev + 1)} />
         </div>
@@ -646,7 +690,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Мой профиль' }]} />
@@ -822,6 +866,104 @@ export default function ProfilePage() {
             </div>
           </div>
         </section>
+
+        {receivedGiftCards.length > 0 && (
+          <section className="mb-12">
+            <div className="rounded-2xl border border-[#EAE6EF] bg-white p-6 lg:p-8 shadow-sm">
+              <div className="mb-6 flex items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF4E8]">
+                    <Gift className="h-5 w-5 text-[#F97316]" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-[#111827]">Подарочные карты для вас</h2>
+                    <p className="text-sm text-[#6B7280]">
+                      Показываем этот блок только если на ваш email действительно отправили gift card.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                {receivedGiftCards.map((giftCard) => {
+                  const senderLabel = giftCard.sender_name || giftCard.sender_email || 'Подарок';
+                  const expiresAt = formatDateRu(giftCard.snapshot?.expires_at as string | null | undefined);
+                  const remainingAmount = giftCard.snapshot?.remaining_amount ?? 0;
+                  const totalAmount = giftCard.snapshot?.amount ?? 0;
+                  const status = String(giftCard.snapshot?.status ?? giftCard.status ?? '');
+                  const isActive = status.toLowerCase() === 'active';
+
+                  return (
+                    <article
+                      key={giftCard.id}
+                      className="rounded-2xl border border-[#F3E7D6] bg-gradient-to-br from-[#FFF9F2] to-white p-5"
+                    >
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-[#6B7280]">От кого</p>
+                          <p className="break-words text-lg font-bold text-[#111827]">{senderLabel}</p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            isActive ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#4B5563]'
+                          }`}
+                        >
+                          {formatGiftCardStatus(status)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-white/80 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">Остаток</p>
+                          <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(remainingAmount)}</p>
+                        </div>
+                        <div className="rounded-xl bg-white/80 px-4 py-3">
+                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">Номинал</p>
+                          <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(totalAmount)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-2 text-sm text-[#6B7280]">
+                        <p>
+                          Код: <span className="font-medium text-[#111827]">{String(giftCard.snapshot?.masked_code ?? '-')}</span>
+                        </p>
+                        {giftCard.message ? (
+                          <p>
+                            Сообщение: <span className="text-[#111827]">{giftCard.message}</span>
+                          </p>
+                        ) : null}
+                        {expiresAt ? (
+                          <p>
+                            Действует до: <span className="font-medium text-[#111827]">{expiresAt}</span>
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {giftCard.code ? (
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyGiftCardCode(giftCard.id, giftCard.code)}
+                            className="inline-flex items-center justify-center rounded-full border border-[#E5E7EB] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-gray-50"
+                          >
+                            {copiedGiftCardId === giftCard.id ? 'Скопировано' : 'Скопировать код'}
+                          </button>
+                          <Link
+                            to="/cart"
+                            state={{ giftCardCodeToApply: giftCard.code }}
+                            className="inline-flex items-center justify-center rounded-full border border-[#111827] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-[#111827] hover:text-white"
+                          >
+                            Применить в корзине
+                          </Link>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-[#111827] mb-6">Ваш персональный оффер</h2>
@@ -1046,3 +1188,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

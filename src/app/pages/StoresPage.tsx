@@ -2,13 +2,13 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { MapPin, Clock, Phone } from 'lucide-react';
 
 const stores = [
-  { id: '1', name: 'Uilesim Москва Центр', address: 'ул. Тверская, 12', city: 'Москва', hours: '10:00 - 22:00', phone: '+7 (495) 123-45-67' },
-  { id: '2', name: 'Uilesim Санкт-Петербург', address: 'Невский пр., 45', city: 'Санкт-Петербург', hours: '10:00 - 22:00', phone: '+7 (812) 234-56-78' },
+  { id: '1', name: 'Uilesim', address: 'ул. Тверская, 12', city: 'Астана', hours: '10:00 - 22:00', phone: '+7 (495) 123-45-67' },
+  { id: '2', name: 'Uilesim', address: 'Невский пр., 45', city: 'Астана', hours: '10:00 - 22:00', phone: '+7 (812) 234-56-78' },
 ];
 
 export default function StoresPage() {
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen">
+    <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Магазины' }]} />
@@ -50,3 +50,4 @@ export default function StoresPage() {
     </div>
   );
 }
+

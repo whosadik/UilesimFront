@@ -1508,11 +1508,11 @@ export default function ForYouPage() {
   const handleRecommendationAddToCart = async (product: RecommendationCard, quantity: number) => {
     try {
       const nextQuantity = await addToCart(product.id, quantity);
-      toast.success('Р”РѕР±Р°РІР»РµРЅРѕ РІ РєРѕСЂР·РёРЅСѓ!', {
+      toast.success('Добавлено в корзину!', {
         description:
           nextQuantity > 1
-            ? `РўРµРїРµСЂСЊ РІ РєРѕСЂР·РёРЅРµ ${nextQuantity} С€С‚.`
-            : `+${product.pointsEarned} Р±Р°Р»Р»РѕРІ РїРѕСЃР»Рµ РїРѕРєСѓРїРєРё`,
+            ? `Теперь в корзине ${nextQuantity} шт.`
+            : `+${product.pointsEarned} баллов после покупки`,
       });
 
       const productId = Number(product.id);
@@ -1531,7 +1531,7 @@ export default function ForYouPage() {
         return;
       }
 
-      toast.error(error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕР±Р°РІРёС‚СЊ С‚РѕРІР°СЂ РІ РєРѕСЂР·РёРЅСѓ');
+      toast.error(error instanceof Error ? error.message : 'Не удалось добавить товар в корзину');
     }
   };
 
@@ -1544,7 +1544,7 @@ export default function ForYouPage() {
         return;
       }
 
-      toast.error(error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РєРѕСЂР·РёРЅСѓ');
+      toast.error(error instanceof Error ? error.message : 'Не удалось обновить корзину');
     }
   };
 
@@ -1656,7 +1656,7 @@ export default function ForYouPage() {
 
   if (showAutoOnboarding) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+      <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[800px] mx-auto px-6 py-8 lg:py-12">
           {shouldShowEmailVerificationNotice && user?.email ? (
             <EmailVerificationNotice
@@ -1679,7 +1679,7 @@ export default function ForYouPage() {
   }
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         {shouldShowEmailVerificationNotice && user?.email ? (
           <EmailVerificationNotice
@@ -1903,17 +1903,17 @@ export default function ForYouPage() {
                 <span className="text-xs text-[#6B7280]">Персональный</span>
               </div>
               <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">
-                {personalOffer?.title ?? 'РџРµСЂСЃРѕРЅР°Р»СЊРЅС‹Р№ РѕС„С„РµСЂ РїРѕРєР° РЅРµРґРѕСЃС‚СѓРїРµРЅ'}
+                {personalOffer?.title ?? 'Персональный оффер пока недоступен'}
               </h3>
               <p className="text-xs text-[#6B7280] mb-3">
-                {personalOffer?.description ?? 'РљРѕРіРґР° API РїРѕРґР±РµСЂС‘С‚ РїРѕРґС…РѕРґСЏС‰РµРµ РїСЂРµРґР»РѕР¶РµРЅРёРµ, РѕРЅРѕ РїРѕСЏРІРёС‚СЃСЏ Р·РґРµСЃСЊ.'}
+                {personalOffer?.description ?? 'Когда API подберёт подходящее предложение, оно появится здесь.'}
               </p>
 
               {/* Saving highlight */}
               <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
                 <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
                 <p className="text-xs text-[#111827]">
-                  {personalOffer?.highlight ?? 'РЎРµР№С‡Р°СЃ РґР»СЏ РІР°С€РµРіРѕ РїСЂРѕС„РёР»СЏ РЅРµС‚ Р°РєС‚РёРІРЅРѕРіРѕ РїСЂРµРґР»РѕР¶РµРЅРёСЏ.'}
+                  {personalOffer?.highlight ?? 'Сейчас для вашего профиля нет активного предложения.'}
                 </p>
               </div>
 
@@ -1986,3 +1986,4 @@ export default function ForYouPage() {
     </div>
   );
 }
+

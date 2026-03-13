@@ -7,7 +7,7 @@ export default function NetworkErrorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="page-centered-with-navbar-offset bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         {/* Icon */}
         <div className="mb-6 flex justify-center">
@@ -54,3 +54,4 @@ export default function NetworkErrorPage() {
     </div>
   );
 }
+

@@ -362,7 +362,7 @@ export default function ProductPage() {
 
   if (isLoading && !product) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen">
+      <div className="page-with-navbar-offset min-h-screen">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
           <LoadingSpinner size="lg" text="loading product..." />
         </div>
@@ -372,7 +372,7 @@ export default function ProductPage() {
 
   if (!product) {
     return (
-      <div className="pt-20 lg:pt-28 min-h-screen">
+      <div className="page-with-navbar-offset min-h-screen">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
           <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-6">
             <p className="text-sm text-[#B42318]">{error ?? 'product is not available.'}</p>
@@ -392,7 +392,7 @@ export default function ProductPage() {
   const brandSlug = product.brandSlug || toBrandSlug(product.brand);
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen">
+    <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         {error && (
           <div className="mb-6 rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-4">
@@ -560,3 +560,4 @@ export default function ProductPage() {
     </div>
   );
 }
+

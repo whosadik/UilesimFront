@@ -71,7 +71,7 @@ export default function SalePage() {
   );
 
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen">
+    <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'sale' }]} />
@@ -108,3 +108,4 @@ export default function SalePage() {
     </div>
   );
 }
+

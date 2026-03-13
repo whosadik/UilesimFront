@@ -77,7 +77,7 @@ Email: legal@uilesim.kz
 
 export default function TermsPage() {
   return (
-    <div className="pt-20 lg:pt-28 min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumbs */}
         <div className="mb-6">
@@ -173,3 +173,4 @@ export default function TermsPage() {
     </div>
   );
 }
+

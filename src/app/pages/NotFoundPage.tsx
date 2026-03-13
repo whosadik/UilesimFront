@@ -6,7 +6,7 @@ export default function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="pt-20 min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50">
+    <div className="page-with-navbar-offset min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50">
       <div className="text-center px-6 max-w-md">
         <div className="mb-8">
           <h1 className="text-9xl font-bold text-[#FF4DB8] mb-4">404</h1>
@@ -26,3 +26,4 @@ export default function NotFoundPage() {
     </div>
   );
 }
+

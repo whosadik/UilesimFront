@@ -8,6 +8,7 @@ export type CheckoutBase = {
   items: CheckoutItem[];
   apply_assignment_id?: number;
   redeem_points?: number;
+  gift_card_code?: string;
 };
 
 export type CheckoutPreviewRequest = CheckoutBase;

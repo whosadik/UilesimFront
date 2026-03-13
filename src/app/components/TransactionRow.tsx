@@ -71,7 +71,8 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const amount = amountRaw !== undefined ? amountRaw : 0;
   const pointsRaw = toNumber(transaction.points_change ?? transaction.points_delta ?? transaction.points_earned);
   const pointsChange = pointsRaw !== undefined ? Math.round(pointsRaw) : 0;
-  const isPositive = pointsChange > 0;
+  const pointsTone =
+    pointsChange > 0 ? 'text-green-600' : pointsChange < 0 ? 'text-red-600' : 'text-gray-500';
 
   const dateValue =
     (typeof transaction.date === 'string' && transaction.date) ||
@@ -179,8 +180,8 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
       </div>
 
       <div className="flex-shrink-0 text-right">
-        <p className={`font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-          {isPositive ? '+' : ''}
+        <p className={`font-semibold ${pointsTone}`}>
+          {pointsChange > 0 ? '+' : ''}
           {pointsChange} б.
         </p>
         {amount !== 0 && (

@@ -2,6 +2,22 @@
 @import './tailwind.css';
 @import './theme.css';
 
+:root {
+  --app-navbar-offset: 4rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --app-navbar-offset: 6.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --app-navbar-offset: 7.5rem;
+  }
+}
+
 /* Hide scrollbar for carousel */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -15,6 +31,15 @@
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;
+}
+
+.page-with-navbar-offset {
+  padding-top: var(--app-navbar-offset);
+}
+
+.page-centered-with-navbar-offset {
+  padding-top: var(--app-navbar-offset);
+  min-height: calc(100vh - var(--app-navbar-offset));
 }
 
 /* Line clamp utility */

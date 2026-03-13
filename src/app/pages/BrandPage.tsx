@@ -102,7 +102,7 @@ export default function BrandPage() {
   const tabProducts = activeTab === 'new' ? newProducts : activeTab === 'all' ? products : hitsProducts;
 
   return (
-    <div className="min-h-screen pt-20 lg:pt-28">
+    <div className="min-h-screen page-with-navbar-offset">
       <div className="relative border-b border-[#FF4DB8]/20 bg-gradient-to-br from-[#FFE1F2] to-pink-50 py-12 lg:py-16">
         <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[#FF4DB8]/10 blur-3xl" />
 
@@ -189,3 +189,4 @@ export default function BrandPage() {
     </div>
   );
 }
+

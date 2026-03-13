@@ -67,7 +67,7 @@ export default function VerifyEmailPage() {
   }, [refresh, searchParams]);
 
   return (
-    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12">
+    <div className="page-centered-with-navbar-offset flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl bg-white rounded-3xl border border-gray-100 shadow-sm p-8 md:p-10">
         <div className="flex items-center justify-center w-16 h-16 rounded-full mx-auto mb-5 bg-gray-50">
           {status === "verifying" ? (
@@ -118,3 +118,4 @@ export default function VerifyEmailPage() {
     </div>
   );
 }
+
