@@ -2,8 +2,15 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { MapPin, Clock, Phone } from 'lucide-react';
 
 const stores = [
-  { id: '1', name: 'Uilesim', address: 'ул. Тверская, 12', city: 'Астана', hours: '10:00 - 22:00', phone: '+7 (495) 123-45-67' },
-  { id: '2', name: 'Uilesim', address: 'Невский пр., 45', city: 'Астана', hours: '10:00 - 22:00', phone: '+7 (812) 234-56-78' },
+  {
+    id: '1',
+    name: 'Uilesim Mega Silkway',
+    address: 'пр. Кабанбай Батыра, 62, ТРЦ Mega Silkway',
+    city: 'Астана',
+    hours: '10:00 - 22:00',
+    phone: '8 705 318 7996',
+    mapQuery: 'MEGA Silk Way, 62 Qabanbay Batyr Ave, Astana, Kazakhstan',
+  },
 ];
 
 export default function StoresPage() {
@@ -19,9 +26,29 @@ export default function StoresPage() {
           <p className="text-base text-[#6B7280]">Найдите ближайший магазин Uilesim</p>
         </div>
 
-        {/* Map Placeholder */}
-        <div className="mb-8 h-64 rounded-2xl bg-gray-100 border border-[#EAE6EF] flex items-center justify-center">
-          <p className="text-[#6B7280]">Карта (placeholder)</p>
+        {/* Store Map */}
+        <div className="mb-8 overflow-hidden rounded-2xl border border-[#EAE6EF] bg-white">
+          <iframe
+            title="Uilesim Mega Silkway map"
+            src={`https://www.google.com/maps?q=${encodeURIComponent(stores[0].mapQuery)}&z=16&output=embed`}
+            className="h-72 w-full md:h-96"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+          <div className="flex flex-col gap-3 border-t border-[#EAE6EF] px-5 py-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#111827]">Карта магазина</p>
+              <p className="text-sm text-[#6B7280]">{stores[0].address}, {stores[0].city}</p>
+            </div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stores[0].mapQuery)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-full border border-[#111827] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-[#111827] hover:text-white"
+            >
+              Открыть в Maps
+            </a>
+          </div>
         </div>
 
         {/* Stores List */}
@@ -40,7 +67,12 @@ export default function StoresPage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <Phone className="w-5 h-5 text-[#FF4DB8] flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-[#6B7280]">{store.phone}</div>
+                  <a
+                    href={`tel:${store.phone.replace(/\s+/g, '')}`}
+                    className="text-sm text-[#6B7280] hover:text-[#111827] transition-colors"
+                  >
+                    {store.phone}
+                  </a>
                 </div>
               </div>
             </div>
@@ -50,4 +82,3 @@ export default function StoresPage() {
     </div>
   );
 }
-
