@@ -897,7 +897,7 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#6B7280] mb-0.5">{item.brand}</p>
                     <h3 className="text-sm font-semibold text-[#111827] mb-2 line-clamp-1">{item.name}</h3>
-                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru')} ?</p>
+                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru')} ₸</p>
                     <p className="text-xs text-[#FF4DB8] mt-1 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       +{item.pointsEarned * item.quantity} баллов
@@ -1104,12 +1104,12 @@ export default function CartPage() {
               <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF] space-y-2.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Товары</span>
-                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru')} ?</span>
+                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru')} ₸</span>
                 </div>
                 {summaryDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">Скидка</span>
-                    <span className="font-semibold text-[#FF4DB8]">?{summaryDiscount.toLocaleString('ru')} ?</span>
+                    <span className="font-semibold text-[#FF4DB8]">?{summaryDiscount.toLocaleString('ru')} ₸</span>
                   </div>
                 )}
                 {summaryGiftCardApplied > 0 && (
@@ -1128,7 +1128,7 @@ export default function CartPage() {
                 )}
                 <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">
                   <span className="text-base font-semibold text-[#111827]">Итого</span>
-                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru')} ?</span>
+                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru')} ₸</span>
                 </div>
               </div>
 
