@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Search, TrendingUp, X } from 'lucide-react';
+
 import { ProductGrid, type Product } from '../components/ProductGrid';
 import { EmptyState } from '../components/EmptyState';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -10,13 +11,71 @@ import { FilterBar } from '../components/FilterBar';
 import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
 const MAX_RECENT_SEARCHES = 5;
 const SEARCH_DEBOUNCE_MS = 2000;
 
-const SUGGESTED_QUERIES = ['skincare', 'makeup', 'serum', 'lipstick', 'spf'] as const;
+const SUGGESTED_QUERIES = [
+  { label: 'Уход за кожей', value: 'skincare' },
+  { label: 'Макияж', value: 'makeup' },
+  { label: 'Сыворотка', value: 'serum' },
+  { label: 'Помада', value: 'lipstick' },
+  { label: 'SPF', value: 'spf' },
+] as const;
+
+const searchPageCopy = {
+  ru: {
+    searchPlaceholder: 'Ищите товары или бренды...',
+    loading: 'Загружаем товары...',
+    errorTitle: 'Не удалось выполнить поиск',
+    recentSearches: 'Недавние запросы',
+    clear: 'Очистить',
+    popularQueries: 'Популярные запросы',
+    popularNow: 'Популярно сейчас',
+    popularUnavailable: 'Популярные товары пока недоступны.',
+    foundCount: (count: number) => `Найдено товаров: ${count}`,
+    nothingFound: 'Ничего не найдено',
+    resultsFor: 'Результаты по запросу',
+    emptyDescription: (query: string) => `По запросу "${query}" ничего не найдено. Попробуйте другой вариант.`,
+    clearSearch: 'Очистить поиск',
+    loadError: 'Не удалось загрузить результаты поиска. Попробуйте еще раз.',
+  },
+  kk: {
+    searchPlaceholder: 'Тауарлар мен брендтерді іздеңіз...',
+    loading: 'Тауарларды жүктеп жатырмыз...',
+    errorTitle: 'Іздеуді орындау мүмкін болмады',
+    recentSearches: 'Соңғы сұраулар',
+    clear: 'Тазалау',
+    popularQueries: 'Танымал сұраулар',
+    popularNow: 'Қазір танымал',
+    popularUnavailable: 'Танымал тауарлар әзірге қолжетімсіз.',
+    foundCount: (count: number) => `Табылған тауарлар: ${count}`,
+    nothingFound: 'Ештеңе табылмады',
+    resultsFor: 'Сұрау бойынша нәтижелер',
+    emptyDescription: (query: string) => `"${query}" сұрауы бойынша ештеңе табылмады. Басқа нұсқаны қолданып көріңіз.`,
+    clearSearch: 'Іздеуді тазалау',
+    loadError: 'Іздеу нәтижелерін жүктеу мүмкін болмады. Қайталап көріңіз.',
+  },
+  en: {
+    searchPlaceholder: 'Search products or brands...',
+    loading: 'Loading products...',
+    errorTitle: 'Could not complete the search',
+    recentSearches: 'Recent searches',
+    clear: 'Clear',
+    popularQueries: 'Popular queries',
+    popularNow: 'Popular now',
+    popularUnavailable: 'Popular products are not available yet.',
+    foundCount: (count: number) => `Products found: ${count}`,
+    nothingFound: 'Nothing found',
+    resultsFor: 'Results for',
+    emptyDescription: (query: string) => `Nothing was found for "${query}". Try another query.`,
+    clearSearch: 'Clear search',
+    loadError: 'Could not load search results. Please try again.',
+  },
+} as const;
 
 const readRecentSearches = (): string[] => {
   if (typeof window === 'undefined') {
@@ -49,6 +108,8 @@ const saveRecentSearches = (value: string[]) => {
 };
 
 export default function SearchPage() {
+  const { language } = useI18n();
+  const copy = searchPageCopy[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get('q') || '').trim();
 
@@ -89,7 +150,7 @@ export default function SearchPage() {
         }
 
         setProducts([]);
-        setLoadError('failed to load search results. please try again.');
+        setLoadError(copy.loadError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -102,7 +163,7 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, reloadKey]);
+  }, [copy.loadError, query, reloadKey]);
 
   useEffect(() => {
     setSearchInput(query);
@@ -169,77 +230,77 @@ export default function SearchPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
+      <div className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <form onSubmit={handleSearch} className="relative mx-auto max-w-2xl">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="search products or brands..."
-                className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all"
+                placeholder={copy.searchPlaceholder}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-4 pl-12 pr-12 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
                 autoFocus
               />
-              {searchInput && (
+              {searchInput ? (
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="h-5 w-5" />
                 </button>
-              )}
+              ) : null}
             </div>
           </form>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <LoadingSpinner size="lg" text="loading products..." />
+            <LoadingSpinner size="lg" text={copy.loading} />
           </div>
         ) : loadError ? (
           <ErrorState
-            title="failed to load search"
+            title={copy.errorTitle}
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
         ) : !query ? (
           <div className="space-y-8">
-            {recentSearches.length > 0 && (
+            {recentSearches.length > 0 ? (
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-gray-900">recent searches</h3>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">{copy.recentSearches}</h3>
                   <button
                     onClick={clearRecentSearches}
-                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    className="text-sm text-gray-500 transition-colors hover:text-gray-700"
                   >
-                    clear
+                    {copy.clear}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {recentSearches.map((search, index) => (
                     <button key={`${search}-${index}`} type="button" onClick={() => handleSuggestedClick(search)}>
-                      <Chip className="gap-2 hover:bg-gray-50 transition-colors">
-                        <TrendingUp className="w-4 h-4" />
+                      <Chip className="gap-2 transition-colors hover:bg-gray-50">
+                        <TrendingUp className="h-4 w-4" />
                         <span>{search}</span>
                       </Chip>
                     </button>
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">popular searches</h3>
+              <h3 className="mb-4 font-semibold text-gray-900">{copy.popularQueries}</h3>
               <div className="flex flex-wrap gap-2">
                 {SUGGESTED_QUERIES.map((suggestion) => (
-                  <button key={suggestion} type="button" onClick={() => handleSuggestedClick(suggestion)}>
-                    <Chip className="hover:bg-gray-50 transition-colors">
-                      <span>{suggestion}</span>
+                  <button key={suggestion.value} type="button" onClick={() => handleSuggestedClick(suggestion.value)}>
+                    <Chip className="transition-colors hover:bg-gray-50">
+                      <span>{suggestion.label}</span>
                     </Chip>
                   </button>
                 ))}
@@ -247,12 +308,12 @@ export default function SearchPage() {
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">popular now</h3>
+              <h3 className="mb-4 font-semibold text-gray-900">{copy.popularNow}</h3>
               {popularProducts.length > 0 ? (
                 <ProductGrid products={popularProducts} />
               ) : (
                 <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-                  popular items are not available yet.
+                  {copy.popularUnavailable}
                 </div>
               )}
             </div>
@@ -260,31 +321,31 @@ export default function SearchPage() {
         ) : (
           <>
             <div className="mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+              <h2 className="mb-2 text-2xl font-semibold text-gray-900">
                 {filteredProducts.length > 0
-                  ? `found ${filteredProducts.length} products`
-                  : 'nothing found'}
+                  ? copy.foundCount(filteredProducts.length)
+                  : copy.nothingFound}
               </h2>
               <p className="text-gray-600">
-                results for <span className="font-medium">"{query}"</span>
+                {copy.resultsFor} <span className="font-medium">"{query}"</span>
               </p>
             </div>
 
-            {filteredProducts.length > 0 && (
+            {filteredProducts.length > 0 ? (
               <div className="mb-6">
                 <FilterBar />
               </div>
-            )}
+            ) : null}
 
             {filteredProducts.length > 0 ? (
               <ProductGrid products={filteredProducts} />
             ) : (
               <EmptyState
-                icon={<Search className="w-12 h-12" />}
-                title="nothing found"
-                description={`no results for "${query}". try a different search.`}
+                icon={<Search className="h-12 w-12" />}
+                title={copy.nothingFound}
+                description={copy.emptyDescription(query)}
                 action={{
-                  label: 'clear search',
+                  label: copy.clearSearch,
                   onClick: clearSearch,
                 }}
               />
@@ -295,4 +356,3 @@ export default function SearchPage() {
     </div>
   );
 }
-

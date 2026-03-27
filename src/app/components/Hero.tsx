@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 
 import { getHomeHero, type HomeHeroSlideContent } from '../../shared/api/home';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+import { type TranslationMessages } from '../../shared/i18n/messages';
 import heroMainVideo from '../../assets/banner.mp4';
 import jpgBrandVideo from '../../assets/jpgbanner.mp4';
-
 import banner1 from '../../assets/bannerimage.jpeg';
 import banner2 from '../../assets/jpgbannerimage.png';
 import banner3 from '../../assets/clarins.png';
@@ -16,9 +17,9 @@ type SlideContentPosition = 'left' | 'center' | 'right';
 type SlideTone = 'dark' | 'light';
 
 type SlideTextBox = {
-  x?: number;         // сдвиг по X в px
-  y?: number;         // сдвиг по Y в px
-  maxWidth?: number;  // ширина блока
+  x?: number;
+  y?: number;
+  maxWidth?: number;
   align?: 'left' | 'center' | 'right';
 };
 
@@ -60,122 +61,124 @@ const HEADER_HEIGHT = 112;
 const SLIDE_TRANSITION_MS = 1450;
 const SLIDE_TRANSITION_EASING = 'cubic-bezier(0.42, 0, 0.22, 1)';
 
-const slides: HeroSlide[] = [
-  {
-    id: 'main-video',
-    type: 'video',
-    src: heroMainVideo,
-    poster: banner1,
-    tone: 'dark',
-    contentPosition: 'right',
-    overlayClassName: 'bg-black/4',
-    mediaClassName: 'object-cover',
-    contentLayoutClassName: 'items-center justify-end',
-    contentClassName: 'max-w-[480px] mr-4 lg:mr-10 text-left',
-    titleClassName: 'lg:text-[72px]',
-    content: {
-      eyebrow: 'эксклюзивно',
-      title: 'На первый заказ',
-      description: 'Промокод, скидки и специальные предложения для новых покупателей.',
-      buttonText: 'Узнать подробнее',
+function createSlides(content: TranslationMessages['hero']['slides']): HeroSlide[] {
+  return [
+    {
+      id: 'main-video',
+      type: 'video',
+      src: heroMainVideo,
+      poster: banner1,
+      tone: 'dark',
+      contentPosition: 'right',
+      overlayClassName: 'bg-black/4',
+      mediaClassName: 'object-cover',
+      contentLayoutClassName: 'items-center justify-end',
+      contentClassName: 'max-w-[480px] mr-4 lg:mr-10 text-left',
+      titleClassName: 'lg:text-[72px]',
+      content: {
+        eyebrow: content.mainVideo.eyebrow,
+        title: content.mainVideo.title,
+        description: content.mainVideo.description,
+        buttonText: content.mainVideo.buttonText,
+      },
     },
-  },
-  {
-    id: 'jpg-video',
-    type: 'video',
-    src: jpgBrandVideo,
-    poster: banner2,
-    tone: 'light',
-    contentPosition: 'right',
-    overlayClassName: 'bg-black/8',
-    mediaClassName: 'object-cover brightness-[1.03] saturate-[1.03]',
-    contentLayoutClassName: 'items-center justify-end',
-    contentClassName: 'max-w-[500px] mr-6 lg:mr-14 text-left',
-    titleClassName: 'lg:text-[70px]',
-    content: {
-      eyebrow: 'Jean Paul Gaultier',
-      title: 'Iconic fragrances',
-      description: 'Легендарные ароматы и эффектная бренд-зона с динамичным видео.',
-      buttonText: 'Смотреть бренд',
+    {
+      id: 'jpg-video',
+      type: 'video',
+      src: jpgBrandVideo,
+      poster: banner2,
+      tone: 'light',
+      contentPosition: 'right',
+      overlayClassName: 'bg-black/8',
+      mediaClassName: 'object-cover brightness-[1.03] saturate-[1.03]',
+      contentLayoutClassName: 'items-center justify-end',
+      contentClassName: 'max-w-[500px] mr-6 lg:mr-14 text-left',
+      titleClassName: 'lg:text-[70px]',
+      content: {
+        eyebrow: content.jpgVideo.eyebrow,
+        title: content.jpgVideo.title,
+        description: content.jpgVideo.description,
+        buttonText: content.jpgVideo.buttonText,
+      },
     },
-  },
-  {
-  id: 'clarins',
-  type: 'image',
-  src: banner3,
-  durationMs: 8000,
-  tone: 'dark',
-  contentPosition: 'left',
-  overlayClassName: 'bg-gradient-to-r from-white/10 via-transparent to-transparent',
-  mediaClassName: 'object-cover',
-  textBox: {
-    x: -36,
-    y: 0,
-    maxWidth: 360,
-    align: 'left',
-  },
-  titleClassName: 'lg:text-[56px] leading-[0.94]',
-  descriptionClassName: 'max-w-[320px]',
-  content: {
-    eyebrow: 'Clarins',
-    title: 'Уход, который работает мягко',
-    description: 'Текстуры, комфорт и ежедневные ритуалы для кожи.',
-    buttonText: 'Выбрать уход',
-  },
-},
-  {
-  id: 'dalba',
-  type: 'image',
-  src: banner4,
-  durationMs: 8000,
-  tone: 'dark',
-  contentPosition: 'right',
-  overlayClassName: 'bg-white/2',
-  mediaClassName: 'object-cover',
-  contentLayoutClassName: 'items-center justify-end',
-  contentClassName: 'max-w-[430px] mr-10 lg:mr-24 mt-24 lg:mt-28 text-left',
-  textBox: {
-    x: -28,
-    y: -26,
-    maxWidth: 360,
-    align: 'left',
-  },
-  titleClassName: 'lg:text-[62px] leading-[0.94]',
-  descriptionClassName: 'max-w-[360px]',
-  content: {
-    eyebrow: 'd’Alba',
-    title: 'Премиальный glow-уход',
-    description: 'Минималистичная подборка для сияния и увлажнения.',
-    buttonText: 'Смотреть продукты',
-  },
-},
-  {
-    id: 'darling',
-    type: 'image',
-    src: banner5,
-    durationMs: 8000,
-    tone: 'dark',
-    contentPosition: 'center',
-    overlayClassName: 'bg-gradient-to-r from-white/28 via-white/10 to-transparent',
-    mediaClassName: 'object-cover',
-    contentLayoutClassName: 'items-center justify-start',
-    contentClassName: 'max-w-[380px] ml-4 lg:ml-16 text-left',
-    titleClassName: 'lg:text-[60px] leading-[0.95]',
-    textBox: {
-      x: -20,
-      y: -14,
-      maxWidth: 360,
-      align: 'left',
-  },
-    descriptionClassName: 'max-w-[340px]',
-    content: {
-      eyebrow: 'Darling',
-      title: 'Summer essentials',
-      description: 'Легкий летний акцент в каталоге ухода и body care.',
-      buttonText: 'Открыть подборку',
+    {
+      id: 'clarins',
+      type: 'image',
+      src: banner3,
+      durationMs: 8000,
+      tone: 'dark',
+      contentPosition: 'left',
+      overlayClassName: 'bg-gradient-to-r from-white/10 via-transparent to-transparent',
+      mediaClassName: 'object-cover',
+      textBox: {
+        x: -36,
+        y: 0,
+        maxWidth: 360,
+        align: 'left',
+      },
+      titleClassName: 'lg:text-[56px] leading-[0.94]',
+      descriptionClassName: 'max-w-[320px]',
+      content: {
+        eyebrow: content.clarins.eyebrow,
+        title: content.clarins.title,
+        description: content.clarins.description,
+        buttonText: content.clarins.buttonText,
+      },
     },
-  },
-];
+    {
+      id: 'dalba',
+      type: 'image',
+      src: banner4,
+      durationMs: 8000,
+      tone: 'dark',
+      contentPosition: 'right',
+      overlayClassName: 'bg-white/2',
+      mediaClassName: 'object-cover',
+      contentLayoutClassName: 'items-center justify-end',
+      contentClassName: 'max-w-[430px] mr-10 lg:mr-24 mt-24 lg:mt-28 text-left',
+      textBox: {
+        x: -28,
+        y: -26,
+        maxWidth: 360,
+        align: 'left',
+      },
+      titleClassName: 'lg:text-[62px] leading-[0.94]',
+      descriptionClassName: 'max-w-[360px]',
+      content: {
+        eyebrow: content.dalba.eyebrow,
+        title: content.dalba.title,
+        description: content.dalba.description,
+        buttonText: content.dalba.buttonText,
+      },
+    },
+    {
+      id: 'darling',
+      type: 'image',
+      src: banner5,
+      durationMs: 8000,
+      tone: 'dark',
+      contentPosition: 'center',
+      overlayClassName: 'bg-gradient-to-r from-white/28 via-white/10 to-transparent',
+      mediaClassName: 'object-cover',
+      contentLayoutClassName: 'items-center justify-start',
+      contentClassName: 'max-w-[380px] ml-4 lg:ml-16 text-left',
+      titleClassName: 'lg:text-[60px] leading-[0.95]',
+      textBox: {
+        x: -20,
+        y: -14,
+        maxWidth: 360,
+        align: 'left',
+      },
+      descriptionClassName: 'max-w-[340px]',
+      content: {
+        eyebrow: content.darling.eyebrow,
+        title: content.darling.title,
+        description: content.darling.description,
+        buttonText: content.darling.buttonText,
+      },
+    },
+  ];
+}
 
 const HERO_CTA_ROUTES: Record<string, string> = {
   'main-video': '/promotions',
@@ -203,6 +206,7 @@ function getContentWidth(position: SlideContentPosition) {
 
 export function Hero() {
   const navigate = useNavigate();
+  const { messages } = useI18n();
   const [slideContentOverrides, setSlideContentOverrides] = useState<
     Record<string, Omit<HomeHeroSlideContent, 'id'>>
   >({});
@@ -212,6 +216,7 @@ export function Hero() {
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
   const timerRef = useRef<number | null>(null);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+  const slides = useMemo(() => createSlides(messages.hero.slides), [messages.hero.slides]);
 
   const resolvedSlides = useMemo(
     () =>
@@ -229,8 +234,9 @@ export function Hero() {
           },
         };
       }),
-    [slideContentOverrides],
+    [slideContentOverrides, slides],
   );
+
   const activeSlide = useMemo(() => resolvedSlides[activeIndex], [activeIndex, resolvedSlides]);
   const slidesWithLoop = useMemo(() => [...resolvedSlides, resolvedSlides[0]], [resolvedSlides]);
 
@@ -260,7 +266,7 @@ export function Hero() {
         setSlideContentOverrides(nextOverrides);
       })
       .catch(() => {
-        // Keep the built-in hero content when the API is unavailable.
+        // Keep built-in hero content when the API is unavailable.
       });
 
     return () => {
@@ -276,7 +282,7 @@ export function Hero() {
     setIsSliding(true);
     setActiveIndex((prev) => (prev + 1) % slides.length);
     setTrackIndex((prev) => prev + 1);
-  }, [isSliding]);
+  }, [isSliding, slides.length]);
 
   const goToSlide = useCallback(
     (index: number) => {
@@ -312,7 +318,7 @@ export function Hero() {
 
       setIsSliding(false);
     },
-    [trackIndex],
+    [slides.length, trackIndex],
   );
 
   useEffect(() => {
@@ -325,7 +331,7 @@ export function Hero() {
         const playPromise = video.play();
         if (playPromise && typeof playPromise.catch === 'function') {
           playPromise.catch(() => {
-            // keep slider alive via fallback timer below
+            // Keep slider alive via the fallback timer below.
           });
         }
       } else {
@@ -404,8 +410,8 @@ export function Hero() {
               ? textBox.align === 'center'
                 ? 'text-center'
                 : textBox.align === 'right'
-                ? 'text-right'
-                : 'text-left'
+                  ? 'text-right'
+                  : 'text-left'
               : getContentAlignment(slide.contentPosition);
             const contentLayoutClass =
               slide.contentLayoutClassName ?? `items-center ${getContentLayout(slide.contentPosition)}`;
@@ -428,7 +434,9 @@ export function Hero() {
                     playsInline
                     preload="metadata"
                     onEnded={() => {
-                      if (isTrackActive) goToNext();
+                      if (isTrackActive) {
+                        goToNext();
+                      }
                     }}
                   />
                 ) : (
@@ -514,7 +522,7 @@ export function Hero() {
             key={slide.id}
             type="button"
             onClick={() => goToSlide(index)}
-            aria-label={`Go to banner ${index + 1}`}
+            aria-label={messages.hero.paginationLabel(index + 1)}
             className={`h-2 rounded-full transition-all duration-300 ${
               index === activeIndex ? 'w-8 bg-black' : 'w-2 bg-black/30 hover:bg-black/50'
             }`}

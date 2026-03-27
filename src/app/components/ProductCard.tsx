@@ -2,8 +2,10 @@ import { Heart, ShoppingCart, Plus, Minus, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
+
 import { ApiError } from '../../shared/api/ApiError';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { Badge } from './Badge';
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
@@ -89,6 +91,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { messages } = useI18n();
   const { addToCart, getCartQuantity, isInWishlist, setCartQuantity, toggleWishlist } = useCommerce();
   const [quantity, setQuantity] = useState(1);
   const [isWishlistPending, setIsWishlistPending] = useState(false);
@@ -102,7 +105,9 @@ export function ProductCard({
   const inCart = cartQuantity > 0;
 
   const productName =
-    typeof product.name === 'string' && product.name.trim() ? product.name : `Товар #${productId}`;
+    typeof product.name === 'string' && product.name.trim()
+      ? product.name
+      : `${messages.productCard.productFallback} #${productId}`;
   const productBrand =
     typeof product.brand === 'string' && product.brand.trim() ? product.brand : 'Uilesim';
   const productImage = pickImage(product);
@@ -155,9 +160,9 @@ export function ProductCard({
     onEvent?.('click', { product_id: eventProductId });
   };
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleAddToCart = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     if (isCartPending || inStock === false) {
       return;
@@ -175,15 +180,15 @@ export function ProductCard({
         navigate('/login', { replace: true, state: { from: `${location.pathname}${location.search}` } });
         return;
       }
-      toast.error('Не удалось добавить товар в корзину');
+      toast.error(messages.productCard.cartAddError);
     } finally {
       setIsCartPending(false);
     }
   };
 
-  const handleQuantityChange = async (newQty: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleQuantityChange = async (newQty: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     if (isCartPending) {
       return;
@@ -202,15 +207,15 @@ export function ProductCard({
         navigate('/login', { replace: true, state: { from: `${location.pathname}${location.search}` } });
         return;
       }
-      toast.error('Не удалось обновить корзину');
+      toast.error(messages.productCard.cartUpdateError);
     } finally {
       setIsCartPending(false);
     }
   };
 
-  const handleWishlistToggle = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleWishlistToggle = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     if (isWishlistPending) {
       return;
@@ -226,7 +231,7 @@ export function ProductCard({
         navigate('/login', { replace: true, state: { from: `${location.pathname}${location.search}` } });
         return;
       }
-      toast.error('Не удалось обновить избранное');
+      toast.error(messages.productCard.wishlistError);
     } finally {
       setIsWishlistPending(false);
     }
@@ -235,31 +240,29 @@ export function ProductCard({
   if (variant === 'list') {
     return (
       <Link to={`/product/${productId}`} onClick={handleProductClick}>
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-[#EAE6EF] hover:shadow-md transition-all group">
-          <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50">
-            <img src={productImage} alt={productName} className="w-full h-full object-cover" />
-            {isNew && (
-              <Badge className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5">NEW</Badge>
-            )}
+        <div className="group flex items-center gap-4 rounded-xl border border-[#EAE6EF] bg-white p-4 transition-all hover:shadow-md">
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+            <img src={productImage} alt={productName} className="h-full w-full object-cover" />
+            {isNew ? <Badge className="absolute top-1 left-1 px-1.5 py-0.5 text-[10px]">NEW</Badge> : null}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-[#6B7280] mb-0.5">{productBrand}</p>
-            <h3 className="text-sm font-semibold text-[#111827] mb-1 line-clamp-1">{productName}</h3>
+          <div className="min-w-0 flex-1">
+            <p className="mb-0.5 text-xs text-[#6B7280]">{productBrand}</p>
+            <h3 className="mb-1 line-clamp-1 text-sm font-semibold text-[#111827]">{productName}</h3>
             <div className="flex items-baseline gap-2">
               <span className="text-base font-bold text-[#111827]">{price} ₸</span>
-              {originalPrice && (
+              {originalPrice ? (
                 <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₸</span>
-              )}
+              ) : null}
             </div>
           </div>
 
           <button
             onClick={handleAddToCart}
             disabled={isCartPending}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-[#111827] text-white hover:bg-[#0B1220] transition-colors disabled:opacity-60"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-white transition-colors hover:bg-[#0B1220] disabled:opacity-60"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
           </button>
         </div>
       </Link>
@@ -269,61 +272,65 @@ export function ProductCard({
   if (variant === 'carousel') {
     return (
       <Link to={`/product/${productId}`} className="block" onClick={handleProductClick}>
-        <div className="group relative bg-white rounded-xl overflow-hidden border border-[#EAE6EF] hover:shadow-lg transition-all w-[220px]">
+        <div className="group relative w-[220px] overflow-hidden rounded-xl border border-[#EAE6EF] bg-white transition-all hover:shadow-lg">
           <div className="relative aspect-square overflow-hidden bg-gray-50">
             <img
               src={productImage}
               alt={productName}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
 
             <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-              {isNew && <Badge className="text-[10px] px-2 py-0.5">NEW</Badge>}
-              {discountValue !== undefined && discountValue > 0 && (
-                <Badge className="text-[10px] px-2 py-0.5">−{discountValue}%</Badge>
-              )}
-              {pointsMultiplier !== undefined && pointsMultiplier > 0 && (
-                <Badge className="text-[10px] px-2 py-0.5 bg-[#FF4DB8] text-white border-none">
-                  {pointsMultiplier}× баллы
+              {isNew ? <Badge className="px-2 py-0.5 text-[10px]">NEW</Badge> : null}
+              {discountValue !== undefined && discountValue > 0 ? (
+                <Badge className="px-2 py-0.5 text-[10px]">-{discountValue}%</Badge>
+              ) : null}
+              {pointsMultiplier !== undefined && pointsMultiplier > 0 ? (
+                <Badge className="border-none bg-[#FF4DB8] px-2 py-0.5 text-[10px] text-white">
+                  {pointsMultiplier}x {messages.productCard.points}
                 </Badge>
-              )}
+              ) : null}
             </div>
 
             <button
               onClick={handleWishlistToggle}
               disabled={isWishlistPending}
-              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white hover:scale-110 transition-all disabled:opacity-60"
+              className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:opacity-60"
             >
-              <Heart className={`w-3.5 h-3.5 ${favorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'}`} />
+              <Heart
+                className={`h-3.5 w-3.5 ${
+                  favorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'
+                }`}
+              />
             </button>
           </div>
 
           <div className="p-3">
-            <p className="text-[10px] text-[#6B7280] mb-0.5">{productBrand}</p>
-            <h3 className="text-xs font-semibold text-[#111827] mb-2 line-clamp-2 min-h-[32px]">
+            <p className="mb-0.5 text-[10px] text-[#6B7280]">{productBrand}</p>
+            <h3 className="mb-2 min-h-[32px] line-clamp-2 text-xs font-semibold text-[#111827]">
               {productName}
             </h3>
 
-            <div className="flex items-baseline gap-1.5 mb-2">
+            <div className="mb-2 flex items-baseline gap-1.5">
               <span className="text-base font-bold text-[#111827]">{price} ₸</span>
-              {originalPrice && (
+              {originalPrice ? (
                 <span className="text-xs text-[#6B7280] line-through">{originalPrice} ₸</span>
-              )}
+              ) : null}
             </div>
 
-            {pointsEarned !== undefined && pointsEarned > 0 && (
-              <p className="text-[10px] text-[#FF4DB8] mb-2 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                +{pointsEarned} баллов
+            {pointsEarned !== undefined && pointsEarned > 0 ? (
+              <p className="mb-2 flex items-center gap-1 text-[10px] text-[#FF4DB8]">
+                <Sparkles className="h-3 w-3" />
+                +{pointsEarned} {messages.productCard.points}
               </p>
-            )}
+            ) : null}
 
             <button
               onClick={handleAddToCart}
               disabled={inStock === false || isCartPending}
-              className="w-full h-9 flex items-center justify-center rounded-lg bg-[#111827] text-white text-xs font-medium hover:bg-[#0B1220] transition-colors disabled:bg-gray-100 disabled:text-[#6B7280] disabled:cursor-not-allowed"
+              className="flex h-9 w-full items-center justify-center rounded-lg bg-[#111827] text-xs font-medium text-white transition-colors hover:bg-[#0B1220] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-[#6B7280]"
             >
-              {inStock === false ? 'Нет' : <Plus className="w-4 h-4" />}
+              {inStock === false ? messages.productCard.unavailable : <Plus className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -333,122 +340,123 @@ export function ProductCard({
 
   return (
     <Link to={`/product/${productId}`} className="block" onClick={handleProductClick}>
-      <div className="group relative bg-white rounded-2xl overflow-hidden border border-[#EAE6EF] hover:shadow-xl transition-all hover:-translate-y-0.5">
+      <div className="group relative overflow-hidden rounded-2xl border border-[#EAE6EF] bg-white transition-all hover:-translate-y-0.5 hover:shadow-xl">
         <div className="relative aspect-square overflow-hidden bg-gray-50">
           <img
             src={productImage}
             alt={productName}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
           <div className="absolute top-3 left-3 flex flex-col gap-2">
-            {isNew && (
-              <Badge className="text-xs px-2.5 py-1 bg-[#FF4DB8] text-white border-none">NEW</Badge>
-            )}
-            {discountValue !== undefined && discountValue > 0 && (
-              <Badge className="text-xs px-2.5 py-1 bg-[#FF4DB8] text-white border-none">
-                −{discountValue}%
+            {isNew ? (
+              <Badge className="border-none bg-[#FF4DB8] px-2.5 py-1 text-xs text-white">NEW</Badge>
+            ) : null}
+            {discountValue !== undefined && discountValue > 0 ? (
+              <Badge className="border-none bg-[#FF4DB8] px-2.5 py-1 text-xs text-white">
+                -{discountValue}%
               </Badge>
-            )}
-            {pointsMultiplier !== undefined && pointsMultiplier > 0 && (
-              <Badge className="text-xs px-2.5 py-1 bg-[#FF4DB8] text-white border-none">
-                {pointsMultiplier}× баллы
+            ) : null}
+            {pointsMultiplier !== undefined && pointsMultiplier > 0 ? (
+              <Badge className="border-none bg-[#FF4DB8] px-2.5 py-1 text-xs text-white">
+                {pointsMultiplier}x {messages.productCard.points}
               </Badge>
-            )}
-            {inStock === false && (
-              <Badge className="text-xs px-2.5 py-1 bg-gray-500 text-white border-none">
-                Нет в наличии
+            ) : null}
+            {inStock === false ? (
+              <Badge className="border-none bg-gray-500 px-2.5 py-1 text-xs text-white">
+                {messages.productCard.unavailable}
               </Badge>
-            )}
+            ) : null}
           </div>
 
           <button
             onClick={handleWishlistToggle}
             disabled={isWishlistPending}
-            className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-white hover:scale-110 transition-all disabled:opacity-60"
+            className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:opacity-60"
           >
             <Heart
-              className={`w-4 h-4 transition-colors ${
+              className={`h-4 w-4 transition-colors ${
                 favorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'
               }`}
             />
           </button>
 
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex items-center justify-center">
-            <button className="px-4 py-2 rounded-lg bg-white text-[#111827] text-sm font-medium hover:bg-gray-50 transition-colors">
-              Быстрый просмотр
+          <div className="absolute inset-0 hidden items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100 lg:flex">
+            <button className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-[#111827] transition-colors hover:bg-gray-50">
+              {messages.productCard.quickView}
             </button>
           </div>
         </div>
 
         <div className="p-4">
-          <p className="text-xs text-[#6B7280] mb-1">{productBrand}</p>
+          <p className="mb-1 text-xs text-[#6B7280]">{productBrand}</p>
 
-          <h3 className="text-sm font-semibold text-[#111827] mb-2 line-clamp-2 min-h-[40px]">
+          <h3 className="mb-2 min-h-[40px] line-clamp-2 text-sm font-semibold text-[#111827]">
             {productName}
           </h3>
 
-          {recommendationScore !== undefined && recommendationScore > 0 && (
-            <div className="mb-2 text-xs text-[#FF4DB8] flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Подходит вам: {recommendationScore}%
+          {recommendationScore !== undefined && recommendationScore > 0 ? (
+            <div className="mb-2 flex items-center gap-1 text-xs text-[#FF4DB8]">
+              <Sparkles className="h-3 w-3" />
+              {messages.productCard.matchPrefix}: {recommendationScore}%
             </div>
-          )}
+          ) : null}
 
-          {whyRecommended && (
+          {whyRecommended ? (
             <div className="mb-2">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-                ✦ {whyRecommended}
+              <span className="inline-flex items-center rounded-full bg-[#FFE1F2] px-2 py-0.5 text-[10px] font-medium text-[#FF4DB8]">
+                {whyRecommended}
               </span>
             </div>
-          )}
+          ) : null}
 
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="mb-2 flex items-baseline gap-2">
             <span className="text-lg font-bold text-[#111827]">{price} ₸</span>
-            {originalPrice && (
+            {originalPrice ? (
               <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₸</span>
-            )}
+            ) : null}
           </div>
 
-          {pointsEarned !== undefined && pointsEarned > 0 && (
-            <p className="text-xs text-[#FF4DB8] mb-3 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              +{pointsEarned} баллов за покупку
+          {pointsEarned !== undefined && pointsEarned > 0 ? (
+            <p className="mb-3 flex items-center gap-1 text-xs text-[#FF4DB8]">
+              <Sparkles className="h-3.5 w-3.5" />
+              +{pointsEarned} {messages.productCard.pointsForPurchase}
             </p>
-          )}
+          ) : null}
 
           {inStock === false ? (
             <button
               disabled
-              className="w-full h-11 rounded-xl bg-gray-100 text-[#6B7280] text-sm font-medium cursor-not-allowed"
+              className="h-11 w-full cursor-not-allowed rounded-xl bg-gray-100 text-sm font-medium text-[#6B7280]"
             >
-              Нет в наличии
+              {messages.productCard.unavailable}
             </button>
           ) : inCart ? (
-            <div className="flex items-center justify-between h-11 rounded-xl border-2 border-[#111827] overflow-hidden">
+            <div className="flex h-11 items-center justify-between overflow-hidden rounded-xl border-2 border-[#111827]">
               <button
-                onClick={(e) => handleQuantityChange(quantity - 1, e)}
+                onClick={(event) => handleQuantityChange(quantity - 1, event)}
                 disabled={isCartPending}
-                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors disabled:opacity-60"
+                className="flex h-full flex-1 items-center justify-center text-[#111827] transition-colors hover:bg-gray-50 disabled:opacity-60"
               >
-                <Minus className="w-4 h-4" />
+                <Minus className="h-4 w-4" />
               </button>
               <span className="px-4 font-semibold text-[#111827]">{quantity}</span>
               <button
-                onClick={(e) => handleQuantityChange(quantity + 1, e)}
+                onClick={(event) => handleQuantityChange(quantity + 1, event)}
                 disabled={isCartPending}
-                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors disabled:opacity-60"
+                className="flex h-full flex-1 items-center justify-center text-[#111827] transition-colors hover:bg-gray-50 disabled:opacity-60"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <button
               onClick={handleAddToCart}
               disabled={isCartPending}
-              className="w-full h-11 rounded-xl bg-[#111827] text-white text-sm font-medium hover:bg-[#0B1220] hover:shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#111827] text-sm font-medium text-white transition-all hover:bg-[#0B1220] hover:shadow-md active:scale-[0.98]"
             >
-              <ShoppingCart className="w-4 h-4" />В корзину
+              <ShoppingCart className="h-4 w-4" />
+              {messages.productCard.addToCart}
             </button>
           )}
         </div>
@@ -460,14 +468,14 @@ export function ProductCard({
 export function ProductCardSkeleton({ variant = 'grid' }: { variant?: 'grid' | 'carousel' | 'list' }) {
   if (variant === 'list') {
     return (
-      <div className="flex items-center gap-4 p-4 rounded-xl bg-white border border-[#EAE6EF] animate-pulse">
-        <div className="w-24 h-24 rounded-lg bg-gray-200" />
+      <div className="flex items-center gap-4 rounded-xl border border-[#EAE6EF] bg-white p-4 animate-pulse">
+        <div className="h-24 w-24 rounded-lg bg-gray-200" />
         <div className="flex-1 space-y-2">
-          <div className="h-3 w-20 bg-gray-200 rounded" />
-          <div className="h-4 w-full bg-gray-200 rounded" />
-          <div className="h-5 w-24 bg-gray-200 rounded" />
+          <div className="h-3 w-20 rounded bg-gray-200" />
+          <div className="h-4 w-full rounded bg-gray-200" />
+          <div className="h-5 w-24 rounded bg-gray-200" />
         </div>
-        <div className="w-10 h-10 rounded-xl bg-gray-200" />
+        <div className="h-10 w-10 rounded-xl bg-gray-200" />
       </div>
     );
   }
@@ -475,14 +483,14 @@ export function ProductCardSkeleton({ variant = 'grid' }: { variant?: 'grid' | '
   const width = variant === 'carousel' ? 'w-[220px]' : '';
 
   return (
-    <div className={`bg-white rounded-2xl overflow-hidden border border-[#EAE6EF] animate-pulse ${width}`}>
+    <div className={`overflow-hidden rounded-2xl border border-[#EAE6EF] bg-white animate-pulse ${width}`}>
       <div className="aspect-square bg-gray-200" />
-      <div className="p-4 space-y-2">
-        <div className="h-3 w-1/3 bg-gray-200 rounded" />
-        <div className="h-4 w-full bg-gray-200 rounded" />
-        <div className="h-4 w-3/4 bg-gray-200 rounded" />
-        <div className="h-5 w-1/2 bg-gray-200 rounded" />
-        <div className="h-11 bg-gray-200 rounded-xl" />
+      <div className="space-y-2 p-4">
+        <div className="h-3 w-1/3 rounded bg-gray-200" />
+        <div className="h-4 w-full rounded bg-gray-200" />
+        <div className="h-4 w-3/4 rounded bg-gray-200" />
+        <div className="h-5 w-1/2 rounded bg-gray-200" />
+        <div className="h-11 rounded-xl bg-gray-200" />
       </div>
     </div>
   );

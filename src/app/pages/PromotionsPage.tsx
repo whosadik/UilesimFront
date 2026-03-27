@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { PromoBannerCard } from '../components/PromoBannerCard';
@@ -12,19 +12,57 @@ import {
   type OfferPromotionCard,
   type OfferPromotionType,
 } from '../../shared/offers/presentation';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+
+const promotionsPageCopy = {
+  ru: {
+    filters: { all: 'Все', discount: 'Скидки', points: '2x баллы', gift: 'Подарки', personal: 'Персональные' },
+    loadError: 'Не удалось загрузить акции. Попробуйте еще раз.',
+    emptyAccount: 'Для этого аккаунта пока нет акций.',
+    emptyFiltered: 'Нет акций, подходящих под выбранный фильтр.',
+    title: 'Акции',
+    subtitle: 'Специальные предложения и промо-баннеры',
+    authTitle: 'Акции доступны после входа',
+    authDescription: 'Войдите, чтобы увидеть персональные предложения и бонусные кампании.',
+    signIn: 'Войти',
+    loading: 'Загружаем акции...',
+    errorTitle: 'Не удалось загрузить акции',
+  },
+  kk: {
+    filters: { all: 'Барлығы', discount: 'Жеңілдіктер', points: '2x ұпай', gift: 'Сыйлықтар', personal: 'Жеке' },
+    loadError: 'Акцияларды жүктеу мүмкін болмады. Қайталап көріңіз.',
+    emptyAccount: 'Бұл аккаунт үшін әзірге акциялар жоқ.',
+    emptyFiltered: 'Таңдалған сүзгіге сай акциялар жоқ.',
+    title: 'Акциялар',
+    subtitle: 'Арнайы ұсыныстар мен промо-баннерлер',
+    authTitle: 'Акциялар кіруден кейін қолжетімді',
+    authDescription: 'Жеке ұсыныстар мен бонустық науқандарды көру үшін кіріңіз.',
+    signIn: 'Кіру',
+    loading: 'Акцияларды жүктеп жатырмыз...',
+    errorTitle: 'Акцияларды жүктеу мүмкін болмады',
+  },
+  en: {
+    filters: { all: 'All', discount: 'Discounts', points: '2x points', gift: 'Gifts', personal: 'Personal' },
+    loadError: 'Could not load promotions. Please try again.',
+    emptyAccount: 'There are no promotions for this account yet.',
+    emptyFiltered: 'No promotions match the selected filter.',
+    title: 'Promotions',
+    subtitle: 'Special offers and promo banners',
+    authTitle: 'Promotions are available after sign in',
+    authDescription: 'Sign in to see personal offers and bonus campaigns.',
+    signIn: 'Sign in',
+    loading: 'Loading promotions...',
+    errorTitle: 'Could not load promotions',
+  },
+} as const;
 
 type PromotionFilter = 'all' | OfferPromotionType;
 type PromotionCard = OfferPromotionCard;
 
-const FILTER_LABELS: Record<PromotionFilter, string> = {
-  all: 'all',
-  discount: 'discounts',
-  points: '2x points',
-  gift: 'gift',
-  personal: 'personal',
-};
-
 export default function PromotionsPage() {
+  const { language, messages } = useI18n();
+  const copy = promotionsPageCopy[language];
+  const filterLabels: Record<PromotionFilter, string> = copy.filters;
   const navigate = useNavigate();
   const [filter, setFilter] = useState<PromotionFilter>('all');
   const [promotions, setPromotions] = useState<PromotionCard[]>([]);
@@ -64,7 +102,7 @@ export default function PromotionsPage() {
         }
 
         setPromotions([]);
-        setLoadError('failed to load promotions. please try again.');
+        setLoadError(copy.loadError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -77,7 +115,7 @@ export default function PromotionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [copy.loadError, reloadKey]);
 
   const filteredPromotions = useMemo(
     () => promotions.filter((promo) => filter === 'all' || promo.type === filter),
@@ -86,34 +124,34 @@ export default function PromotionsPage() {
 
   const emptyMessage =
     promotions.length === 0
-      ? 'there are no promotions for this account yet.'
-      : 'no promotions match the selected filter.';
+      ? copy.emptyAccount
+      : copy.emptyFiltered;
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'promotions' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.title }]} />
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">promotions</h1>
-          <p className="text-base text-[#6B7280]">special offers and promo banners</p>
+          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">{copy.title}</h1>
+          <p className="text-base text-[#6B7280]">{copy.subtitle}</p>
         </div>
 
         {requiresAuth ? (
           <EmptyState
-            title="promotions are available after sign in"
-            description="sign in to see your personal offers and bonus campaigns."
+            title={copy.authTitle}
+            description={copy.authDescription}
             action={{
-              label: 'sign in',
+              label: copy.signIn,
               onClick: () => navigate('/login', { state: { from: '/promotions' } }),
             }}
           />
         ) : (
           <>
             <div className="flex flex-wrap gap-2 mb-8">
-              {(Object.keys(FILTER_LABELS) as PromotionFilter[]).map((value) => (
+              {(Object.keys(filterLabels) as PromotionFilter[]).map((value) => (
                 <button
                   key={value}
                   onClick={() => setFilter(value)}
@@ -123,16 +161,16 @@ export default function PromotionsPage() {
                       : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100'
                   }`}
                 >
-                  {FILTER_LABELS[value]}
+                  {filterLabels[value]}
                 </button>
               ))}
             </div>
 
             {isLoading ? (
-              <LoadingSpinner size="md" text="loading promotions..." />
+              <LoadingSpinner size="md" text={copy.loading} />
             ) : loadError ? (
               <ErrorState
-                title="failed to load promotions"
+                title={copy.errorTitle}
                 description={loadError}
                 onRetry={() => setReloadKey((value) => value + 1)}
               />

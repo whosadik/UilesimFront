@@ -3,6 +3,7 @@ import { Percent } from 'lucide-react';
 
 import { ApiError } from '../../shared/api/ApiError';
 import { listProducts } from '../../shared/api/catalog';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -12,6 +13,8 @@ import { extractProducts, mapApiProductToGrid } from '../utils/productGridMappin
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
 export default function SalePage() {
+  const { messages } = useI18n();
+  const saleMessages = messages.pages.sale;
   const [saleProducts, setSaleProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,7 +49,7 @@ export default function SalePage() {
           return;
         }
 
-        setLoadError('failed to load sale items. please try again.');
+        setLoadError(saleMessages.loadErrorDescription);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -59,22 +62,16 @@ export default function SalePage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, saleMessages.loadErrorDescription]);
 
   const productCount = saleProducts.length;
-  const headerSubtitle = useMemo(
-    () =>
-      productCount > 0
-        ? `${productCount} products with special pricing`
-        : 'current discounts from the catalog',
-    [productCount],
-  );
+  const headerSubtitle = useMemo(() => saleMessages.subtitle(productCount), [productCount, saleMessages]);
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="mx-auto max-w-[1160px] px-6 py-8 lg:px-[140px] lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'sale' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: saleMessages.breadcrumb }]} />
         </div>
 
         <div className="mb-8 rounded-2xl border border-[#FF4DB8] bg-gradient-to-br from-[#FFE1F2] to-pink-50 p-8 lg:p-12">
@@ -83,17 +80,17 @@ export default function SalePage() {
               <Percent className="h-7 w-7 text-white" />
             </div>
             <div>
-              <h1 className="mb-2 text-3xl font-bold text-[#111827] lg:text-4xl">sale up to 50%</h1>
+              <h1 className="mb-2 text-3xl font-bold text-[#111827] lg:text-4xl">{saleMessages.title}</h1>
               <p className="text-base text-[#6B7280]">{headerSubtitle}</p>
             </div>
           </div>
         </div>
 
         {isLoading ? (
-          <LoadingSpinner size="md" text="loading sale items..." />
+          <LoadingSpinner size="md" text={saleMessages.loading} />
         ) : loadError ? (
           <ErrorState
-            title="failed to load sale items"
+            title={saleMessages.loadErrorTitle}
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
@@ -101,11 +98,10 @@ export default function SalePage() {
           <ProductGrid products={saleProducts} columns={4} />
         ) : (
           <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-            no sale items are available right now.
+            {saleMessages.empty}
           </div>
         )}
       </div>
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Map, RefreshCw, Sparkles, Star } from "lucide-react";
 import { RoadmapStepCard, type RoadmapStep } from "../components/RoadmapStepCard";
@@ -9,6 +9,7 @@ import { AlertBanner } from "../components/AlertBanner";
 import { ErrorState } from "../components/ErrorState";
 import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
   clickRoadmapStep,
   getRoadmap,
@@ -37,6 +38,114 @@ type UiRoadmapStep = RoadmapStep & {
   stepImproves?: string;
   stepBenefit?: string;
 };
+
+const roadmapPageCopy = {
+  ru: {
+    loadError: "Не удалось загрузить roadmap",
+    refreshed: "Roadmap обновлен с учетом ваших предпочтений",
+    refreshError: "Не удалось обновить roadmap",
+    stepCompleted: "Шаг отмечен как выполненный",
+    stepSkipped: "Шаг пропущен и roadmap обновлен",
+    stepUpdateError: "Не удалось обновить статус шага",
+    stepDetails: "Подробная информация о шаге",
+    title: "Персональный Roadmap",
+    refresh: "Обновить",
+    subtitle: "Пошаговый план построения рутины на основе вашего профиля.",
+    progress: "Прогресс рутины",
+    stepsLabel: (done: number, total: number) => `${done}/${total} шагов`,
+    points: "Баллы за Roadmap",
+    pointsRemaining: (value: number) => `До полного завершения осталось ${value} баллов`,
+    banner: "Roadmap формируется из ваших предпочтений и истории покупок.",
+    loading: "Загружаем roadmap",
+    errorTitle: "Не удалось загрузить roadmap",
+    errorDescription: "Произошла ошибка при загрузке. Попробуйте еще раз.",
+    whyLabel: "Почему",
+    improvesLabel: "Улучшает",
+    pointsShort: "б.",
+    saving: "Сохраняем...",
+    skip: "Пропустить",
+    done: "Выполнено",
+    skippedNoPoints: "Шаг пропущен, баллы не начислены",
+    stepClosedByOwned: "Шаг уже закрыт вашим текущим продуктом",
+    pointsGranted: (value: number) => `+${value} баллов начислено`,
+    allDoneTitle: "Поздравляем! Вы завершили все шаги.",
+    allDoneDescription: (value: number) => `Вы завершили roadmap и получили ${value} баллов.`,
+    createNew: "Создать новый Roadmap",
+    emptyTitle: "Roadmap не найден",
+    emptyDescription: "Заполните профиль, чтобы получить персональные рекомендации.",
+    fillProfile: "Заполнить профиль",
+  },
+  kk: {
+    loadError: "Roadmap жүктеу мүмкін болмады",
+    refreshed: "Roadmap сіздің қалауыңызға сай жаңартылды",
+    refreshError: "Roadmap жаңарту мүмкін болмады",
+    stepCompleted: "Қадам орындалды деп белгіленді",
+    stepSkipped: "Қадам өткізіліп, roadmap жаңартылды",
+    stepUpdateError: "Қадам күйін жаңарту мүмкін болмады",
+    stepDetails: "Қадам туралы толық ақпарат",
+    title: "Жеке Roadmap",
+    refresh: "Жаңарту",
+    subtitle: "Профильге негізделген рутинаны құрудың қадамдық жоспары.",
+    progress: "Рутина прогресі",
+    stepsLabel: (done: number, total: number) => `${done}/${total} қадам`,
+    points: "Roadmap ұпайлары",
+    pointsRemaining: (value: number) => `Толық аяқтауға дейін ${value} ұпай қалды`,
+    banner: "Roadmap сіздің қалауларыңыз бен сатып алу тарихыңыздан құралады.",
+    loading: "Roadmap жүктеп жатырмыз",
+    errorTitle: "Roadmap жүктеу мүмкін болмады",
+    errorDescription: "Жүктеу кезінде қате шықты. Қайталап көріңіз.",
+    whyLabel: "Неге",
+    improvesLabel: "Жақсартады",
+    pointsShort: "ұп.",
+    saving: "Сақтап жатырмыз...",
+    skip: "Өткізу",
+    done: "Орындалды",
+    skippedNoPoints: "Қадам өткізілді, ұпай есептелмеді",
+    stepClosedByOwned: "Қадам сіздегі ағымдағы өніммен жабылған",
+    pointsGranted: (value: number) => `+${value} ұпай есептелді`,
+    allDoneTitle: "Құттықтаймыз! Барлық қадам аяқталды.",
+    allDoneDescription: (value: number) => `Сіз roadmap-ты аяқтап, ${value} ұпай алдыңыз.`,
+    createNew: "Жаңа Roadmap құру",
+    emptyTitle: "Roadmap табылмады",
+    emptyDescription: "Жеке ұсыныстар алу үшін профильді толтырыңыз.",
+    fillProfile: "Профильді толтыру",
+  },
+  en: {
+    loadError: "Could not load roadmap",
+    refreshed: "Roadmap refreshed based on your preferences",
+    refreshError: "Could not refresh roadmap",
+    stepCompleted: "Step marked as completed",
+    stepSkipped: "Step skipped and roadmap refreshed",
+    stepUpdateError: "Could not update step status",
+    stepDetails: "Step details",
+    title: "Personal roadmap",
+    refresh: "Refresh",
+    subtitle: "A step-by-step routine plan based on your profile.",
+    progress: "Routine progress",
+    stepsLabel: (done: number, total: number) => `${done}/${total} steps`,
+    points: "Roadmap points",
+    pointsRemaining: (value: number) => `${value} points remaining to complete all steps`,
+    banner: "Roadmap is built from your preferences and purchase history.",
+    loading: "Loading roadmap",
+    errorTitle: "Could not load roadmap",
+    errorDescription: "An error occurred while loading. Please try again.",
+    whyLabel: "Why",
+    improvesLabel: "Improves",
+    pointsShort: "pts",
+    saving: "Saving...",
+    skip: "Skip",
+    done: "Done",
+    skippedNoPoints: "Step skipped, no points granted",
+    stepClosedByOwned: "Step already closed by your current product",
+    pointsGranted: (value: number) => `+${value} points granted`,
+    allDoneTitle: "Congratulations! You completed all steps.",
+    allDoneDescription: (value: number) => `You completed the roadmap and earned ${value} points.`,
+    createNew: "Create new roadmap",
+    emptyTitle: "Roadmap not found",
+    emptyDescription: "Complete your profile to get personal recommendations.",
+    fillProfile: "Complete profile",
+  },
+} as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -190,6 +299,8 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
 }
 
 export default function RoadmapPage() {
+  const { language } = useI18n();
+  const copy = roadmapPageCopy[language];
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -234,7 +345,7 @@ export default function RoadmapPage() {
         setSteps([]);
         setSummary(null);
         setPlanCategory(null);
-        setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить roadmap");
+        setError(loadError instanceof Error ? loadError.message : copy.loadError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -247,7 +358,7 @@ export default function RoadmapPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [copy.loadError, location.pathname, navigate, retryKey]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -255,14 +366,14 @@ export default function RoadmapPage() {
     try {
       const plan = await refreshRoadmap(planCategory ? { category: planCategory } : {});
       applyPlan(plan);
-      toast.success("Roadmap обновлен с учетом ваших предпочтений");
+      toast.success(copy.refreshed);
     } catch (refreshError) {
       if (refreshError instanceof ApiError && (refreshError.status === 401 || refreshError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
         return;
       }
 
-      toast.error("Не удалось обновить roadmap");
+      toast.error(copy.refreshError);
     } finally {
       setIsRefreshing(false);
     }
@@ -284,8 +395,8 @@ export default function RoadmapPage() {
       applyPlan(nextPlan);
       toast.success(
         nextStatus === "completed"
-          ? "Шаг отмечен как выполненный"
-          : "Шаг пропущен и roadmap обновлен",
+          ? copy.stepCompleted
+          : copy.stepSkipped,
       );
     } catch (updateError) {
       if (updateError instanceof ApiError && (updateError.status === 401 || updateError.status === 403)) {
@@ -296,7 +407,7 @@ export default function RoadmapPage() {
       toast.error(
         updateError instanceof Error
           ? updateError.message
-          : "Не удалось обновить статус шага",
+          : copy.stepUpdateError,
       );
     } finally {
       setPendingStepId(null);
@@ -329,7 +440,7 @@ export default function RoadmapPage() {
     }
 
     const reason = selectedStep?.why[0];
-    toast.info(reason ?? "Подробная информация о шаге");
+    toast.info(reason ?? copy.stepDetails);
   };
 
   const totalSteps =
@@ -371,21 +482,21 @@ export default function RoadmapPage() {
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <Map className="w-7 h-7 text-gray-700 flex-shrink-0" />
-              <h1 className="text-3xl font-semibold text-gray-900">Персональный Roadmap</h1>
+              <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
             </div>
             <Button variant="secondary" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-              Обновить
+              {copy.refresh}
             </Button>
           </div>
-          <p className="text-gray-600 mb-6">Пошаговый план построения рутины на основе вашего профиля.</p>
+          <p className="text-gray-600 mb-6">{copy.subtitle}</p>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-700">Прогресс рутины</span>
+                <span className="text-sm font-semibold text-gray-700">{copy.progress}</span>
                 <span className="text-sm font-bold text-gray-900">
-                  {completedCount}/{totalSteps} шагов
+                  {copy.stepsLabel(completedCount, totalSteps)}
                 </span>
               </div>
               <div className="h-2 bg-white rounded-full overflow-hidden">
@@ -400,7 +511,7 @@ export default function RoadmapPage() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-                  <span className="text-sm font-semibold text-gray-700">Баллы за Roadmap</span>
+                  <span className="text-sm font-semibold text-gray-700">{copy.points}</span>
                 </div>
                 <span className="text-sm font-bold text-[#FF4DB8]">
                   {earnedPoints}/{totalPointsAvailable}
@@ -415,7 +526,7 @@ export default function RoadmapPage() {
                 />
               </div>
               <p className="text-xs text-[#6B7280] mt-1.5">
-                До полного завершения осталось {Math.max(0, totalPointsAvailable - earnedPoints)} баллов
+                {copy.pointsRemaining(Math.max(0, totalPointsAvailable - earnedPoints))}
               </p>
             </div>
           </div>
@@ -426,18 +537,18 @@ export default function RoadmapPage() {
         <div className="mb-6">
           <AlertBanner
             variant="info"
-            message="Roadmap формируется из ваших предпочтений и истории покупок."
+            message={copy.banner}
           />
         </div>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <LoadingSpinner size="lg" text="Загружаем roadmap" />
+            <LoadingSpinner size="lg" text={copy.loading} />
           </div>
         ) : error ? (
           <ErrorState
-            title="Не удалось загрузить roadmap"
-            description="Произошла ошибка при загрузке. Попробуйте еще раз."
+            title={copy.errorTitle}
+            description={copy.errorDescription}
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : steps.length > 0 ? (
@@ -474,17 +585,17 @@ export default function RoadmapPage() {
                     >
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-                          ? {stepWhy}
+                          {copy.whyLabel}: {stepWhy}
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280] text-[10px]">
-                          ^ {stepImproves}
+                          {copy.improvesLabel}: {stepImproves}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 ml-auto flex-shrink-0">
                         <span className="text-xs text-[#6B7280]">{stepBenefit}</span>
                         <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-[#FF4DB8]/30">
                           <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
-                          <span className="text-xs font-semibold text-[#FF4DB8]">+{stepPoints} б.</span>
+                          <span className="text-xs font-semibold text-[#FF4DB8]">+{stepPoints} {copy.pointsShort}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:ml-2">
@@ -494,7 +605,7 @@ export default function RoadmapPage() {
                           onClick={() => handleStepStatusChange(step, "skipped")}
                           disabled={!canUpdateStatus}
                         >
-                          {isPendingUpdate ? "Сохраняем..." : "Пропустить"}
+                          {isPendingUpdate ? copy.saving : copy.skip}
                         </button>
                         <button
                           type="button"
@@ -502,20 +613,20 @@ export default function RoadmapPage() {
                           onClick={() => handleStepStatusChange(step, "completed")}
                           disabled={!canUpdateStatus}
                         >
-                          {isPendingUpdate ? "Сохраняем..." : "Выполнено"}
+                          {isPendingUpdate ? copy.saving : copy.done}
                         </button>
                       </div>
                     </div>
                   ) : isSkipped ? (
                     <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-amber-50 border-amber-100 flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-amber-600" />
-                      <span className="text-xs text-amber-700 font-medium">Шаг пропущен, баллы не начислены</span>
+                      <span className="text-xs text-amber-700 font-medium">{copy.skippedNoPoints}</span>
                     </div>
                   ) : (
                     <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-emerald-50 border-emerald-100 flex items-center gap-2">
                       <Star className="w-3.5 h-3.5 text-emerald-600" />
                       <span className="text-xs text-emerald-700 font-medium">
-                        {step.rawStatus === "owned" ? "Шаг уже закрыт вашим текущим продуктом" : `+${stepPoints} баллов начислено`}
+                        {step.rawStatus === "owned" ? copy.stepClosedByOwned : copy.pointsGranted(stepPoints)}
                       </span>
                     </div>
                   )}
@@ -526,12 +637,12 @@ export default function RoadmapPage() {
             {isFullyCompleted && (
               <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 text-center">
                 <Sparkles className="w-12 h-12 mx-auto mb-3 text-green-600" />
-                <h3 className="font-semibold text-gray-900 mb-2">Поздравляем! Вы завершили все шаги.</h3>
+                <h3 className="font-semibold text-gray-900 mb-2">{copy.allDoneTitle}</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Вы завершили roadmap и получили {totalPointsAvailable} баллов.
+                  {copy.allDoneDescription(totalPointsAvailable)}
                 </p>
                 <Button variant="primary" onClick={handleRefresh}>
-                  Создать новый Roadmap
+                  {copy.createNew}
                 </Button>
               </div>
             )}
@@ -539,9 +650,9 @@ export default function RoadmapPage() {
         ) : (
           <EmptyState
             icon={<Map className="w-12 h-12" />}
-            title="Roadmap не найден"
-            description="Заполните профиль, чтобы получить персональные рекомендации."
-            action={{ label: "Заполнить профиль", onClick: () => navigate("/me") }}
+            title={copy.emptyTitle}
+            description={copy.emptyDescription}
+            action={{ label: copy.fillProfile, onClick: () => navigate("/me") }}
           />
         )}
       </div>

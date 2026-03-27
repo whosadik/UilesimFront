@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
@@ -20,6 +20,7 @@ import {
   type RoadmapStepSnapshotApi,
 } from '../../shared/api/roadmap';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 /**
  * DEV NOTES:
@@ -85,6 +86,108 @@ type CartLocationState = {
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&q=80';
 
+const cartPageCopy = {
+  ru: {
+    breadcrumb: 'Корзина',
+    title: 'Корзина',
+    loading: 'Загружаем корзину...',
+    retry: 'Повторить',
+    emptyTitle: 'Корзина пуста',
+    emptyDescription: 'Добавьте товары из рекомендаций или каталога',
+    myRecommendations: 'Мои рекомендации',
+    catalog: 'Каталог',
+    offerBadge: 'ОФФЕР',
+    loadingOffer: 'Загружаем персональный оффер...',
+    giftCardTitle: 'Подарочная карта',
+    giftCardHint: 'За один заказ можно применить один код.',
+    remove: 'Убрать',
+    apply: 'Применить',
+    code: 'Код',
+    balanceBefore: 'Баланс до',
+    balanceAfter: 'Баланс после',
+    redeemPoints: 'Списать баллы',
+    available: (count: number) => `Доступно: ${count.toLocaleString('ru-RU')}`,
+    max: 'Макс.',
+    willRedeem: (points: number) =>
+      `Спишем: ${points.toLocaleString('ru-RU')} баллов = ${points.toLocaleString('ru-RU')} ₸`,
+    products: 'Товары',
+    discount: 'Скидка',
+    giftCard: 'Подарочная карта',
+    pointsRedeemed: 'Списано баллов',
+    total: 'Итого',
+    checkingOut: 'Оформляем...',
+    checkout: 'Оформить заказ',
+    afterPurchase: (points: number) => `После покупки начислим +${points} баллов`,
+    pointsForPurchase: (points: number) => `+${points} баллов`,
+  },
+  kk: {
+    breadcrumb: 'Себет',
+    title: 'Себет',
+    loading: 'Себетті жүктеп жатырмыз...',
+    retry: 'Қайта көру',
+    emptyTitle: 'Себет бос',
+    emptyDescription: 'Ұсыныстардан немесе каталогтан тауар қосыңыз',
+    myRecommendations: 'Менің ұсыныстарым',
+    catalog: 'Каталог',
+    offerBadge: 'ОФФЕР',
+    loadingOffer: 'Жеке офферді жүктеп жатырмыз...',
+    giftCardTitle: 'Сыйлық картасы',
+    giftCardHint: 'Бір тапсырысқа бір код қана қолдануға болады.',
+    remove: 'Өшіру',
+    apply: 'Қолдану',
+    code: 'Код',
+    balanceBefore: 'Алдыңғы баланс',
+    balanceAfter: 'Кейінгі баланс',
+    redeemPoints: 'Ұпайларды шегеру',
+    available: (count: number) => `Қолжетімді: ${count.toLocaleString('ru-RU')}`,
+    max: 'Макс.',
+    willRedeem: (points: number) =>
+      `Шегереміз: ${points.toLocaleString('ru-RU')} ұпай = ${points.toLocaleString('ru-RU')} ₸`,
+    products: 'Тауарлар',
+    discount: 'Жеңілдік',
+    giftCard: 'Сыйлық картасы',
+    pointsRedeemed: 'Шегерілген ұпайлар',
+    total: 'Жалпы',
+    checkingOut: 'Рәсімдеп жатырмыз...',
+    checkout: 'Тапсырысты рәсімдеу',
+    afterPurchase: (points: number) => `Сатып алғаннан кейін +${points} ұпай береміз`,
+    pointsForPurchase: (points: number) => `+${points} ұпай`,
+  },
+  en: {
+    breadcrumb: 'Cart',
+    title: 'Cart',
+    loading: 'Loading cart...',
+    retry: 'Retry',
+    emptyTitle: 'Your cart is empty',
+    emptyDescription: 'Add products from recommendations or the catalog',
+    myRecommendations: 'My recommendations',
+    catalog: 'Catalog',
+    offerBadge: 'OFFER',
+    loadingOffer: 'Loading personal offer...',
+    giftCardTitle: 'Gift card',
+    giftCardHint: 'Only one code can be applied per order.',
+    remove: 'Remove',
+    apply: 'Apply',
+    code: 'Code',
+    balanceBefore: 'Balance before',
+    balanceAfter: 'Balance after',
+    redeemPoints: 'Redeem points',
+    available: (count: number) => `Available: ${count.toLocaleString('ru-RU')}`,
+    max: 'Max',
+    willRedeem: (points: number) =>
+      `We will redeem: ${points.toLocaleString('ru-RU')} points = ${points.toLocaleString('ru-RU')} ₸`,
+    products: 'Products',
+    discount: 'Discount',
+    giftCard: 'Gift card',
+    pointsRedeemed: 'Points redeemed',
+    total: 'Total',
+    checkingOut: 'Checking out...',
+    checkout: 'Checkout',
+    afterPurchase: (points: number) => `After purchase you will earn +${points} points`,
+    pointsForPurchase: (points: number) => `+${points} points`,
+  },
+} as const;
+
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -123,7 +226,7 @@ const formatLabel = (value: unknown): string | undefined => {
 };
 
 const formatTierName = (value: string): string =>
-  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : 'Bronze';
+  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : 'Бронза';
 
 const normalizeGiftCardErrorMessage = (message: string): string => {
   const normalized = message.trim();
@@ -259,7 +362,7 @@ const buildRoadmapUpsell = (plan: RoadmapPlanApi | null): UpsellSuggestion | nul
   const price = toNumber(product.price);
   const productName = firstString(product.name);
   const productDescription = productName && price !== undefined
-    ? `${productName} • ${price.toLocaleString('ru')} ?`
+    ? `${productName} • ${price.toLocaleString('ru-RU')} ₸`
     : productName
       ? `${productName} рекомендован для следующего шага.`
       : description;
@@ -376,7 +479,7 @@ function LoyaltyCartWidget({
         <div className="text-right">
           <p className="text-xs text-[#6B7280] mb-0.5">Новый баланс</p>
           <p className="text-sm font-semibold text-[#111827]">
-            {currentBalance.toLocaleString('ru')} {'->'} <span className="text-[#FF4DB8]">{newBalance.toLocaleString('ru')}</span>
+            {currentBalance.toLocaleString('ru-RU')} {'→'} <span className="text-[#FF4DB8]">{newBalance.toLocaleString('ru-RU')}</span>
           </p>
         </div>
       </div>
@@ -396,6 +499,8 @@ export default function CartPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refresh, removeFromCart, setCartQuantity } = useCommerce();
+  const { language, messages } = useI18n();
+  const copy = cartPageCopy[language];
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartLoading, setIsCartLoading] = useState(true);
   const [cartError, setCartError] = useState<string | null>(null);
@@ -679,7 +784,7 @@ export default function CartPage() {
           giftCard: giftCard
             ? {
                 maskedCode:
-                  typeof giftCard.masked_code === 'string' ? giftCard.masked_code : 'gift card',
+                  typeof giftCard.masked_code === 'string' ? giftCard.masked_code : 'подарочная карта',
                 balanceBefore: Math.max(0, Math.round(toNumber(giftCard.balance_before) ?? 0)),
                 balanceAfter: Math.max(0, Math.round(toNumber(giftCard.balance_after) ?? 0)),
               }
@@ -790,7 +895,7 @@ export default function CartPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Не удалось оформить checkout');
+        toast.error('Не удалось оформить заказ');
       }
     } finally {
       setIsCheckingOut(false);
@@ -815,11 +920,11 @@ export default function CartPage() {
     !activeOffer
       ? 'Когда для вас появится новый оффер, он автоматически отобразится здесь.'
       : summaryDiscount > 0 && offerApplicable
-      ? `Выгода по расчету: ${summaryDiscount.toLocaleString('ru')} ?`
+      ? `Выгода по расчёту: ${summaryDiscount.toLocaleString('ru-RU')} ₸`
       : activeOffer.scope === 'cart' && activeOffer.minBasketAmount !== undefined
-        ? `Оффер применится к корзине от ${activeOffer.minBasketAmount.toLocaleString('ru')} ?.`
+        ? `Оффер применится к корзине от ${activeOffer.minBasketAmount.toLocaleString('ru-RU')} ₸.`
         : activeOffer.scope === 'cart'
-          ? 'Оффер будет применен ко всей корзине при оформлении.'
+          ? 'Оффер будет применён ко всей корзине при оформлении.'
           : activeOffer.scope === 'product_id' && roadmapUpsell
             ? `Оффер связан с вашим следующим шагом roadmap: ${roadmapUpsell.title}.`
             : activeOffer.scope === 'product_id' && activeOffer.targetValue
@@ -828,14 +933,14 @@ export default function CartPage() {
                 ? `Оффер действует на категорию «${offerScopedLabel}».`
                 : activeOffer.scope === 'product_type' && offerScopedLabel
                   ? `Оффер действует на товары типа «${offerScopedLabel}».`
-                  : 'Оффер будет применен к подходящим товарам.';
+                  : 'Оффер будет применён к подходящим товарам.';
 
   const upsellSuggestion: UpsellSuggestion =
     roadmapUpsell ??
     (activeOffer?.targetProductId
       ? {
           title: activeOffer.name || 'Товар из персонального оффера',
-          description: 'Добавьте этот товар в корзину, чтобы использовать текущий оффер на checkout.',
+          description: 'Добавьте этот товар в корзину, чтобы использовать текущий оффер при оформлении.',
           actionHref: `/product/${activeOffer.targetProductId}`,
           actionLabel: 'Открыть',
         }
@@ -850,14 +955,14 @@ export default function CartPage() {
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Корзина' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.breadcrumb }]} />
         </div>
 
-        <h1 className="text-3xl font-semibold text-[#111827] mb-8">Корзина</h1>
+        <h1 className="text-3xl font-semibold text-[#111827] mb-8">{copy.title}</h1>
 
         {isCartLoading ? (
           <div className="py-16">
-            <LoadingSpinner size="lg" text="Загружаем корзину..." />
+            <LoadingSpinner size="lg" text={copy.loading} />
           </div>
         ) : cartError ? (
           <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-6">
@@ -866,7 +971,7 @@ export default function CartPage() {
               onClick={() => setCartRetryKey((value) => value + 1)}
               className="mt-3 text-sm font-medium text-[#111827] underline underline-offset-2"
             >
-              Повторить
+              {copy.retry}
             </button>
           </div>
         ) : cartItems.length === 0 ? (
@@ -874,15 +979,15 @@ export default function CartPage() {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
               <ShoppingBag className="w-8 h-8 text-[#6B7280]" />
             </div>
-            <p className="text-[#6B7280] mb-2 font-medium">Корзина пуста</p>
-            <p className="text-sm text-[#6B7280] mb-6">Добавьте товары из рекомендаций или каталога</p>
+            <p className="text-[#6B7280] mb-2 font-medium">{copy.emptyTitle}</p>
+            <p className="text-sm text-[#6B7280] mb-6">{copy.emptyDescription}</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button variant="primary" onClick={() => navigate('/for-you')}>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Мои рекомендации
+                {copy.myRecommendations}
               </Button>
               <Button variant="secondary" onClick={() => navigate('/catalog')}>
-                Каталог
+                {copy.catalog}
               </Button>
             </div>
           </div>
@@ -897,10 +1002,10 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#6B7280] mb-0.5">{item.brand}</p>
                     <h3 className="text-sm font-semibold text-[#111827] mb-2 line-clamp-1">{item.name}</h3>
-                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru')} ₸</p>
+                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru-RU')} ₸</p>
                     <p className="text-xs text-[#FF4DB8] mt-1 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
-                      +{item.pointsEarned * item.quantity} баллов
+                      {copy.pointsForPurchase(item.pointsEarned * item.quantity)}
                     </p>
                   </div>
 
@@ -919,7 +1024,7 @@ export default function CartPage() {
                         disabled={pendingCartActionId === item.id}
                         className="px-3 py-1.5 text-[#6B7280] hover:bg-gray-50 text-sm"
                       >
-                        ?
+                        -
                       </button>
                       <span className="px-3 py-1.5 text-sm font-semibold text-[#111827]">{item.quantity}</span>
                       <button
@@ -957,10 +1062,10 @@ export default function CartPage() {
               {/* Active Offer */}
               <div className="p-4 rounded-2xl bg-[#FFE1F2] border border-[#FF4DB8]/20">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">ОФФЕР</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">{copy.offerBadge}</span>
                 </div>
                 {isMetaLoading ? (
-                  <p className="text-xs text-[#6B7280] mt-0.5">Загружаем персональный оффер...</p>
+                  <p className="text-xs text-[#6B7280] mt-0.5">{copy.loadingOffer}</p>
                 ) : (
                   <>
                     <p className="text-sm font-semibold text-[#111827]">{offerTitle}</p>
@@ -974,7 +1079,7 @@ export default function CartPage() {
                       onClick={() => setMetaRetryKey((value) => value + 1)}
                       className="mt-2 text-xs text-[#111827] font-medium underline underline-offset-2"
                     >
-                      Повторить
+                      {copy.retry}
                     </button>
                   </div>
                 )}
@@ -987,12 +1092,12 @@ export default function CartPage() {
               >
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-[#111827]">Gift card</h3>
-                    <p className="text-xs text-[#6B7280]">Apply one code per checkout.</p>
+                    <h3 className="text-sm font-semibold text-[#111827]">{copy.giftCardTitle}</h3>
+                    <p className="text-xs text-[#6B7280]">{copy.giftCardHint}</p>
                   </div>
                   {previewTotals?.giftCard && (
                     <span className="text-xs font-medium text-[#FF4DB8]">
-                      -{summaryGiftCardApplied.toLocaleString('ru')} KZT
+                      -{summaryGiftCardApplied.toLocaleString('ru-RU')} ₸
                     </span>
                   )}
                 </div>
@@ -1017,7 +1122,7 @@ export default function CartPage() {
                       onClick={handleRemoveGiftCard}
                       className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
                     >
-                      Remove
+                      {copy.remove}
                     </button>
                   ) : (
                     <button
@@ -1025,7 +1130,7 @@ export default function CartPage() {
                       onClick={handleApplyGiftCard}
                       className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
                     >
-                      Apply
+                      {copy.apply}
                     </button>
                   )}
                 </div>
@@ -1047,16 +1152,16 @@ export default function CartPage() {
                 {previewTotals?.giftCard && (
                   <div className="mt-3 rounded-xl bg-gray-50 px-3 py-3 text-xs text-[#4B5563] space-y-1.5">
                     <div className="flex justify-between gap-3">
-                      <span>Code</span>
+                      <span>{copy.code}</span>
                       <span className="font-medium text-[#111827]">{previewTotals.giftCard.maskedCode}</span>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span>Balance before</span>
-                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceBefore.toLocaleString('ru')} KZT</span>
+                      <span>{copy.balanceBefore}</span>
+                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceBefore.toLocaleString('ru-RU')} ₸</span>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span>Balance after</span>
-                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceAfter.toLocaleString('ru')} KZT</span>
+                      <span>{copy.balanceAfter}</span>
+                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceAfter.toLocaleString('ru-RU')} ₸</span>
                     </div>
                   </div>
                 )}
@@ -1074,9 +1179,9 @@ export default function CartPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-                    <h3 className="text-sm font-semibold text-[#111827]">Списать баллы</h3>
+                    <h3 className="text-sm font-semibold text-[#111827]">{copy.redeemPoints}</h3>
                   </div>
-                  <span className="text-xs text-[#6B7280]">Доступно: {availablePoints.toLocaleString('ru')}</span>
+                  <span className="text-xs text-[#6B7280]">{copy.available(availablePoints)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -1090,12 +1195,12 @@ export default function CartPage() {
                     onClick={() => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints))}
                     className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
-                    Макс.
+                    {copy.max}
                   </button>
                 </div>
                 {pointsToUse > 0 && (
                   <p className="text-xs text-[#FF4DB8] mt-2">
-                    Спишем: {summaryPointsRedeemed.toLocaleString('ru')} баллов = {summaryPointsRedeemed.toLocaleString('ru')} ?
+                    {copy.willRedeem(summaryPointsRedeemed)}
                   </p>
                 )}
               </div>
@@ -1103,32 +1208,32 @@ export default function CartPage() {
               {/* Total */}
               <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF] space-y-2.5">
                 <div className="flex justify-between text-sm">
-                  <span className="text-[#6B7280]">Товары</span>
-                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru')} ₸</span>
+                  <span className="text-[#6B7280]">{copy.products}</span>
+                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru-RU')} ₸</span>
                 </div>
                 {summaryDiscount > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">Скидка</span>
-                    <span className="font-semibold text-[#FF4DB8]">?{summaryDiscount.toLocaleString('ru')} ₸</span>
+                    <span className="text-[#6B7280]">{copy.discount}</span>
+                    <span className="font-semibold text-[#FF4DB8]">-{summaryDiscount.toLocaleString('ru-RU')} ₸</span>
                   </div>
                 )}
                 {summaryGiftCardApplied > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">
-                      Gift card{previewTotals?.giftCard?.maskedCode ? ` (${previewTotals.giftCard.maskedCode})` : ''}
+                      {copy.giftCard}{previewTotals?.giftCard?.maskedCode ? ` (${previewTotals.giftCard.maskedCode})` : ''}
                     </span>
-                    <span className="font-semibold text-[#FF4DB8]">-{summaryGiftCardApplied.toLocaleString('ru')} KZT</span>
+                    <span className="font-semibold text-[#FF4DB8]">-{summaryGiftCardApplied.toLocaleString('ru-RU')} ₸</span>
                   </div>
                 )}
                 {summaryPointsRedeemed > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">Списано баллов</span>
-                    <span className="font-semibold text-[#FF4DB8]">?{summaryPointsRedeemed.toLocaleString('ru')} ?</span>
+                    <span className="text-[#6B7280]">{copy.pointsRedeemed}</span>
+                    <span className="font-semibold text-[#FF4DB8]">-{summaryPointsRedeemed.toLocaleString('ru-RU')} ₸</span>
                   </div>
                 )}
                 <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">
-                  <span className="text-base font-semibold text-[#111827]">Итого</span>
-                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru')} ₸</span>
+                  <span className="text-base font-semibold text-[#111827]">{copy.total}</span>
+                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru-RU')} ₸</span>
                 </div>
               </div>
 
@@ -1137,12 +1242,12 @@ export default function CartPage() {
                 disabled={isCheckingOut}
                 className="w-full h-12 rounded-xl bg-[#111827] text-white font-semibold text-sm hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2 hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {isCheckingOut ? 'Оформляем...' : 'Оформить заказ'}
+                {isCheckingOut ? copy.checkingOut : copy.checkout}
                 {!isCheckingOut && <ArrowRight className="w-4 h-4" />}
               </button>
 
               <p className="text-center text-xs text-[#6B7280]">
-                После покупки начислим <strong className="text-[#FF4DB8]">+{summaryPointsEarned} баллов</strong>
+                <strong className="text-[#FF4DB8]">{copy.afterPurchase(summaryPointsEarned)}</strong>
               </p>
             </div>
           </div>

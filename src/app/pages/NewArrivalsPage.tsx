@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { ProductGrid, type Product } from '../components/ProductGrid';
 import { Badge } from '../components/Badge';
@@ -7,18 +7,66 @@ import { ErrorState } from '../components/ErrorState';
 import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+
+const newArrivalsPageCopy = {
+  ru: {
+    allCategories: 'Все категории',
+    skincare: 'Уход за кожей',
+    makeup: 'Макияж',
+    haircare: 'Уход за волосами',
+    loadError: 'Не удалось загрузить новинки. Попробуйте еще раз.',
+    title: 'Новинки',
+    itemsCount: (count: number) => `${count} товаров`,
+    subtitle: 'Свежие поступления из текущего каталога',
+    inStockOnly: 'Только в наличии',
+    loading: 'Загружаем новинки...',
+    errorTitle: 'Не удалось загрузить новинки',
+    empty: 'Нет товаров, подходящих под выбранные фильтры.',
+  },
+  kk: {
+    allCategories: 'Барлық санаттар',
+    skincare: 'Тері күтімі',
+    makeup: 'Макияж',
+    haircare: 'Шаш күтімі',
+    loadError: 'Жаңалықтарды жүктеу мүмкін болмады. Қайталап көріңіз.',
+    title: 'Жаңалықтар',
+    itemsCount: (count: number) => `${count} тауар`,
+    subtitle: 'Ағымдағы каталогтағы жаңа түсімдер',
+    inStockOnly: 'Тек қолда барлары',
+    loading: 'Жаңалықтарды жүктеп жатырмыз...',
+    errorTitle: 'Жаңалықтарды жүктеу мүмкін болмады',
+    empty: 'Таңдалған сүзгілерге сай тауарлар жоқ.',
+  },
+  en: {
+    allCategories: 'All categories',
+    skincare: 'Skincare',
+    makeup: 'Makeup',
+    haircare: 'Haircare',
+    loadError: 'Could not load new arrivals. Please try again.',
+    title: 'New arrivals',
+    itemsCount: (count: number) => `${count} items`,
+    subtitle: 'Fresh additions from the current catalog',
+    inStockOnly: 'In stock only',
+    loading: 'Loading new arrivals...',
+    errorTitle: 'Could not load new arrivals',
+    empty: 'No products match the selected filters.',
+  },
+} as const;
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
-const CATEGORY_FILTERS = [
-  { id: 'all', label: 'all categories' },
-  { id: 'skincare', label: 'skincare' },
-  { id: 'makeup', label: 'makeup' },
-  { id: 'haircare', label: 'haircare' },
-] as const;
 
-type CategoryFilterId = (typeof CATEGORY_FILTERS)[number]['id'];
+type CategoryFilterId = 'all' | 'skincare' | 'makeup' | 'haircare';
 
 export default function NewArrivalsPage() {
+  const { language, messages } = useI18n();
+  const copy = newArrivalsPageCopy[language];
+  const categoryFilters = [
+    { id: 'all' as const, label: copy.allCategories },
+    { id: 'skincare' as const, label: copy.skincare },
+    { id: 'makeup' as const, label: copy.makeup },
+    { id: 'haircare' as const, label: copy.haircare },
+  ];
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilterId>('all');
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,7 +104,7 @@ export default function NewArrivalsPage() {
         }
 
         setProducts([]);
-        setLoadError('failed to load new arrivals. please try again.');
+        setLoadError(copy.loadError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -69,7 +117,7 @@ export default function NewArrivalsPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [copy.loadError, reloadKey]);
 
   const visibleProducts = useMemo(
     () =>
@@ -86,19 +134,19 @@ export default function NewArrivalsPage() {
     <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'new arrivals' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.title }]} />
         </div>
 
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
-            <h1 className="text-3xl lg:text-4xl font-bold text-[#111827]">new arrivals</h1>
-            <Badge>{products.length} products</Badge>
+            <h1 className="text-3xl lg:text-4xl font-bold text-[#111827]">{copy.title}</h1>
+            <Badge>{copy.itemsCount(products.length)}</Badge>
           </div>
-          <p className="text-base text-[#6B7280]">fresh releases from the current catalog</p>
+          <p className="text-base text-[#6B7280]">{copy.subtitle}</p>
         </div>
 
         <div className="flex items-center gap-3 mb-8 pb-6 border-b border-[#EAE6EF]">
-          {CATEGORY_FILTERS.map((filter) => (
+          {categoryFilters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => setSelectedCategory(filter.id)}
@@ -118,15 +166,15 @@ export default function NewArrivalsPage() {
               checked={onlyInStock}
               onChange={(event) => setOnlyInStock(event.target.checked)}
             />
-            <span className="text-sm text-[#6B7280]">in stock only</span>
+            <span className="text-sm text-[#6B7280]">{copy.inStockOnly}</span>
           </label>
         </div>
 
         {isLoading ? (
-          <LoadingSpinner size="md" text="loading new arrivals..." />
+          <LoadingSpinner size="md" text={copy.loading} />
         ) : loadError ? (
           <ErrorState
-            title="failed to load new arrivals"
+            title={copy.errorTitle}
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
@@ -134,7 +182,7 @@ export default function NewArrivalsPage() {
           <ProductGrid products={visibleProducts} columns={4} />
         ) : (
           <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-            no products match the selected filters.
+            {copy.empty}
           </div>
         )}
       </div>

@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
-import { Clock3, Mail, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
-import { ApiError } from "../../shared/api/ApiError";
-import { getVerificationStatus } from "../../shared/api/auth";
-import { useAuth } from "../../shared/auth/AuthContext";
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { Clock3, Mail, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { ApiError } from '../../shared/api/ApiError';
+import { getVerificationStatus } from '../../shared/api/auth';
+import { useAuth } from '../../shared/auth/AuthContext';
 import {
   clearPendingVerificationState,
   readPendingVerificationCooldownSeconds,
   readPendingVerificationEmail,
   savePendingVerificationEmail,
   updatePendingVerificationCooldownSeconds,
-} from "../../shared/auth/emailVerificationStorage";
-import { AlertBanner } from "../components/AlertBanner";
+} from '../../shared/auth/emailVerificationStorage';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+import { AlertBanner } from '../components/AlertBanner';
 
-function formatStatusError(error: unknown): string {
+function formatStatusError(error: unknown, fallbackMessage: string): string {
   if (error instanceof ApiError) {
     return error.message;
   }
@@ -23,15 +25,15 @@ function formatStatusError(error: unknown): string {
     return error.message;
   }
 
-  return "Unable to load verification status.";
+  return fallbackMessage;
 }
 
-function formatResendError(error: unknown): string {
+function formatResendError(error: unknown, fallbackMessage: string): string {
   if (error instanceof ApiError) {
     const details = error.details;
-    if (details && typeof details === "object" && !Array.isArray(details)) {
+    if (details && typeof details === 'object' && !Array.isArray(details)) {
       const waitErrors = (details as { resend_available_in_seconds?: unknown }).resend_available_in_seconds;
-      if (Array.isArray(waitErrors) && waitErrors.length > 0 && typeof waitErrors[0] === "string") {
+      if (Array.isArray(waitErrors) && waitErrors.length > 0 && typeof waitErrors[0] === 'string') {
         return waitErrors[0];
       }
     }
@@ -42,29 +44,31 @@ function formatResendError(error: unknown): string {
     return error.message;
   }
 
-  return "Unable to resend the email.";
+  return fallbackMessage;
 }
 
 export default function VerifyEmailPendingPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { messages } = useI18n();
+  const verifyEmailPendingMessages = messages.pages.auth.verifyEmailPending;
   const { user, isLoading: isAuthLoading, resendVerificationEmail, refresh, logout } = useAuth();
   const routeState = location.state as
     | { email?: string; from?: string; resendAvailableInSeconds?: number }
     | null;
   const targetPath = useMemo(
-    () => (typeof routeState?.from === "string" && routeState.from.trim() ? routeState.from : "/for-you"),
+    () => (typeof routeState?.from === 'string' && routeState.from.trim() ? routeState.from : '/for-you'),
     [routeState],
   );
 
   const [email, setEmail] = useState(
-    () => routeState?.email || readPendingVerificationEmail() || user?.email || "",
+    () => routeState?.email || readPendingVerificationEmail() || user?.email || '',
   );
   const [cooldownSeconds, setCooldownSeconds] = useState(
     () => Math.max(routeState?.resendAvailableInSeconds ?? 0, readPendingVerificationCooldownSeconds()),
   );
   const [statusMessage, setStatusMessage] = useState(
-    "We sent a confirmation link to your email. Open it and return here.",
+    verifyEmailPendingMessages.initialStatusMessage,
   );
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isStatusLoading, setIsStatusLoading] = useState(true);
@@ -98,18 +102,26 @@ export default function VerifyEmailPendingPage() {
       if (response.email_verified) {
         clearPendingVerificationState();
         await refresh().catch(() => undefined);
-        toast.success("Email confirmed. Access unlocked.");
+        toast.success(verifyEmailPendingMessages.verifiedToast);
         navigate(targetPath, { replace: true });
         return;
       }
 
-      setStatusMessage("We are still waiting for email confirmation. The page checks status automatically.");
+      setStatusMessage(verifyEmailPendingMessages.waitingStatusMessage);
     } catch (error) {
-      setStatusError(formatStatusError(error));
+      setStatusError(formatStatusError(error, verifyEmailPendingMessages.statusLoadError));
     } finally {
       setIsStatusLoading(false);
     }
-  }, [navigate, refresh, targetPath, user]);
+  }, [
+    navigate,
+    refresh,
+    targetPath,
+    user,
+    verifyEmailPendingMessages.statusLoadError,
+    verifyEmailPendingMessages.verifiedToast,
+    verifyEmailPendingMessages.waitingStatusMessage,
+  ]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -153,13 +165,13 @@ export default function VerifyEmailPendingPage() {
     try {
       const response = await resendVerificationEmail();
       setEmail(response.email);
-      setStatusMessage("A new confirmation email has been sent.");
+      setStatusMessage(verifyEmailPendingMessages.resendSuccessMessage);
       savePendingVerificationEmail(response.email, response.resend_available_in_seconds);
       updatePendingVerificationCooldownSeconds(response.resend_available_in_seconds);
       setCooldownSeconds(response.resend_available_in_seconds);
-      toast.success(`Confirmation email sent to ${response.email}.`);
+      toast.success(verifyEmailPendingMessages.resendToast(response.email));
     } catch (error) {
-      setStatusError(formatResendError(error));
+      setStatusError(formatResendError(error, verifyEmailPendingMessages.resendError));
       void syncVerificationStatus();
     } finally {
       setIsResending(false);
@@ -170,22 +182,20 @@ export default function VerifyEmailPendingPage() {
 
   return (
     <div className="page-centered-with-navbar-offset flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl bg-white rounded-3xl border border-gray-100 shadow-sm p-8 md:p-10">
-        <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center mx-auto mb-5">
-          <Mail className="w-8 h-8" />
+      <div className="w-full max-w-xl rounded-3xl border border-gray-100 bg-white p-8 shadow-sm md:p-10">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-700">
+          <Mail className="h-8 w-8" />
         </div>
 
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-serif text-gray-900 mb-2">Confirm your email</h1>
-          <p className="text-gray-600">
-            Access to the account opens after email verification.
-          </p>
+        <div className="mb-6 text-center">
+          <h1 className="mb-2 text-3xl font-serif text-gray-900">{verifyEmailPendingMessages.title}</h1>
+          <p className="text-gray-600">{verifyEmailPendingMessages.subtitle}</p>
         </div>
 
-        <div className="rounded-2xl border border-[#EAE6EF] bg-gray-50 p-4 mb-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-gray-500 mb-2">Email</p>
-          <p className="text-base font-semibold text-gray-900 break-all">
-            {email || "Email is not available"}
+        <div className="mb-4 rounded-2xl border border-[#EAE6EF] bg-gray-50 p-4">
+          <p className="mb-2 text-xs uppercase tracking-[0.18em] text-gray-500">{verifyEmailPendingMessages.emailLabel}</p>
+          <p className="break-all text-base font-semibold text-gray-900">
+            {email || verifyEmailPendingMessages.emailUnavailable}
           </p>
         </div>
 
@@ -195,46 +205,43 @@ export default function VerifyEmailPendingPage() {
           </div>
         ) : null}
 
-        <AlertBanner
-          variant={isStatusLoading ? "info" : "warning"}
-          message={statusMessage}
-        />
+        <AlertBanner variant={isStatusLoading ? 'info' : 'warning'} message={statusMessage} />
 
         <div className="mt-6 rounded-2xl border border-[#EAE6EF] bg-white p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-2">
-            <Clock3 className="w-4 h-4 text-gray-500" />
-            Resend confirmation
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <Clock3 className="h-4 w-4 text-gray-500" />
+            {verifyEmailPendingMessages.resendTitle}
           </div>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="mb-4 text-sm text-gray-600">
             {cooldownSeconds > 0
-              ? `You can request a new email in ${cooldownSeconds} seconds.`
-              : "You can request a new confirmation email now."}
+              ? verifyEmailPendingMessages.resendCooldown(cooldownSeconds)
+              : verifyEmailPendingMessages.resendAvailable}
           </p>
           <button
             type="button"
             onClick={() => void handleResend()}
             disabled={!hasActiveSession || cooldownSeconds > 0 || isResending}
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-[#111827] px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#0B1220] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#111827] px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#0B1220] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none sm:w-auto"
           >
-            <RefreshCw className={`w-4 h-4 ${isResending ? "animate-spin" : ""}`} />
-            {isResending ? "Sending..." : "Resend confirmation"}
+            <RefreshCw className={`h-4 w-4 ${isResending ? 'animate-spin' : ''}`} />
+            {isResending ? verifyEmailPendingMessages.resending : verifyEmailPendingMessages.resend}
           </button>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => void syncVerificationStatus()}
             className="inline-flex items-center justify-center rounded-full border border-[#EAE6EF] bg-white/80 px-6 py-3 text-sm font-medium text-gray-800 transition-all duration-200 hover:border-[#FF4DB8]/20 hover:bg-white hover:shadow-md hover:shadow-[#FF4DB8]/10 active:scale-[0.98]"
           >
-            Check status again
+            {verifyEmailPendingMessages.checkStatus}
           </button>
           {!hasActiveSession ? (
             <Link
               to="/login"
               className="inline-flex items-center justify-center rounded-full bg-[#111827] px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#0B1220] hover:shadow-lg active:scale-[0.98]"
             >
-              Sign in again
+              {verifyEmailPendingMessages.signInAgain}
             </Link>
           ) : (
             <button
@@ -242,11 +249,11 @@ export default function VerifyEmailPendingPage() {
               onClick={async () => {
                 clearPendingVerificationState();
                 await logout();
-                navigate("/login", { replace: true });
+                navigate('/login', { replace: true });
               }}
               className="inline-flex items-center justify-center rounded-full border border-[#EAE6EF] bg-white/80 px-6 py-3 text-sm font-medium text-gray-800 transition-all duration-200 hover:border-[#FF4DB8]/20 hover:bg-white hover:shadow-md hover:shadow-[#FF4DB8]/10 active:scale-[0.98]"
             >
-              Sign out
+              {verifyEmailPendingMessages.signOut}
             </button>
           )}
         </div>
@@ -254,4 +261,3 @@ export default function VerifyEmailPendingPage() {
     </div>
   );
 }
-

@@ -6,6 +6,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { listProducts, type ProductListResponse } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 type ApiProduct = Record<string, unknown>;
 
@@ -74,6 +75,7 @@ function toPagedPayload(payload: Product[] | ProductListResponse): ProductListRe
 }
 
 export function ProductFeedSection() {
+  const { messages } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [nextPage, setNextPage] = useState<number | null>(null);
@@ -114,7 +116,7 @@ export function ProductFeedSection() {
         setProducts([]);
         setTotalCount(0);
         setNextPage(null);
-        setError(loadError instanceof Error ? loadError.message : 'could not load products');
+        setError(loadError instanceof Error ? loadError.message : messages.home.productFeed.errorTitle);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -127,7 +129,7 @@ export function ProductFeedSection() {
     return () => {
       cancelled = true;
     };
-  }, [retryKey]);
+  }, [messages.home.productFeed.errorTitle, retryKey]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || nextPage === null) {
@@ -153,7 +155,7 @@ export function ProductFeedSection() {
         return;
       }
 
-      setError(loadError instanceof Error ? loadError.message : 'could not load more products');
+      setError(loadError instanceof Error ? loadError.message : messages.home.productFeed.errorTitle);
     } finally {
       setIsLoadingMore(false);
     }
@@ -163,11 +165,13 @@ export function ProductFeedSection() {
     return (
       <section className="py-12 bg-gray-50/50">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">all products</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
+            {messages.home.productFeed.title}
+          </h2>
           <FilterBar />
           <ErrorState
-            title="could not load products"
-            description="something went wrong while loading the feed. try again."
+            title={messages.home.productFeed.errorTitle}
+            description={messages.home.productFeed.errorDescription}
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         </div>
@@ -179,13 +183,15 @@ export function ProductFeedSection() {
     return (
       <section className="py-12 bg-gray-50/50">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">all products</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
+            {messages.home.productFeed.title}
+          </h2>
           <FilterBar />
           <EmptyState
-            title="nothing found"
-            description="there are no products available right now. refresh later."
+            title={messages.home.productFeed.emptyTitle}
+            description={messages.home.productFeed.emptyDescription}
             action={{
-              label: 'refresh list',
+              label: messages.home.productFeed.refreshList,
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />
@@ -197,7 +203,9 @@ export function ProductFeedSection() {
   return (
     <section className="py-12 bg-gray-50/50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">all products</h2>
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
+          {messages.home.productFeed.title}
+        </h2>
 
         <FilterBar />
 
@@ -211,14 +219,14 @@ export function ProductFeedSection() {
 
         <div className="flex flex-col items-center gap-4 mt-8">
           <div className="text-sm text-gray-600">
-            showing {products.length} of {totalCount || products.length} products
+            {messages.home.productFeed.showing(products.length, totalCount || products.length)}
           </div>
           {nextPage !== null ? (
             <Button onClick={handleLoadMore} variant="ghost" disabled={isLoadingMore}>
-              {isLoadingMore ? 'loading...' : 'show more'}
+              {isLoadingMore ? messages.home.productFeed.loadingMore : messages.home.productFeed.showMore}
             </Button>
           ) : (
-            <div className="text-xs text-gray-500">you have reached the end of the feed</div>
+            <div className="text-xs text-gray-500">{messages.home.productFeed.endOfFeed}</div>
           )}
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { X, ChevronRight, Percent, Search, Heart } from 'lucide-react';
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
+
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 export type MobileMenuItem = {
   label: string;
@@ -25,37 +27,6 @@ interface MobileMenuProps {
   showLoginButton?: boolean;
 }
 
-const DEFAULT_MENU_ITEMS: MobileMenuItem[] = [
-  { label: 'catalog', hasSubmenu: true, href: '/catalog' },
-  { label: 'brands', href: '/brands' },
-  { label: 'new', href: '/new' },
-  { label: 'promotions', href: '/promotions' },
-  { label: 'for you', href: '/for-you' },
-  { label: 'stores', href: '/stores' },
-  { label: 'gift cards', href: '/gift-cards' },
-];
-
-const DEFAULT_QUICK_ACTIONS: MobileMenuItem[] = [
-  { label: 'search', href: '/search', icon: <Search className="w-4 h-4" /> },
-  { label: 'wishlist', href: '/wishlist', icon: <Heart className="w-4 h-4" /> },
-];
-
-const DEFAULT_PROFILE_ITEMS: MobileMenuItem[] = [
-  { label: 'my profile', href: '/me' },
-  { label: 'my products', href: '/me/owned' },
-  { label: 'roadmap', href: '/me/roadmap' },
-  { label: 'my routine', href: '/me/routine' },
-  { label: 'transactions', href: '/me/transactions' },
-];
-
-const DEFAULT_CATEGORIES: MobileMenuCategory[] = [
-  { label: 'Skincare', href: '/catalog?category=skincare' },
-  { label: 'Makeup', href: '/catalog?category=makeup' },
-  { label: 'Haircare', href: '/catalog?category=haircare' },
-  { label: 'Fragrance', href: '/catalog?category=fragrance' },
-  { label: 'sets', href: '/catalog?product_type=set' },
-];
-
 function normalizeCount(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return Math.max(0, Math.round(value));
@@ -79,13 +50,47 @@ export function MobileMenu({
   showLoginButton = true,
 }: MobileMenuProps) {
   const location = useLocation();
+  const { language, setLanguage, messages, supportedLanguages } = useI18n();
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
-  const menu = Array.isArray(menuItems) && menuItems.length > 0 ? menuItems : DEFAULT_MENU_ITEMS;
-  const actions = Array.isArray(quickActions) && quickActions.length > 0 ? quickActions : DEFAULT_QUICK_ACTIONS;
-  const profile = Array.isArray(profileItems) ? profileItems : DEFAULT_PROFILE_ITEMS;
-  const categoryItems = Array.isArray(categories) && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+  const defaultMenuItems: MobileMenuItem[] = [
+    { label: messages.navbar.mainMenu.catalog, hasSubmenu: true, href: '/catalog' },
+    { label: messages.navbar.mainMenu.brands, href: '/brands' },
+    { label: messages.navbar.mainMenu.new, href: '/new' },
+    { label: messages.navbar.mainMenu.promotions, href: '/promotions' },
+    { label: messages.navbar.mainMenu.forYou, href: '/for-you' },
+    { label: messages.navbar.mainMenu.stores, href: '/stores' },
+    { label: messages.navbar.mainMenu.giftCards, href: '/gift-cards' },
+  ];
+
+  const defaultQuickActions: MobileMenuItem[] = [
+    { label: messages.common.search, href: '/search', icon: <Search className="h-4 w-4" /> },
+    { label: messages.common.wishlist, href: '/wishlist', icon: <Heart className="h-4 w-4" /> },
+  ];
+
+  const defaultProfileItems: MobileMenuItem[] = [
+    { label: messages.navbar.profileMenu.myProfile, href: '/me' },
+    { label: messages.navbar.profileMenu.myProducts, href: '/me/owned' },
+    { label: messages.navbar.profileMenu.roadmap, href: '/me/roadmap' },
+    { label: messages.navbar.profileMenu.myRoutine, href: '/me/routine' },
+    { label: messages.navbar.profileMenu.transactions, href: '/me/transactions' },
+  ];
+
+  const defaultCategories: MobileMenuCategory[] = [
+    { label: messages.catalog.categories.skincare, href: '/catalog?category=skincare' },
+    { label: messages.catalog.categories.makeup, href: '/catalog?category=makeup' },
+    { label: messages.catalog.categories.haircare, href: '/catalog?category=haircare' },
+    { label: messages.catalog.categories.fragrance, href: '/catalog?category=fragrance' },
+    { label: messages.catalog.categories.sets, href: '/catalog?product_type=set' },
+  ];
+
+  const menu = Array.isArray(menuItems) && menuItems.length > 0 ? menuItems : defaultMenuItems;
+  const actions = Array.isArray(quickActions) && quickActions.length > 0 ? quickActions : defaultQuickActions;
+  const profile = Array.isArray(profileItems) ? profileItems : defaultProfileItems;
+  const categoryItems = Array.isArray(categories) && categories.length > 0 ? categories : defaultCategories;
 
   const isPathActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -93,32 +98,53 @@ export function MobileMenu({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/40 z-50 lg:hidden animate-in fade-in duration-200"
+        className="fixed inset-0 z-50 animate-in fade-in duration-200 bg-black/40 lg:hidden"
         onClick={onClose}
       />
 
-      <div className="fixed top-0 left-0 bottom-0 w-[85%] max-w-sm bg-white z-50 shadow-2xl overflow-y-auto lg:hidden animate-in slide-in-from-left duration-300">
-        <div className="sticky top-0 bg-white border-b border-[#EAE6EF] px-6 py-4 flex items-center justify-between z-10">
-          <span className="text-lg font-bold text-[#111827]">menu</span>
+      <div className="fixed top-0 left-0 bottom-0 z-50 w-[85%] max-w-sm overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-left duration-300 lg:hidden">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EAE6EF] bg-white px-6 py-4">
+          <span className="text-lg font-bold text-[#111827]">{messages.mobileMenu.title}</span>
           <button
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100 transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 transition-colors hover:bg-gray-100"
           >
-            <X className="w-5 h-5 text-[#111827]" />
+            <X className="h-5 w-5 text-[#111827]" />
           </button>
+        </div>
+
+        <div className="px-6 pt-4">
+          <div
+            className="inline-flex items-center gap-1 rounded-full border border-[#EAE6EF] bg-gray-50 p-1"
+            role="group"
+            aria-label={messages.languageSwitcher.label}
+          >
+            {supportedLanguages.map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => setLanguage(lang)}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] transition-all ${
+                  language === lang ? 'bg-[#111827] text-white' : 'text-[#6B7280]'
+                }`}
+              >
+                {messages.languageSwitcher.languages[lang]}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mx-6 mt-4">
           <Link
             to="/sale"
             onClick={onClose}
-            className="flex items-center justify-between px-4 py-3 rounded-xl bg-[#FFE1F2] border border-[#FF4DB8] text-[#FF4DB8] font-medium text-sm hover:bg-[#FF4DB8] hover:text-white transition-all group"
+            className="group flex items-center justify-between rounded-xl border border-[#FF4DB8] bg-[#FFE1F2] px-4 py-3 text-sm font-medium text-[#FF4DB8] transition-all hover:bg-[#FF4DB8] hover:text-white"
           >
             <div className="flex items-center gap-2">
-              <Percent className="w-4 h-4" />
-              <span>sale up to 50%</span>
+              <Percent className="h-4 w-4" />
+              <span>{messages.navbar.saleBadge}</span>
             </div>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
@@ -129,7 +155,7 @@ export function MobileMenu({
                 key={action.label}
                 to={action.href}
                 onClick={onClose}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors"
+                className="flex items-center justify-center gap-2 rounded-lg bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
               >
                 {action.icon}
                 <span>{action.label}</span>
@@ -148,16 +174,14 @@ export function MobileMenu({
                   <Link
                     to={item.href}
                     onClick={onClose}
-                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm transition-colors group ${
-                      active
-                        ? 'text-[#111827] bg-[#FFE1F2]/40'
-                        : 'text-[#111827] hover:bg-gray-50'
+                    className={`group flex items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors ${
+                      active ? 'bg-[#FFE1F2]/40 text-[#111827]' : 'text-[#111827] hover:bg-gray-50'
                     }`}
                   >
                     <span className="font-medium">{item.label}</span>
-                    {item.hasSubmenu && (
-                      <ChevronRight className="w-4 h-4 text-[#6B7280] group-hover:text-[#FF4DB8] group-hover:translate-x-0.5 transition-all" />
-                    )}
+                    {item.hasSubmenu ? (
+                      <ChevronRight className="h-4 w-4 text-[#6B7280] transition-all group-hover:translate-x-0.5 group-hover:text-[#FF4DB8]" />
+                    ) : null}
                   </Link>
                 </li>
               );
@@ -165,9 +189,11 @@ export function MobileMenu({
           </ul>
         </nav>
 
-        {profile.length > 0 && (
-          <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
-            <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">account</h3>
+        {profile.length > 0 ? (
+          <div className="border-t border-[#EAE6EF] px-6 pb-6 pt-6">
+            <h3 className="mb-3 px-4 text-xs font-semibold uppercase text-[#6B7280]">
+              {messages.mobileMenu.accountTitle}
+            </h3>
             <ul className="space-y-1">
               {profile.map((item) => {
                 const active = isPathActive(item.href);
@@ -177,10 +203,8 @@ export function MobileMenu({
                     <Link
                       to={item.href}
                       onClick={onClose}
-                      className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors ${
-                        active
-                          ? 'text-[#111827] bg-[#FFE1F2]/40'
-                          : 'text-[#111827] hover:bg-gray-50'
+                      className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-colors ${
+                        active ? 'bg-[#FFE1F2]/40 text-[#111827]' : 'text-[#111827] hover:bg-gray-50'
                       }`}
                     >
                       {item.icon}
@@ -191,26 +215,29 @@ export function MobileMenu({
               })}
             </ul>
           </div>
-        )}
+        ) : null}
 
-        <div className="px-6 pb-6 border-t border-[#EAE6EF] pt-6">
-          <h3 className="text-xs font-semibold text-[#6B7280] uppercase mb-3 px-4">popular categories</h3>
+        <div className="border-t border-[#EAE6EF] px-6 pb-6 pt-6">
+          <h3 className="mb-3 px-4 text-xs font-semibold uppercase text-[#6B7280]">
+            {messages.mobileMenu.popularCategoriesTitle}
+          </h3>
           <ul className="space-y-1">
             {categoryItems.map((category) => {
               const count = normalizeCount(category.count);
-              const active = isPathActive('/catalog') && location.search.includes(category.href.split('?')[1] ?? '');
+              const active =
+                isPathActive('/catalog') && location.search.includes(category.href.split('?')[1] ?? '');
 
               return (
                 <li key={category.label}>
                   <Link
                     to={category.href}
                     onClick={onClose}
-                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-colors ${
-                      active ? 'text-[#111827] bg-[#FFE1F2]/40' : 'text-[#111827] hover:bg-gray-50'
+                    className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm transition-colors ${
+                      active ? 'bg-[#FFE1F2]/40 text-[#111827]' : 'text-[#111827] hover:bg-gray-50'
                     }`}
                   >
                     <span>{category.label}</span>
-                    {count !== undefined && <span className="text-xs text-[#6B7280]">{count}</span>}
+                    {count !== undefined ? <span className="text-xs text-[#6B7280]">{count}</span> : null}
                   </Link>
                 </li>
               );
@@ -218,23 +245,24 @@ export function MobileMenu({
           </ul>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-[#EAE6EF] px-6 py-4 space-y-3">
-          {showLoginButton && (
+        <div className="sticky bottom-0 space-y-3 border-t border-[#EAE6EF] bg-white px-6 py-4">
+          {showLoginButton ? (
             <Link
               to="/login"
               onClick={onClose}
-              className="block text-center px-4 py-3 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors"
+              className="block rounded-xl bg-[#111827] px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-[#0B1220]"
             >
-              sign in
+              {messages.navbar.guestMenu.signIn}
             </Link>
-          )}
+          ) : null}
+
           <div className="flex items-center justify-center gap-4 text-xs text-[#6B7280]">
-            <Link to="/help" onClick={onClose} className="hover:text-[#FF4DB8] transition-colors">
-              help
+            <Link to="/help" onClick={onClose} className="transition-colors hover:text-[#FF4DB8]">
+              {messages.mobileMenu.help}
             </Link>
             <span>&bull;</span>
-            <Link to="/help" onClick={onClose} className="hover:text-[#FF4DB8] transition-colors">
-              contacts
+            <Link to="/help" onClick={onClose} className="transition-colors hover:text-[#FF4DB8]">
+              {messages.mobileMenu.contacts}
             </Link>
           </div>
         </div>

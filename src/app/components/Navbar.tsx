@@ -15,11 +15,13 @@ import {
   Clock,
   Shield,
 } from 'lucide-react';
+
 import { IconButton } from './IconButton';
 import { MegaMenu, type MegaMenuCategory, type MegaMenuQuickLink } from './MegaMenu';
 import { MobileMenu, type MobileMenuCategory, type MobileMenuItem } from './MobileMenu';
 import logoImage from '@/assets/UylesimLogo.png';
 import { useAuth } from '../../shared/auth/AuthContext';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 type MainMenuItem = {
   label: string;
@@ -38,32 +40,6 @@ interface NavbarProps {
   mobileMenuCategories?: MobileMenuCategory[];
 }
 
-const DEFAULT_MAIN_MENU: MainMenuItem[] = [
-  { label: 'catalog', hasIcon: true, trigger: true, href: '/catalog' },
-  { label: 'brands', href: '/brands' },
-  { label: 'new', href: '/new' },
-  { label: 'promotions', href: '/promotions' },
-  { label: 'for you', href: '/for-you' },
-  { label: 'stores', href: '/stores' },
-  { label: 'gift cards', href: '/gift-cards' },
-];
-
-const DEFAULT_PROFILE_MENU: MobileMenuItem[] = [
-  { label: 'my profile', href: '/me', icon: <User className="w-4 h-4" /> },
-  { label: 'my products', href: '/me/owned', icon: <Package className="w-4 h-4" /> },
-  { label: 'roadmap', href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
-  { label: 'my routine', href: '/me/routine', icon: <Clock className="w-4 h-4" /> },
-  { label: 'transactions', href: '/me/transactions', icon: <Receipt className="w-4 h-4" /> },
-];
-
-const DEFAULT_MOBILE_CATEGORIES: MobileMenuCategory[] = [
-  { label: 'Skincare', href: '/catalog?category=skincare' },
-  { label: 'Makeup', href: '/catalog?category=makeup' },
-  { label: 'Haircare', href: '/catalog?category=haircare' },
-  { label: 'Fragrance', href: '/catalog?category=fragrance' },
-  { label: 'sets', href: '/catalog?product_type=set' },
-];
-
 export function Navbar({
   wishlistCount,
   cartCount,
@@ -76,18 +52,66 @@ export function Navbar({
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, logout } = useAuth();
+  const { language, setLanguage, messages, supportedLanguages } = useI18n();
   const [megaMenuOpen, setMegaMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const menuItems = Array.isArray(mainMenu) && mainMenu.length > 0 ? mainMenu : DEFAULT_MAIN_MENU;
+  const defaultMainMenu: MainMenuItem[] = [
+    {
+      label: messages.navbar.mainMenu.catalog,
+      hasIcon: true,
+      trigger: true,
+      href: '/catalog',
+    },
+    { label: messages.navbar.mainMenu.brands, href: '/brands' },
+    { label: messages.navbar.mainMenu.new, href: '/new' },
+    { label: messages.navbar.mainMenu.promotions, href: '/promotions' },
+    { label: messages.navbar.mainMenu.forYou, href: '/for-you' },
+    { label: messages.navbar.mainMenu.stores, href: '/stores' },
+    { label: messages.navbar.mainMenu.giftCards, href: '/gift-cards' },
+  ];
+
+  const defaultProfileMenu: MobileMenuItem[] = [
+    { label: messages.navbar.profileMenu.myProfile, href: '/me', icon: <User className="w-4 h-4" /> },
+    {
+      label: messages.navbar.profileMenu.myProducts,
+      href: '/me/owned',
+      icon: <Package className="w-4 h-4" />,
+    },
+    { label: messages.navbar.profileMenu.roadmap, href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
+    {
+      label: messages.navbar.profileMenu.myRoutine,
+      href: '/me/routine',
+      icon: <Clock className="w-4 h-4" />,
+    },
+    {
+      label: messages.navbar.profileMenu.transactions,
+      href: '/me/transactions',
+      icon: <Receipt className="w-4 h-4" />,
+    },
+  ];
+
+  const defaultMobileCategories: MobileMenuCategory[] = [
+    { label: messages.catalog.categories.skincare, href: '/catalog?category=skincare' },
+    { label: messages.catalog.categories.makeup, href: '/catalog?category=makeup' },
+    { label: messages.catalog.categories.haircare, href: '/catalog?category=haircare' },
+    { label: messages.catalog.categories.fragrance, href: '/catalog?category=fragrance' },
+    { label: messages.catalog.categories.sets, href: '/catalog?product_type=set' },
+  ];
+
+  const menuItems = Array.isArray(mainMenu) && mainMenu.length > 0 ? mainMenu : defaultMainMenu;
   const profileItems =
     Array.isArray(profileMenuItems) && profileMenuItems.length > 0
       ? profileMenuItems
-      : DEFAULT_PROFILE_MENU;
+      : defaultProfileMenu;
   const guestProfileItems: MobileMenuItem[] = [
-    { label: 'sign in', href: '/login', icon: <User className="w-4 h-4" /> },
-    { label: 'create account', href: '/register', icon: <Shield className="w-4 h-4" /> },
+    { label: messages.navbar.guestMenu.signIn, href: '/login', icon: <User className="w-4 h-4" /> },
+    {
+      label: messages.navbar.guestMenu.createAccount,
+      href: '/register',
+      icon: <Shield className="w-4 h-4" />,
+    },
   ];
   const accountItems = user ? profileItems : guestProfileItems;
   const mobileMenuItems: MobileMenuItem[] = menuItems.map((item) => ({
@@ -98,10 +122,33 @@ export function Navbar({
   const mobileCategories =
     Array.isArray(mobileMenuCategories) && mobileMenuCategories.length > 0
       ? mobileMenuCategories
-      : DEFAULT_MOBILE_CATEGORIES;
+      : defaultMobileCategories;
 
   const isPathActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  const languageSwitcher = (
+    <div
+      className="flex items-center gap-1 rounded-full border border-[#EAE6EF] bg-white/70 p-1"
+      role="group"
+      aria-label={messages.languageSwitcher.label}
+    >
+      {supportedLanguages.map((lang) => (
+        <button
+          key={lang}
+          type="button"
+          onClick={() => setLanguage(lang)}
+          className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] transition-all ${
+            language === lang
+              ? 'bg-[#111827] text-white shadow-sm'
+              : 'text-[#6B7280] hover:bg-white hover:text-[#111827]'
+          }`}
+        >
+          {messages.languageSwitcher.languages[lang]}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-[#EAE6EF]">
@@ -110,13 +157,13 @@ export function Navbar({
           <div className="flex items-center justify-between h-10">
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
               <Link to="/delivery-returns" className="hover:text-[#FF4DB8] transition-colors">
-                delivery and returns
+                {messages.navbar.topLinks.deliveryReturns}
               </Link>
               <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
-                contacts
+                {messages.navbar.topLinks.contacts}
               </Link>
               <Link to="/about" className="hover:text-[#FF4DB8] transition-colors">
-                about
+                {messages.navbar.topLinks.about}
               </Link>
               {isAdmin ? (
                 <Link
@@ -124,17 +171,19 @@ export function Navbar({
                   className="flex items-center gap-1 hover:text-[#FF4DB8] transition-colors font-medium text-[#111827]"
                 >
                   <Shield className="w-3 h-3" />
-                  admin
+                  {messages.navbar.topLinks.admin}
                 </Link>
               ) : null}
             </div>
-            <div className="flex items-center gap-6 text-xs text-[#6B7280]">
+
+            <div className="flex items-center gap-4 text-xs text-[#6B7280]">
               <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
-                help
+                {messages.navbar.topLinks.help}
               </Link>
               <Link to="/terms" className="hover:text-[#FF4DB8] transition-colors">
-                loyalty program
+                {messages.navbar.topLinks.loyaltyProgram}
               </Link>
+              {languageSwitcher}
             </div>
           </div>
         </div>
@@ -146,7 +195,7 @@ export function Navbar({
             <img
               src={logoImage}
               alt="Uilesim"
-              className="w-9 h-9 lg:w-10 lg:h-10 object-contain transition-transform group-hover:scale-105"
+              className="w-9 h-9 lg:w-10 lg:h-10 object-contain transition-transform group-hover:scale-105 br-2 border-transparent group-hover:border-[#FF4DB8] rounded-full"
             />
             <span className="text-[#111827] font-semibold text-base lg:text-lg tracking-tight">
               Uilesim
@@ -161,13 +210,13 @@ export function Navbar({
                 <button
                   key={item.label}
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
+                  onClick={(event) => {
+                    event.preventDefault();
                     setMegaMenuOpen((prev) => !prev);
                   }}
                   aria-haspopup="dialog"
                   aria-expanded={megaMenuOpen}
-                  aria-label="Open catalog menu"
+                  aria-label={messages.navbar.openCatalogMenu}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-all relative group ${
                     isActive ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
                   }`}
@@ -203,26 +252,26 @@ export function Navbar({
               className="flex items-center gap-1.5 px-3 py-1.5 ml-2 rounded-full bg-[#FFE1F2] border border-[#FF4DB8] text-[#FF4DB8] text-sm font-medium hover:bg-[#FF4DB8] hover:text-white transition-all group"
             >
               <Percent className="w-3.5 h-3.5" />
-              <span className="whitespace-nowrap">sale up to 50%</span>
+              <span className="whitespace-nowrap">{messages.navbar.saleBadge}</span>
             </Link>
           </div>
 
           <div className="hidden lg:flex xl:hidden items-center gap-1 flex-1 justify-center px-4">
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={(event) => {
+                event.preventDefault();
                 setMegaMenuOpen((prev) => !prev);
               }}
               aria-haspopup="dialog"
               aria-expanded={megaMenuOpen}
-              aria-label="Open catalog menu"
+              aria-label={messages.navbar.openCatalogMenu}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors relative ${
                 isPathActive('/catalog') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
               <AlignJustify className="w-4 h-4" />
-              <span>catalog</span>
+              <span>{messages.navbar.mainMenu.catalog}</span>
               {isPathActive('/catalog') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -233,7 +282,7 @@ export function Navbar({
                 isPathActive('/brands') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
-              brands
+              {messages.navbar.mainMenu.brands}
               {isPathActive('/brands') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -244,7 +293,7 @@ export function Navbar({
                 isPathActive('/new') ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
-              new
+              {messages.navbar.mainMenu.new}
               {isPathActive('/new') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -257,7 +306,7 @@ export function Navbar({
                   : 'text-[#6B7280] hover:text-[#111827]'
               }`}
             >
-              promotions
+              {messages.navbar.mainMenu.promotions}
               {isPathActive('/promotions') && (
                 <span className="absolute -bottom-2 left-0 right-0 h-0.5 bg-[#FF4DB8]" />
               )}
@@ -265,6 +314,8 @@ export function Navbar({
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="hidden sm:flex md:hidden">{languageSwitcher}</div>
+
             <Link to="/search">
               <IconButton icon={<Search className="w-5 h-5" />} />
             </Link>
@@ -303,7 +354,9 @@ export function Navbar({
                       <span>{item.href === '/me' && user ? user.username : item.label}</span>
                     </Link>
                   ))}
+
                   <div className="border-t border-gray-100 my-2" />
+
                   <button
                     onClick={async () => {
                       try {
@@ -316,7 +369,7 @@ export function Navbar({
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors w-full"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>sign out</span>
+                    <span>{messages.navbar.signOut}</span>
                   </button>
                 </div>
               )}

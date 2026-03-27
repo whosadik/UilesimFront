@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Clock, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "../components/Button";
@@ -9,6 +9,7 @@ import { Badge } from "../components/Badge";
 import { ErrorState } from "../components/ErrorState";
 import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
   generateRoutine,
   validateRoutine,
@@ -58,32 +59,148 @@ interface RoutineValidationResult {
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
 
-const STEP_LABELS: Record<string, string> = {
-  cleanser: "Очищение",
-  toner: "Тонизирование",
-  serum: "Сыворотка",
-  moisturizer: "Увлажнение",
-  spf: "SPF защита",
-};
+const routinePageCopy = {
+  ru: {
+    stepLabels: { cleanser: "Очищение", toner: "Тонизирование", serum: "Сыворотка", moisturizer: "Увлажнение", spf: "SPF защита" },
+    durations: { cleanser: "1-2 мин", toner: "30 сек", serum: "1 мин", moisturizer: "1 мин", spf: "1 мин" },
+    spfNote: "Наносите каждый день как завершающий утренний шаг.",
+    defaultTips: [
+      "Следуйте рутине регулярно для достижения лучших результатов.",
+      "Дайте каждому средству впитаться перед нанесением следующего.",
+      "Рутина сформирована на основе вашего профиля и доступных продуктов.",
+      "Обновляйте рутину при изменении профиля или покупках новых средств.",
+    ],
+    stepFallback: "Шаг ухода",
+    productFallback: (id: string) => `Товар #${id}`,
+    valid: "Рутина валидна",
+    warnings: "Есть предупреждения",
+    alternativesFound: "Мы нашли альтернативы для шагов с конфликтующими активами.",
+    currentProduct: (name: string) => `Текущий продукт: ${name}`,
+    softerAlternatives: "Для этого шага найдены более мягкие альтернативы.",
+    alternatives: "Альтернативы",
+    open: "Открыть",
+    noAlternatives: "Пока нет подходящих альтернатив в каталоге.",
+    generating: "Создаём вашу персональную рутину...",
+    loadErrorTitle: "Не удалось загрузить рутину",
+    createTitle: "Создайте свою рутину",
+    createDescription: "Сгенерируйте персональный план ухода за кожей на основе вашего профиля и предпочтений.",
+    createButton: "Сгенерировать рутину",
+    morning: "🌅 Утренняя",
+    evening: "🌙 Вечерняя",
+    totalTime: "Общее время",
+    minutes: (value: number) => `~${value} минут`,
+    details: "Подробнее",
+    tips: "Советы",
+    generated: "Рутина создана на основе вашего профиля.",
+    generateError: "Не удалось сгенерировать рутину. Попробуйте ещё раз.",
+    generateToastError: "Не удалось сгенерировать рутину.",
+    validated: "Рутина проверена.",
+    validateError: "Не удалось проверить рутину.",
+    title: "Моя рутина",
+    subtitle: "Персональный план ухода за кожей, созданный на основе вашего профиля",
+    validating: "Проверка...",
+    validate: "Проверить",
+    generatingButton: "Генерация...",
+    generate: "Сгенерировать",
+    activeConflictMessage: (pair: string[]) => `Конфликт активов в одной рутине: ${pair.join(" + ")}.`,
+    tooManyStrongActives: (actives: string[]) =>
+      `В вечерней рутине слишком много сильных активов: ${actives.join(", ")}.`,
+  },
+  kk: {
+    stepLabels: { cleanser: "Тазарту", toner: "Тонерлеу", serum: "Сарысу", moisturizer: "Ылғалдандыру", spf: "SPF қорғаныс" },
+    durations: { cleanser: "1-2 мин", toner: "30 сек", serum: "1 мин", moisturizer: "1 мин", spf: "1 мин" },
+    spfNote: "Күн сайын таңертеңгі соңғы қадам ретінде жағыңыз.",
+    defaultTips: [
+      "Жақсы нәтижеге жету үшін рутинаны тұрақты ұстаныңыз.",
+      "Келесі өнімді жағар алдында әр құралдың сіңуіне уақыт беріңіз.",
+      "Рутина сіздің профиліңіз бен қолжетімді өнімдер негізінде құрылды.",
+      "Профиль өзгергенде немесе жаңа өнімдер сатып алғанда рутинаны жаңартыңыз.",
+    ],
+    stepFallback: "Күтім қадамы",
+    productFallback: (id: string) => `Тауар #${id}`,
+    valid: "Рутина жарамды",
+    warnings: "Ескертулер бар",
+    alternativesFound: "Белсенді ингредиенттері қайшы келетін қадамдар үшін баламалар таптық.",
+    currentProduct: (name: string) => `Ағымдағы өнім: ${name}`,
+    softerAlternatives: "Бұл қадам үшін жұмсағырақ баламалар табылды.",
+    alternatives: "Баламалар",
+    open: "Ашу",
+    noAlternatives: "Каталогта әзірге қолайлы баламалар жоқ.",
+    generating: "Жеке рутинаны құрып жатырмыз...",
+    loadErrorTitle: "Рутинаны жүктеу мүмкін болмады",
+    createTitle: "Рутинаны жасаңыз",
+    createDescription: "Профиль мен қалауыңыз негізінде тері күтімінің жеке жоспарын жасаңыз.",
+    createButton: "Рутинаны жасау",
+    morning: "🌅 Таңертеңгі",
+    evening: "🌙 Кешкі",
+    totalTime: "Жалпы уақыт",
+    minutes: (value: number) => `~${value} минут`,
+    details: "Толығырақ",
+    tips: "Кеңестер",
+    generated: "Рутина профиліңіз негізінде құрылды.",
+    generateError: "Рутинаны жасау мүмкін болмады. Қайталап көріңіз.",
+    generateToastError: "Рутинаны жасау мүмкін болмады.",
+    validated: "Рутина тексерілді.",
+    validateError: "Рутинаны тексеру мүмкін болмады.",
+    title: "Менің рутинам",
+    subtitle: "Профильге негізделген жеке тері күтімі жоспары",
+    validating: "Тексеру...",
+    validate: "Тексеру",
+    generatingButton: "Жасалып жатыр...",
+    generate: "Жасау",
+    activeConflictMessage: (pair: string[]) => `Бір рутинаның ішінде белсенді заттар қайшы келеді: ${pair.join(" + ")}.`,
+    tooManyStrongActives: (actives: string[]) =>
+      `Кешкі рутинаның ішінде күшті белсенділер тым көп: ${actives.join(", ")}.`,
+  },
+  en: {
+    stepLabels: { cleanser: "Cleanse", toner: "Tone", serum: "Serum", moisturizer: "Moisturize", spf: "SPF protection" },
+    durations: { cleanser: "1-2 min", toner: "30 sec", serum: "1 min", moisturizer: "1 min", spf: "1 min" },
+    spfNote: "Apply every day as the final morning step.",
+    defaultTips: [
+      "Follow the routine consistently for better results.",
+      "Let each product absorb before applying the next one.",
+      "The routine is built from your profile and available products.",
+      "Refresh the routine when your profile changes or when you buy new products.",
+    ],
+    stepFallback: "Care step",
+    productFallback: (id: string) => `Product #${id}`,
+    valid: "Routine is valid",
+    warnings: "There are warnings",
+    alternativesFound: "We found alternatives for steps with conflicting active ingredients.",
+    currentProduct: (name: string) => `Current product: ${name}`,
+    softerAlternatives: "Softer alternatives were found for this step.",
+    alternatives: "Alternatives",
+    open: "Open",
+    noAlternatives: "There are no suitable alternatives in the catalog yet.",
+    generating: "Creating your personal routine...",
+    loadErrorTitle: "Could not load routine",
+    createTitle: "Create your routine",
+    createDescription: "Generate a personal skincare plan based on your profile and preferences.",
+    createButton: "Generate routine",
+    morning: "🌅 Morning",
+    evening: "🌙 Evening",
+    totalTime: "Total time",
+    minutes: (value: number) => `~${value} min`,
+    details: "Details",
+    tips: "Tips",
+    generated: "Routine created based on your profile.",
+    generateError: "Could not generate routine. Please try again.",
+    generateToastError: "Could not generate routine.",
+    validated: "Routine validated.",
+    validateError: "Could not validate routine.",
+    title: "My routine",
+    subtitle: "A personal skincare plan created from your profile",
+    validating: "Validating...",
+    validate: "Validate",
+    generatingButton: "Generating...",
+    generate: "Generate",
+    activeConflictMessage: (pair: string[]) => `Active ingredient conflict in one routine: ${pair.join(" + ")}.`,
+    tooManyStrongActives: (actives: string[]) =>
+      `Too many strong actives in the evening routine: ${actives.join(", ")}.`,
+  },
+} as const;
 
-const STEP_DURATIONS: Record<string, string> = {
-  cleanser: "1-2 мин",
-  toner: "30 сек",
-  serum: "1 мин",
-  moisturizer: "1 мин",
-  spf: "1 мин",
-};
-
-const STEP_NOTES: Record<string, string> = {
-  spf: "Наносите каждый день как завершающий утренний шаг.",
-};
-
-const DEFAULT_TIPS = [
-  "Следуйте рутине регулярно для достижения лучших результатов.",
-  "Дайте каждому средству впитаться перед нанесением следующего.",
-  "Рутина сформирована на основе вашего профиля и доступных продуктов.",
-  "Обновляйте рутину при изменении профиля или покупках новых средств.",
-];
+type RoutinePageCopy = (typeof routinePageCopy)[keyof typeof routinePageCopy];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -113,14 +230,14 @@ function getRoutineProductImage(
   return firstNonEmptyString(product.image_url, ...images);
 }
 
-function formatStepName(step: string): string {
-  if (STEP_LABELS[step]) {
-    return STEP_LABELS[step];
+function formatStepName(step: string, labels: Record<string, string>, fallback: string): string {
+  if (labels[step]) {
+    return labels[step];
   }
 
   const prepared = step.replace(/_/g, " ").trim();
   if (!prepared) {
-    return "Шаг ухода";
+    return fallback;
   }
 
   return prepared[0].toUpperCase() + prepared.slice(1);
@@ -135,7 +252,10 @@ function toOptionalNumber(value?: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function mapRoutineSteps(items: RoutineStepApi[] | undefined): RoutineStep[] {
+function mapRoutineSteps(
+  items: RoutineStepApi[] | undefined,
+  copy: (typeof routinePageCopy)[keyof typeof routinePageCopy],
+): RoutineStep[] {
   const source = Array.isArray(items) ? items : [];
 
   return source.map((item, index) => {
@@ -155,38 +275,41 @@ function mapRoutineSteps(items: RoutineStepApi[] | undefined): RoutineStep[] {
     const stepNote =
       firstNonEmptyString(item.note) ??
       firstNonEmptyString(product?.application_text) ??
-      STEP_NOTES[stepKey];
+      (stepKey === "spf" ? copy.spfNote : undefined);
 
     return {
       step_number: index + 1,
       api_step: stepKey,
       action:
         firstNonEmptyString(item.display_step) ??
-        formatStepName(stepKey),
+        formatStepName(stepKey, copy.stepLabels, copy.stepFallback),
       product_id: productId,
       product_name: productName,
       product_image: productId ? getRoutineProductImage(item.product) ?? FALLBACK_IMAGE : undefined,
       duration:
         firstNonEmptyString(item.duration_label) ??
-        STEP_DURATIONS[stepKey],
+        copy.durations[stepKey as keyof typeof copy.durations],
       notes: stepNote,
     };
   });
 }
 
-function mapGeneratedRoutine(response: RoutineGenerateResponseApi): Routine {
+function mapGeneratedRoutine(
+  response: RoutineGenerateResponseApi,
+  copy: (typeof routinePageCopy)[keyof typeof routinePageCopy],
+): Routine {
   const notes = Array.isArray(response.notes)
     ? response.notes.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
 
   return {
-    morning: mapRoutineSteps(response.am),
-    evening: mapRoutineSteps(response.pm),
+    morning: mapRoutineSteps(response.am, copy),
+    evening: mapRoutineSteps(response.pm, copy),
     notes,
   };
 }
 
-function mapValidationConflictMessage(conflict: unknown): string | null {
+function mapValidationConflictMessage(conflict: unknown, copy: RoutinePageCopy): string | null {
   if (typeof conflict === "string" && conflict.trim().length > 0) {
     return conflict.trim();
   }
@@ -198,7 +321,7 @@ function mapValidationConflictMessage(conflict: unknown): string | null {
   if (conflict.type === "active_conflict" && Array.isArray(conflict.pair)) {
     const pair = conflict.pair.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
     if (pair.length >= 2) {
-      return `Конфликт активов в одной рутине: ${pair.join(" + ")}.`;
+      return copy.activeConflictMessage(pair);
     }
   }
 
@@ -207,14 +330,14 @@ function mapValidationConflictMessage(conflict: unknown): string | null {
       (item): item is string => typeof item === "string" && item.trim().length > 0,
     );
     if (actives.length > 0) {
-      return `В вечерней рутине слишком много сильных активов: ${actives.join(", ")}.`;
+      return copy.tooManyStrongActives(actives);
     }
   }
 
   return firstNonEmptyString(conflict.message) ?? null;
 }
 
-function mapValidationAlternativeProduct(product: unknown): RoutineValidationAlternative | null {
+function mapValidationAlternativeProduct(product: unknown, copy: RoutinePageCopy): RoutineValidationAlternative | null {
   if (!isRecord(product)) {
     return null;
   }
@@ -230,16 +353,16 @@ function mapValidationAlternativeProduct(product: unknown): RoutineValidationAlt
 
   return {
     id: productId,
-    name: firstNonEmptyString(product.name) ?? `Товар #${productId}`,
+    name: firstNonEmptyString(product.name) ?? copy.productFallback(productId),
     brand: firstNonEmptyString(product.brand),
     image: getRoutineProductImage(product) ?? FALLBACK_IMAGE,
   };
 }
 
-function mapValidationResult(response: RoutineValidateResponseApi): RoutineValidationResult {
+function mapValidationResult(response: RoutineValidateResponseApi, copy: RoutinePageCopy): RoutineValidationResult {
   const conflicts = Array.isArray(response.conflicts)
     ? response.conflicts
-        .map(mapValidationConflictMessage)
+        .map((conflict) => mapValidationConflictMessage(conflict, copy))
         .filter((item): item is string => Boolean(item))
     : [];
 
@@ -252,13 +375,15 @@ function mapValidationResult(response: RoutineValidateResponseApi): RoutineValid
 
           const stepLabel =
             firstNonEmptyString(item.display_step) ??
-            (typeof item.step === "string" && item.step ? formatStepName(item.step) : "Шаг");
+            (typeof item.step === "string" && item.step
+              ? formatStepName(item.step, copy.stepLabels, copy.stepFallback)
+              : copy.stepFallback);
           const alternatives = Array.isArray(item.alternative_products)
             ? item.alternative_products
-                .map(mapValidationAlternativeProduct)
+                .map((product) => mapValidationAlternativeProduct(product, copy))
                 .filter((value): value is RoutineValidationAlternative => Boolean(value))
             : [];
-          const currentProduct = mapValidationAlternativeProduct(item.current_product);
+          const currentProduct = mapValidationAlternativeProduct(item.current_product, copy);
 
           return {
             key: `${String(item.step ?? "step")}-${currentProduct?.id ?? "current"}`,
@@ -278,6 +403,8 @@ function mapValidationResult(response: RoutineValidateResponseApi): RoutineValid
 }
 
 export default function RoutinePage() {
+  const { language } = useI18n();
+  const copy = routinePageCopy[language];
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -295,9 +422,9 @@ export default function RoutinePage() {
 
     try {
       const response = await generateRoutine({ use_owned: true });
-      const mapped = mapGeneratedRoutine(response);
+      const mapped = mapGeneratedRoutine(response, copy);
       setRoutine(mapped);
-      toast.success("Рутина создана на основе вашего профиля.");
+      toast.success(copy.generated);
     } catch (generateError) {
       if (generateError instanceof ApiError && (generateError.status === 401 || generateError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
@@ -307,9 +434,9 @@ export default function RoutinePage() {
       setError(
         generateError instanceof Error
           ? generateError.message
-          : "Не удалось сгенерировать рутину. Попробуйте ещё раз.",
+          : copy.generateError,
       );
-      toast.error("Не удалось сгенерировать рутину.");
+      toast.error(copy.generateToastError);
     } finally {
       setIsGenerating(false);
     }
@@ -334,22 +461,22 @@ export default function RoutinePage() {
 
     try {
       const response = await validateRoutine(payload);
-      setValidationResult(mapValidationResult(response));
-      toast.success("Рутина проверена.");
+      setValidationResult(mapValidationResult(response, copy));
+      toast.success(copy.validated);
     } catch (validateError) {
       if (validateError instanceof ApiError && (validateError.status === 401 || validateError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
         return;
       }
 
-      toast.error("Не удалось проверить рутину.");
+      toast.error(copy.validateError);
     } finally {
       setIsValidating(false);
     }
   };
 
   const currentSteps = routine ? routine[selectedTime] : [];
-  const tips = routine && routine.notes.length > 0 ? routine.notes : DEFAULT_TIPS;
+  const tips = routine && routine.notes.length > 0 ? routine.notes : copy.defaultTips;
   const totalTime = currentSteps.reduce((sum, step) => {
     if (!step.duration) return sum;
     const minutes = parseInt(step.duration, 10);
@@ -364,11 +491,9 @@ export default function RoutinePage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <Clock className="w-8 h-8 text-gray-700" />
-                <h1 className="text-3xl font-semibold text-gray-900">Моя рутина</h1>
+                <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
               </div>
-              <p className="text-gray-600">
-                Персональный план ухода за кожей, созданный на основе вашего профиля
-              </p>
+              <p className="text-gray-600">{copy.subtitle}</p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -379,12 +504,12 @@ export default function RoutinePage() {
                 {isValidating ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    Проверка...
+                    {copy.validating}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Проверить
+                    {copy.validate}
                   </>
                 )}
               </Button>
@@ -392,12 +517,12 @@ export default function RoutinePage() {
                 {isGenerating ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    Генерация...
+                    {copy.generatingButton}
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Сгенерировать
+                    {copy.generate}
                   </>
                 )}
               </Button>
@@ -411,14 +536,14 @@ export default function RoutinePage() {
           <div className="mb-6 space-y-4">
             <AlertBanner
               variant={validationResult.is_valid ? "success" : "warning"}
-              title={validationResult.is_valid ? "Рутина валидна" : "Есть предупреждения"}
-              message={
-                validationResult.conflicts.length > 0
-                  ? validationResult.conflicts.join(" ")
+                title={validationResult.is_valid ? copy.valid : copy.warnings}
+                message={
+                  validationResult.conflicts.length > 0
+                    ? validationResult.conflicts.join(" ")
                   : validationResult.suggestions.length > 0
-                    ? "Мы нашли альтернативы для шагов с конфликтующими активами."
-                  : "Ваша рутина выглядит отлично!"
-              }
+                    ? copy.alternativesFound
+                  : copy.valid
+                }
               dismissible
             />
 
@@ -436,12 +561,12 @@ export default function RoutinePage() {
                         </p>
                         <p className="text-xs text-gray-600">
                           {suggestion.currentProductName
-                            ? `Текущий продукт: ${suggestion.currentProductName}`
-                            : "Для этого шага найдены более мягкие альтернативы."}
+                            ? copy.currentProduct(suggestion.currentProductName)
+                            : copy.softerAlternatives}
                         </p>
                       </div>
                       <Badge className="bg-white border-yellow-300 text-yellow-700">
-                        Альтернативы
+                        {copy.alternatives}
                       </Badge>
                     </div>
 
@@ -470,14 +595,14 @@ export default function RoutinePage() {
                               className="px-4 py-2 text-xs"
                               onClick={() => navigate(`/product/${product.id}`)}
                             >
-                              Открыть
+                              {copy.open}
                             </Button>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <p className="text-sm text-gray-600">
-                        Пока нет подходящих альтернатив в каталоге.
+                        {copy.noAlternatives}
                       </p>
                     )}
                   </div>
@@ -490,21 +615,21 @@ export default function RoutinePage() {
         {isGenerating && !routine ? (
           <div className="flex flex-col items-center justify-center py-20">
             <LoadingSpinner size="lg" />
-            <p className="text-gray-600 mt-4">Создаём вашу персональную рутину...</p>
+            <p className="text-gray-600 mt-4">{copy.generating}</p>
           </div>
         ) : error && !routine ? (
           <ErrorState
-            title="Не удалось загрузить рутину"
+            title={copy.loadErrorTitle}
             description={error}
             onRetry={handleGenerate}
           />
         ) : !routine ? (
           <EmptyState
             icon={<Clock className="w-12 h-12" />}
-            title="Создайте свою рутину"
-            description="Сгенерируйте персональный план ухода за кожей на основе вашего профиля и предпочтений."
+            title={copy.createTitle}
+            description={copy.createDescription}
             action={{
-              label: "Сгенерировать рутину",
+              label: copy.createButton,
               onClick: handleGenerate,
             }}
           />
@@ -516,23 +641,23 @@ export default function RoutinePage() {
                 onClick={() => setSelectedTime("morning")}
                 className="flex-1"
               >
-                🌅 Утренняя
+                {copy.morning}
               </Button>
               <Button
                 variant={selectedTime === "evening" ? "primary" : "secondary"}
                 onClick={() => setSelectedTime("evening")}
                 className="flex-1"
               >
-                🌙 Вечерняя
+                {copy.evening}
               </Button>
             </div>
 
             <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100 mb-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Общее время</span>
+                <span className="text-sm text-gray-700">{copy.totalTime}</span>
                 <Badge variant="secondary" className="bg-white text-gray-900">
                   <Clock className="w-3.5 h-3.5 mr-1" />
-                  ~{totalTime} минут
+                  {copy.minutes(totalTime)}
                 </Badge>
               </div>
             </div>
@@ -577,7 +702,7 @@ export default function RoutinePage() {
                             size="sm"
                             onClick={() => navigate(`/product/${step.product_id}`)}
                           >
-                            Подробнее
+                            {copy.details}
                           </Button>
                         </div>
                       )}
@@ -595,7 +720,7 @@ export default function RoutinePage() {
             </div>
 
             <div className="mt-8 p-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
-              <h3 className="font-semibold text-gray-900 mb-3">💡 Советы</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">💡 {copy.tips}</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 {tips.map((tip, index) => (
                   <li key={index}>• {tip}</li>

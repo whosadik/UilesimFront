@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { Heart, ShoppingCart, Star } from 'lucide-react';
+import { ChevronDown, Heart, ShoppingCart, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
@@ -11,6 +11,7 @@ import { getProduct } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { bundle as getBundleRecommendations, type BundleRecsResponse, type RecItem } from '../../shared/api/recommendations';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { toBrandSlug } from '../utils/brandSlug';
 
 interface ProductViewModel {
@@ -45,9 +46,83 @@ interface RecommendationCard {
 }
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&q=80';
-const FALLBACK_DESCRIPTION = 'product description is not available yet.';
-const FALLBACK_INGREDIENTS = 'ingredient list is not available yet.';
-const FALLBACK_USAGE = 'usage instructions are not available yet.';
+const productPageCopy = {
+  ru: {
+    fallbackDescription: 'Описание товара пока недоступно.',
+    fallbackIngredients: 'Список ингредиентов пока недоступен.',
+    fallbackUsage: 'Инструкция по применению пока недоступна.',
+    productNotFound: 'Товар не найден.',
+    loadProductError: 'Не удалось загрузить данные товара. Попробуйте еще раз.',
+    invalidFormat: 'Ответ по товару имеет неверный формат.',
+    recommendationsError: 'Не удалось загрузить похожие товары. Попробуйте еще раз.',
+    pageError: 'Не удалось загрузить страницу товара. Попробуйте еще раз.',
+    addToCartError: 'Не удалось добавить товар в корзину',
+    wishlistError: 'Не удалось обновить избранное',
+    inStock: 'В наличии',
+    loading: 'Загружаем товар...',
+    unavailable: 'Товар недоступен.',
+    retry: 'Повторить',
+    noReviews: 'Отзывов пока нет',
+    reviews: (rating: number, reviews: number) => `${rating} (${reviews} отзывов)`,
+    bonusPoints: (points: number) => `+${points} бонусных баллов`,
+    adding: 'Добавляем...',
+    addToCart: 'В корзину',
+    ingredients: 'Ингредиенты',
+    howToUse: 'Как использовать',
+    relatedProducts: 'Похожие товары',
+    relatedProductsEmpty: 'Похожие товары пока недоступны.',
+  },
+  kk: {
+    fallbackDescription: 'Тауар сипаттамасы әзірге қолжетімсіз.',
+    fallbackIngredients: 'Құрамы әзірге қолжетімсіз.',
+    fallbackUsage: 'Қолдану нұсқаулығы әзірге қолжетімсіз.',
+    productNotFound: 'Тауар табылмады.',
+    loadProductError: 'Тауар деректерін жүктеу мүмкін болмады. Қайта көріңіз.',
+    invalidFormat: 'Тауар жауабының пішімі қате.',
+    recommendationsError: 'Ұқсас тауарларды жүктеу мүмкін болмады. Қайта көріңіз.',
+    pageError: 'Тауар бетін жүктеу мүмкін болмады. Қайта көріңіз.',
+    addToCartError: 'Тауарды себетке қосу мүмкін болмады',
+    wishlistError: 'Таңдаулыларды жаңарту мүмкін болмады',
+    inStock: 'Қоймада бар',
+    loading: 'Тауарды жүктеп жатырмыз...',
+    unavailable: 'Тауар қолжетімсіз.',
+    retry: 'Қайта көру',
+    noReviews: 'Пікірлер әлі жоқ',
+    reviews: (rating: number, reviews: number) => `${rating} (${reviews} пікір)`,
+    bonusPoints: (points: number) => `+${points} бонус ұпайы`,
+    adding: 'Қосып жатырмыз...',
+    addToCart: 'Себетке',
+    ingredients: 'Құрамы',
+    howToUse: 'Қолдану тәсілі',
+    relatedProducts: 'Ұқсас тауарлар',
+    relatedProductsEmpty: 'Ұқсас тауарлар әзірге қолжетімсіз.',
+  },
+  en: {
+    fallbackDescription: 'Product description is not available yet.',
+    fallbackIngredients: 'Ingredients list is not available yet.',
+    fallbackUsage: 'Usage instructions are not available yet.',
+    productNotFound: 'Product not found.',
+    loadProductError: 'Could not load product details. Try again.',
+    invalidFormat: 'The product response format is invalid.',
+    recommendationsError: 'Could not load related products. Try again.',
+    pageError: 'Could not load the product page. Try again.',
+    addToCartError: 'Could not add item to cart',
+    wishlistError: 'Could not update wishlist',
+    inStock: 'In stock',
+    loading: 'Loading product...',
+    unavailable: 'Product is unavailable.',
+    retry: 'Retry',
+    noReviews: 'No reviews yet',
+    reviews: (rating: number, reviews: number) => `${rating} (${reviews} reviews)`,
+    bonusPoints: (points: number) => `+${points} bonus points`,
+    adding: 'Adding...',
+    addToCart: 'Add to cart',
+    ingredients: 'Ingredients',
+    howToUse: 'How to use',
+    relatedProducts: 'Related products',
+    relatedProductsEmpty: 'Related products are not available yet.',
+  },
+} as const;
 
 const toRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -96,7 +171,11 @@ const toStringArray = (value: unknown): string[] =>
 const toRoundedNonNegative = (value: number | undefined, fallback = 0): number =>
   Math.max(0, Math.round(value ?? fallback));
 
-const mapApiProductToView = (payload: Record<string, unknown>, fallbackId: string): ProductViewModel => {
+const mapApiProductToView = (
+  payload: Record<string, unknown>,
+  fallbackId: string,
+  copy: (typeof productPageCopy)[keyof typeof productPageCopy],
+): ProductViewModel => {
   const rawMeta = toRecord(payload.raw_meta);
   const attrs = toRecord(payload.attrs);
 
@@ -146,9 +225,9 @@ const mapApiProductToView = (payload: Record<string, unknown>, fallbackId: strin
     pointsEarned: pointsEarnedRaw !== undefined ? toRoundedNonNegative(pointsEarnedRaw) : undefined,
     inStock: payload.in_stock === undefined ? true : Boolean(payload.in_stock),
     images: normalizedImages.length > 0 ? normalizedImages : [FALLBACK_IMAGE],
-    description: firstString(payload.description) ?? FALLBACK_DESCRIPTION,
-    ingredients: firstString(payload.ingredients_inci, payload.ingredients) ?? FALLBACK_INGREDIENTS,
-    howToUse: firstString(payload.application_text, payload.how_to_use, payload.howToUse) ?? FALLBACK_USAGE,
+    description: firstString(payload.description) ?? copy.fallbackDescription,
+    ingredients: firstString(payload.ingredients_inci, payload.ingredients) ?? copy.fallbackIngredients,
+    howToUse: firstString(payload.application_text, payload.how_to_use, payload.howToUse) ?? copy.fallbackUsage,
   };
 };
 
@@ -211,6 +290,8 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToCart, getCartQuantity, isInWishlist, toggleWishlist } = useCommerce();
+  const { language, messages } = useI18n();
+  const copy = productPageCopy[language];
 
   const [product, setProduct] = useState<ProductViewModel | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
@@ -227,7 +308,7 @@ export default function ProductPage() {
 
   useEffect(() => {
     if (!id) {
-      setError('product not found.');
+      setError(copy.productNotFound);
       setIsLoading(false);
       setIsRecommendationsLoading(false);
       return;
@@ -252,15 +333,15 @@ export default function ProductPage() {
 
       if (productResult.status === 'rejected') {
         setProduct(null);
-        setError('failed to load product details. please try again.');
+        setError(copy.loadProductError);
       } else {
         const payload = toRecord(productResult.value);
         if (payload) {
-          setProduct(mapApiProductToView(payload, id));
+          setProduct(mapApiProductToView(payload, id, copy));
           setSelectedImage(0);
         } else {
           setProduct(null);
-          setError('product response format is invalid.');
+          setError(copy.invalidFormat);
         }
       }
 
@@ -269,7 +350,7 @@ export default function ProductPage() {
           setRecommendations([]);
         } else {
           setRecommendations([]);
-          setRecommendationsError('failed to load related products. please try again.');
+          setRecommendationsError(copy.recommendationsError);
         }
       } else {
         const mapped = extractBundleResults(recommendationsResult.value)
@@ -289,7 +370,7 @@ export default function ProductPage() {
 
       setProduct(null);
       setRecommendations([]);
-      setError('failed to load product page. please try again.');
+      setError(copy.pageError);
       setIsLoading(false);
       setIsRecommendationsLoading(false);
     });
@@ -297,7 +378,7 @@ export default function ProductPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, retryKey]);
+  }, [copy, id, retryKey]);
 
   const cartQuantity = product ? getCartQuantity(product.id) : 0;
   const isProductInWishlist = product ? isInWishlist(product.id) : false;
@@ -324,7 +405,7 @@ export default function ProductPage() {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error('failed to add item to cart');
+      toast.error(copy.addToCartError);
     } finally {
       setIsCartPending(false);
     }
@@ -343,7 +424,7 @@ export default function ProductPage() {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error('failed to update wishlist');
+      toast.error(copy.wishlistError);
     } finally {
       setIsWishlistPending(false);
     }
@@ -355,16 +436,16 @@ export default function ProductPage() {
       badges.push(`-${product.discount}%`);
     }
     if (product?.inStock) {
-      badges.push('in stock');
+      badges.push(copy.inStock);
     }
     return badges;
-  }, [product]);
+  }, [copy.inStock, product]);
 
   if (isLoading && !product) {
     return (
       <div className="page-with-navbar-offset min-h-screen">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
-          <LoadingSpinner size="lg" text="loading product..." />
+          <LoadingSpinner size="lg" text={copy.loading} />
         </div>
       </div>
     );
@@ -375,12 +456,12 @@ export default function ProductPage() {
       <div className="page-with-navbar-offset min-h-screen">
         <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
           <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-6">
-            <p className="text-sm text-[#B42318]">{error ?? 'product is not available.'}</p>
+            <p className="text-sm text-[#B42318]">{error ?? copy.unavailable}</p>
             <button
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-3 text-sm font-medium text-[#111827] underline underline-offset-2"
             >
-              retry
+              {copy.retry}
             </button>
           </div>
         </div>
@@ -401,7 +482,7 @@ export default function ProductPage() {
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
             >
-              retry
+              {copy.retry}
             </button>
           </div>
         )}
@@ -409,8 +490,8 @@ export default function ProductPage() {
         <div className="mb-6">
           <Breadcrumbs
             items={[
-              { label: 'home', href: '/' },
-              { label: 'catalog', href: '/catalog' },
+              { label: messages.common.home, href: '/' },
+              { label: messages.navbar.mainMenu.catalog, href: '/catalog' },
               { label: product.brand, href: `/brands/${brandSlug}` },
               { label: product.name },
             ]}
@@ -455,11 +536,11 @@ export default function ProductPage() {
                     ))}
                   </div>
                   <span className="text-sm text-[#6B7280]">
-                    {product.rating} ({product.reviews} reviews)
+                    {copy.reviews(product.rating, product.reviews)}
                   </span>
                 </div>
               ) : (
-                <p className="mb-4 text-sm text-[#6B7280]">no reviews yet</p>
+                <p className="mb-4 text-sm text-[#6B7280]">{copy.noReviews}</p>
               )}
 
               <div className="flex items-center gap-2">
@@ -477,7 +558,7 @@ export default function ProductPage() {
             </div>
 
             {product.pointsEarned !== undefined && product.pointsEarned > 0 && (
-              <p className="text-sm font-medium text-[#FF4DB8]">+{product.pointsEarned} bonus points</p>
+              <p className="text-sm font-medium text-[#FF4DB8]">{copy.bonusPoints(product.pointsEarned)}</p>
             )}
 
             <p className="text-base text-[#6B7280] leading-relaxed">{product.description}</p>
@@ -501,7 +582,7 @@ export default function ProductPage() {
 
               <Button variant="primary" className="flex-1" onClick={handleAddToCart} disabled={isCartPending}>
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                {isCartPending ? 'adding...' : 'add to cart'}
+                {isCartPending ? copy.adding : copy.addToCart}
               </Button>
 
               <button
@@ -516,16 +597,16 @@ export default function ProductPage() {
             <div className="pt-6 border-t border-[#EAE6EF] space-y-4">
               <details className="group">
                 <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3">
-                  ingredients
-                  <span className="text-[#6B7280] group-open:rotate-180 transition-transform">▾</span>
+                  {copy.ingredients}
+                  <ChevronDown className="h-4 w-4 text-[#6B7280] transition-transform group-open:rotate-180" />
                 </summary>
                 <p className="text-sm text-[#6B7280] mt-2">{product.ingredients}</p>
               </details>
 
               <details className="group">
                 <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3 border-t border-[#EAE6EF]">
-                  how to use
-                  <span className="text-[#6B7280] group-open:rotate-180 transition-transform">▾</span>
+                  {copy.howToUse}
+                  <ChevronDown className="h-4 w-4 text-[#6B7280] transition-transform group-open:rotate-180" />
                 </summary>
                 <p className="text-sm text-[#6B7280] mt-2">{product.howToUse}</p>
               </details>
@@ -534,7 +615,7 @@ export default function ProductPage() {
         </div>
 
         <section>
-          <h2 className="text-2xl font-bold text-[#111827] mb-6">related products</h2>
+          <h2 className="text-2xl font-bold text-[#111827] mb-6">{copy.relatedProducts}</h2>
 
           {recommendationsError && (
             <div className="mb-4 rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-4">
@@ -543,7 +624,7 @@ export default function ProductPage() {
                 onClick={() => setRetryKey((value) => value + 1)}
                 className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
               >
-                retry
+                {copy.retry}
               </button>
             </div>
           )}
@@ -553,7 +634,7 @@ export default function ProductPage() {
           ) : recommendations.length > 0 ? (
             <ProductCarousel products={recommendations} />
           ) : (
-            <p className="text-sm text-[#6B7280]">related products are not available yet.</p>
+            <p className="text-sm text-[#6B7280]">{copy.relatedProductsEmpty}</p>
           )}
         </section>
       </div>

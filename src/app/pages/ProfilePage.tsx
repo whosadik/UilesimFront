@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { ProfileSummaryCard } from '../components/ProfileSummaryCard';
@@ -13,6 +13,8 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
 import { ApiError } from '../../shared/api/ApiError';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+import type { AppLanguage } from '../../shared/i18n/messages';
 import {
   getFavoriteCategory,
   getLoyalty,
@@ -35,6 +37,240 @@ import {
 
 import { clickOffer, getNextOffer } from '../../shared/api/offers';
 import { listReceivedGiftCards, type ReceivedGiftCardItem } from '../../shared/api/giftCards';
+
+const profilePageCopy = {
+  ru: {
+    breadcrumb: 'Мой профиль',
+    title: 'Мой профиль',
+    subtitle: 'Ваши данные, предпочтения и персональные предложения',
+    favoriteCategory: 'Любимая категория',
+    noData: 'нет данных',
+    bought: 'Куплено',
+    spent: 'Потрачено',
+    historyItems: (count: number | null) => (count !== null ? `${count} позиций в истории` : 'Позиции в истории: нет данных'),
+    analysisWindow: (days: number | null) => (days !== null ? `Окно анализа: ${days} дней` : 'Окно анализа: нет данных'),
+    howCalculated: 'Как мы считаем?',
+    personalDetails: 'Личные данные',
+    personalDetailsHint: 'Необязательные поля. Их можно заполнить сейчас, позже или оставить пустыми.',
+    firstName: 'Имя',
+    lastName: 'Фамилия',
+    phone: 'Телефон',
+    city: 'Город',
+    enterFirstName: 'Введите имя',
+    enterLastName: 'Введите фамилию',
+    enterCity: 'Введите город',
+    email: 'Email',
+    notSpecified: 'не указан',
+    saving: 'Сохраняем...',
+    saveDetails: 'Сохранить данные',
+    giftCardsForYou: 'Подарочные карты для вас',
+    giftCardsHint: 'Показываем этот блок только если на ваш email действительно отправили подарочную карту.',
+    fromWhom: 'От кого',
+    remaining: 'Остаток',
+    nominal: 'Номинал',
+    code: 'Код',
+    message: 'Сообщение',
+    validUntil: 'Действует до',
+    copied: 'Скопировано',
+    copyCode: 'Скопировать код',
+    applyInCart: 'Применить в корзине',
+    personalOffer: 'Ваш персональный оффер',
+    offerAppliedToast: 'Оффер отмечен. Применение будет на этапе корзины.',
+    specialForYou: 'Специально для вас',
+    recommendationsByProfile: 'Рекомендации на основе вашего профиля',
+    viewAll: 'Смотреть всё',
+    management: 'Управление',
+    myRoutine: 'Моя рутина',
+    myRoutineDescription: 'Персональный план ухода на основе вашего профиля',
+    roadmapDescription: 'Пошаговый план построения идеальной бьюти-рутины',
+    myProducts: 'Мои товары',
+    myProductsDescription: 'Управление купленными товарами и заметки',
+    transactions: 'История транзакций',
+    transactionsDescription: 'Ваши покупки и начисления баллов',
+    profileQuiz: 'Анкета профиля',
+    personalDataSaved: 'Личные данные сохранены',
+    personalDataSaveError: 'Не удалось сохранить личные данные',
+    profileLoadError: 'Не удалось загрузить данные профиля',
+    fullGiftCardCodeUnavailable: 'Полный код подарочной карты недоступен.',
+    copyCodeAutoError: 'Не удалось скопировать код автоматически.',
+    giftCardCodeCopied: 'Код подарочной карты скопирован.',
+    profileSaveWithPoints: (points: number) => `Профиль сохранён. +${points} баллов`,
+    profileSaved: 'Профиль сохранён',
+    guest: 'Гость',
+    giftCardFallbackSender: 'Подарок',
+    offerFallbackTitle: 'Персональный оффер',
+    offerAllCart: 'На всю корзину',
+    offerCategory: (value: string) => `На категорию ${value}`,
+    offerProductType: (value: string) => `На тип ${value}`,
+    offerProduct: (value: string) => `На товар #${value}`,
+    offerCondition: (value: string) => `Условие: ${value}`,
+    spendFallback: 'нет данных',
+    explainWindow: (start: string, end: string) => `Окно: ${start} → ${end}`,
+    explainPurchases: (count: string) => `Учтено покупок: ${count}`,
+    explainMethod: (value: string) => `Метод: ${value}`,
+    giftCardStatusActive: 'Активна',
+    giftCardStatusExhausted: 'Использована',
+    giftCardStatusExpired: 'Истекла',
+    giftCardStatusRefunded: 'Отменена',
+    giftCardStatusUnknown: 'Неизвестно',
+  },
+  kk: {
+    breadcrumb: 'Менің профилім',
+    title: 'Менің профилім',
+    subtitle: 'Деректеріңіз, қалауларыңыз және жеке ұсыныстарыңыз',
+    favoriteCategory: 'Сүйікті санат',
+    noData: 'дерек жоқ',
+    bought: 'Сатып алынған',
+    spent: 'Жұмсалған',
+    historyItems: (count: number | null) => (count !== null ? `Тарихта ${count} позиция` : 'Тарих позициялары: дерек жоқ'),
+    analysisWindow: (days: number | null) => (days !== null ? `Талдау терезесі: ${days} күн` : 'Талдау терезесі: дерек жоқ'),
+    howCalculated: 'Қалай есептейміз?',
+    personalDetails: 'Жеке деректер',
+    personalDetailsHint: 'Міндетті емес өрістер. Оларды қазір, кейін толтыра аласыз немесе бос қалдыра аласыз.',
+    firstName: 'Аты',
+    lastName: 'Тегі',
+    phone: 'Телефон',
+    city: 'Қала',
+    enterFirstName: 'Атыңызды енгізіңіз',
+    enterLastName: 'Тегіңізді енгізіңіз',
+    enterCity: 'Қаланы енгізіңіз',
+    email: 'Email',
+    notSpecified: 'көрсетілмеген',
+    saving: 'Сақтап жатырмыз...',
+    saveDetails: 'Деректерді сақтау',
+    giftCardsForYou: 'Сізге арналған сыйлық карталары',
+    giftCardsHint: 'Бұл блок тек сіздің email-іңізге шын мәнінде сыйлық картасы жіберілген болса ғана көрсетіледі.',
+    fromWhom: 'Кімнен',
+    remaining: 'Қалдық',
+    nominal: 'Номинал',
+    code: 'Код',
+    message: 'Хабарлама',
+    validUntil: 'Жарамды күні',
+    copied: 'Көшірілді',
+    copyCode: 'Кодты көшіру',
+    applyInCart: 'Себетте қолдану',
+    personalOffer: 'Жеке офферіңіз',
+    offerAppliedToast: 'Оффер белгіленді. Қолдану себет кезеңінде болады.',
+    specialForYou: 'Арнайы сіз үшін',
+    recommendationsByProfile: 'Профиліңізге негізделген ұсыныстар',
+    viewAll: 'Барлығын көру',
+    management: 'Басқару',
+    myRoutine: 'Менің рутинам',
+    myRoutineDescription: 'Профильге негізделген жеке күтім жоспары',
+    roadmapDescription: 'Мінсіз бьюти-рутинаға арналған қадамдық жоспар',
+    myProducts: 'Менің тауарларым',
+    myProductsDescription: 'Сатып алынған тауарлар мен жазбаларды басқару',
+    transactions: 'Транзакциялар тарихы',
+    transactionsDescription: 'Сатып алуларыңыз және ұпай есептелуі',
+    profileQuiz: 'Профиль сауалнамасы',
+    personalDataSaved: 'Жеке деректер сақталды',
+    personalDataSaveError: 'Жеке деректерді сақтау мүмкін болмады',
+    profileLoadError: 'Профиль деректерін жүктеу мүмкін болмады',
+    fullGiftCardCodeUnavailable: 'Сыйлық картасының толық коды қолжетімсіз.',
+    copyCodeAutoError: 'Кодты автоматты көшіру мүмкін болмады.',
+    giftCardCodeCopied: 'Сыйлық картасының коды көшірілді.',
+    profileSaveWithPoints: (points: number) => `Профиль сақталды. +${points} ұпай`,
+    profileSaved: 'Профиль сақталды',
+    guest: 'Қонақ',
+    giftCardFallbackSender: 'Сыйлық',
+    offerFallbackTitle: 'Жеке оффер',
+    offerAllCart: 'Бүкіл себетке',
+    offerCategory: (value: string) => `${value} санатына`,
+    offerProductType: (value: string) => `${value} түріне`,
+    offerProduct: (value: string) => `#${value} тауарына`,
+    offerCondition: (value: string) => `Шарт: ${value}`,
+    spendFallback: 'дерек жоқ',
+    explainWindow: (start: string, end: string) => `Аралық: ${start} → ${end}`,
+    explainPurchases: (count: string) => `Ескерілген сатып алулар: ${count}`,
+    explainMethod: (value: string) => `Әдіс: ${value}`,
+    giftCardStatusActive: 'Белсенді',
+    giftCardStatusExhausted: 'Пайдаланылған',
+    giftCardStatusExpired: 'Мерзімі өтті',
+    giftCardStatusRefunded: 'Бас тартылды',
+    giftCardStatusUnknown: 'Белгісіз',
+  },
+  en: {
+    breadcrumb: 'My profile',
+    title: 'My profile',
+    subtitle: 'Your data, preferences, and personal offers',
+    favoriteCategory: 'Favorite category',
+    noData: 'no data',
+    bought: 'Bought',
+    spent: 'Spent',
+    historyItems: (count: number | null) => (count !== null ? `${count} items in history` : 'History items: no data'),
+    analysisWindow: (days: number | null) => (days !== null ? `Analysis window: ${days} days` : 'Analysis window: no data'),
+    howCalculated: 'How do we calculate it?',
+    personalDetails: 'Personal details',
+    personalDetailsHint: 'Optional fields. You can fill them now, later, or leave them empty.',
+    firstName: 'First name',
+    lastName: 'Last name',
+    phone: 'Phone',
+    city: 'City',
+    enterFirstName: 'Enter first name',
+    enterLastName: 'Enter last name',
+    enterCity: 'Enter city',
+    email: 'Email',
+    notSpecified: 'not specified',
+    saving: 'Saving...',
+    saveDetails: 'Save details',
+    giftCardsForYou: 'Gift cards for you',
+    giftCardsHint: 'We show this block only if a gift card was actually sent to your email.',
+    fromWhom: 'From',
+    remaining: 'Remaining',
+    nominal: 'Amount',
+    code: 'Code',
+    message: 'Message',
+    validUntil: 'Valid until',
+    copied: 'Copied',
+    copyCode: 'Copy code',
+    applyInCart: 'Apply in cart',
+    personalOffer: 'Your personal offer',
+    offerAppliedToast: 'Offer marked. It will be applied at the cart stage.',
+    specialForYou: 'Special for you',
+    recommendationsByProfile: 'Recommendations based on your profile',
+    viewAll: 'View all',
+    management: 'Management',
+    myRoutine: 'My routine',
+    myRoutineDescription: 'Personal care plan based on your profile',
+    roadmapDescription: 'A step-by-step plan to build the ideal beauty routine',
+    myProducts: 'My products',
+    myProductsDescription: 'Manage purchased products and notes',
+    transactions: 'Transaction history',
+    transactionsDescription: 'Your purchases and points earnings',
+    profileQuiz: 'Profile questionnaire',
+    personalDataSaved: 'Personal details saved',
+    personalDataSaveError: 'Could not save personal details',
+    profileLoadError: 'Could not load profile data',
+    fullGiftCardCodeUnavailable: 'The full gift card code is unavailable.',
+    copyCodeAutoError: 'Could not copy the code automatically.',
+    giftCardCodeCopied: 'Gift card code copied.',
+    profileSaveWithPoints: (points: number) => `Profile saved. +${points} points`,
+    profileSaved: 'Profile saved',
+    guest: 'Guest',
+    giftCardFallbackSender: 'Gift',
+    offerFallbackTitle: 'Personal offer',
+    offerAllCart: 'For the whole cart',
+    offerCategory: (value: string) => `For category ${value}`,
+    offerProductType: (value: string) => `For type ${value}`,
+    offerProduct: (value: string) => `For product #${value}`,
+    offerCondition: (value: string) => `Condition: ${value}`,
+    spendFallback: 'no data',
+    explainWindow: (start: string, end: string) => `Window: ${start} → ${end}`,
+    explainPurchases: (count: string) => `Purchases counted: ${count}`,
+    explainMethod: (value: string) => `Method: ${value}`,
+    giftCardStatusActive: 'Active',
+    giftCardStatusExhausted: 'Used',
+    giftCardStatusExpired: 'Expired',
+    giftCardStatusRefunded: 'Cancelled',
+    giftCardStatusUnknown: 'Unknown',
+  },
+} as const;
+
+const localeByLanguage: Record<AppLanguage, string> = {
+  ru: 'ru-RU',
+  kk: 'kk-KZ',
+  en: 'en-US',
+};
 
 type ProfileWizardData = {
   skinType?: string[]; // API ждёт string, берём первый
@@ -97,11 +333,11 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 }
 
-function formatDateRu(iso?: string | null) {
+function formatLocalizedDate(language: AppLanguage, iso?: string | null) {
   if (!iso) return undefined;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString(localeByLanguage[language], { day: 'numeric', month: 'long' });
 }
 
 function mapTier(raw: unknown): 'bronze' | 'silver' | 'gold' | 'platinum' {
@@ -196,23 +432,31 @@ function calcCompletion(profile: Record<string, unknown>) {
   return Math.max(0, Math.min(100, Math.round((filled / fields.length) * 100)));
 }
 
-function mapOfferDescription(target?: Record<string, unknown>) {
+function mapOfferDescription(
+  target: Record<string, unknown> | undefined,
+  copy: (typeof profilePageCopy)[AppLanguage],
+) {
   const scope = String(target?.scope ?? '');
   if (!scope) return undefined;
 
-  if (scope === 'cart') return 'На всю корзину';
-  if (scope === 'category') return `На категорию ${target?.category ?? target?.value ?? ''}`.trim();
-  if (scope === 'product_type') return `На тип ${target?.product_type ?? target?.value ?? ''}`.trim();
-  if (scope === 'product_id') return `На товар #${target?.value ?? ''}`.trim();
+  if (scope === 'cart') return copy.offerAllCart;
+  if (scope === 'category') return copy.offerCategory(String(target?.category ?? target?.value ?? '')).trim();
+  if (scope === 'product_type') return copy.offerProductType(String(target?.product_type ?? target?.value ?? '')).trim();
+  if (scope === 'product_id') return copy.offerProduct(String(target?.value ?? '')).trim();
 
-  return `Условие: ${scope}`;
+  return copy.offerCondition(scope);
 }
 
-function formatCategorySpend(totalSpent: string | null, currency: string | null): string {
+function formatCategorySpend(
+  totalSpent: string | null,
+  currency: string | null,
+  language: AppLanguage,
+  copy: (typeof profilePageCopy)[AppLanguage],
+): string {
   const normalizedCurrency = String(currency ?? '').trim().toUpperCase();
 
   if (!totalSpent) {
-    return 'нет данных';
+    return copy.spendFallback;
   }
 
   if (!normalizedCurrency || normalizedCurrency === 'KZT' || normalizedCurrency === '₸') {
@@ -224,7 +468,7 @@ function formatCategorySpend(totalSpent: string | null, currency: string | null)
     return `0 ${normalizedCurrency}`;
   }
 
-  return `${Math.round(parsed).toLocaleString('ru-RU')} ${normalizedCurrency}`;
+  return `${Math.round(parsed).toLocaleString(localeByLanguage[language])} ${normalizedCurrency}`;
 }
 
 function readTextField(value: unknown): string {
@@ -243,6 +487,7 @@ function extractPersonalDetails(profile: Record<string, unknown>): PersonalDetai
 function buildProfileName(
   profile: Record<string, unknown>,
   user: { username?: string | null; email?: string | null } | null | undefined,
+  copy: (typeof profilePageCopy)[AppLanguage],
 ): string {
   const firstName = readTextField(profile.first_name);
   const lastName = readTextField(profile.last_name);
@@ -262,12 +507,13 @@ function buildProfileName(
     return email.split('@')[0] || email;
   }
 
-  return 'Guest';
+  return copy.guest;
 }
 
 function buildProfileInitials(
   profile: Record<string, unknown>,
   user: { username?: string | null; email?: string | null } | null | undefined,
+  copy: (typeof profilePageCopy)[AppLanguage],
 ): string {
   const firstName = readTextField(profile.first_name);
   const lastName = readTextField(profile.last_name);
@@ -276,7 +522,7 @@ function buildProfileInitials(
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim().toUpperCase() || 'U';
   }
 
-  const name = buildProfileName(profile, user);
+  const name = buildProfileName(profile, user, copy);
   const parts = name.split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {
     return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
@@ -288,26 +534,30 @@ function buildProfileInitials(
 function buildProfileSummaryState(
   profile: Record<string, unknown>,
   user: { username?: string | null; email?: string | null } | null | undefined,
+  copy: (typeof profilePageCopy)[AppLanguage],
 ) {
   return {
-    name: buildProfileName(profile, user),
-    initials: buildProfileInitials(profile, user),
+    name: buildProfileName(profile, user, copy),
+    initials: buildProfileInitials(profile, user, copy),
     completionPercentage: calcCompletion(profile),
   };
 }
 
-function formatGiftCardStatus(status?: string): string {
+function formatGiftCardStatus(
+  status: string | undefined,
+  copy: (typeof profilePageCopy)[AppLanguage],
+): string {
   switch (String(status ?? '').toLowerCase()) {
     case 'active':
-      return 'Активна';
+      return copy.giftCardStatusActive;
     case 'exhausted':
-      return 'Использована';
+      return copy.giftCardStatusExhausted;
     case 'expired':
-      return 'Истекла';
+      return copy.giftCardStatusExpired;
     case 'refunded':
-      return 'Отменена';
+      return copy.giftCardStatusRefunded;
     default:
-      return 'Неизвестно';
+      return copy.giftCardStatusUnknown;
   }
 }
 
@@ -315,6 +565,8 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { language, messages } = useI18n();
+  const copy = profilePageCopy[language];
 
   const [wizardOpen, setWizardOpen] = useState(false);
 
@@ -438,7 +690,7 @@ export default function ProfilePage() {
 
   const applyProfileSnapshot = (profile: Record<string, unknown>) => {
     setCurrentProfile(profile);
-    setProfileSummary(buildProfileSummaryState(profile, user));
+    setProfileSummary(buildProfileSummaryState(profile, user, copy));
     setPersonalDetails(extractPersonalDetails(profile));
   };
 
@@ -499,9 +751,13 @@ export default function ProfilePage() {
         // В API explain — объект, в UI у тебя строка, поэтому делаем компактный текст.
         const explainText = explainObj
           ? [
-              explainObj.window_start ? `Окно: ${String(explainObj.window_start)} → ${String(explainObj.window_end)}` : null,
-              explainObj.history_items_considered ? `Учтено покупок: ${String(explainObj.history_items_considered)}` : null,
-              explainObj.picked_by ? `Метод: ${String(explainObj.picked_by)}` : null,
+              explainObj.window_start
+                ? copy.explainWindow(String(explainObj.window_start), String(explainObj.window_end))
+                : null,
+              explainObj.history_items_considered
+                ? copy.explainPurchases(String(explainObj.history_items_considered))
+                : null,
+              explainObj.picked_by ? copy.explainMethod(String(explainObj.picked_by)) : null,
             ]
               .filter(Boolean)
               .join(' · ')
@@ -573,7 +829,7 @@ export default function ProfilePage() {
           setOffer({
             assignmentId: offerObj.assignment_id,
             offerType: String(offerInner.type ?? ''),
-            offerName: String(offerInner.name ?? 'Персональный оффер'),
+            offerName: String(offerInner.name ?? copy.offerFallbackTitle),
             value: Number.isFinite(v) ? v : 0,
             expiresAt: typeof offerObj.expires_at === 'string' ? offerObj.expires_at : null,
             target: isRecord(offerObj.target) ? offerObj.target : undefined,
@@ -587,7 +843,7 @@ export default function ProfilePage() {
           return;
         }
         if (!cancelled) {
-          setLoadError(error instanceof Error ? error.message : 'Failed to load profile data');
+          setLoadError(error instanceof Error ? error.message : copy.profileLoadError);
         }
       } finally {
         if (!cancelled) {
@@ -600,7 +856,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
+  }, [copy, isAuthLoading, location.pathname, navigate, retryKey, user]);
 
   const handlePersonalDetailChange = (field: keyof PersonalDetailsState, value: string) => {
     setPersonalDetails((prev) => ({
@@ -611,24 +867,24 @@ export default function ProfilePage() {
 
   const handleCopyGiftCardCode = async (giftCardId: number, code?: string) => {
     if (!code) {
-      toast.error('Полный код подарочной карты недоступен.');
+      toast.error(copy.fullGiftCardCodeUnavailable);
       return;
     }
 
     if (!('clipboard' in navigator) || typeof navigator.clipboard.writeText !== 'function') {
-      toast.error('Не удалось скопировать код автоматически.');
+      toast.error(copy.copyCodeAutoError);
       return;
     }
 
     try {
       await navigator.clipboard.writeText(code);
       setCopiedGiftCardId(giftCardId);
-      toast.success('Код подарочной карты скопирован.');
+      toast.success(copy.giftCardCodeCopied);
       window.setTimeout(() => {
         setCopiedGiftCardId((current) => (current === giftCardId ? null : current));
       }, 2000);
     } catch {
-      toast.error('Не удалось скопировать код автоматически.');
+      toast.error(copy.copyCodeAutoError);
     }
   };
 
@@ -657,13 +913,13 @@ export default function ProfilePage() {
         }
       }
 
-      toast.success('Personal details saved');
+      toast.success(copy.personalDataSaved);
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error(error instanceof Error ? error.message : 'Failed to save personal details');
+      toast.error(error instanceof Error ? error.message : copy.personalDataSaveError);
     } finally {
       setIsPersonalDetailsSaving(false);
     }
@@ -693,12 +949,12 @@ export default function ProfilePage() {
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'Главная', href: '/' }, { label: 'Мой профиль' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.breadcrumb }]} />
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">Мой профиль</h1>
-          <p className="text-base text-[#6B7280]">Ваши данные, предпочтения и персональные предложения</p>
+          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">{copy.title}</h1>
+          <p className="text-base text-[#6B7280]">{copy.subtitle}</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6 mb-12">
@@ -713,23 +969,23 @@ export default function ProfilePage() {
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF]">
             <div className="flex items-center gap-2 mb-4">
               <Heart className="w-5 h-5 text-[#FF4DB8]" />
-              <h3 className="text-base font-bold text-[#111827]">Любимая категория</h3>
+              <h3 className="text-base font-bold text-[#111827]">{copy.favoriteCategory}</h3>
             </div>
 
             <div className="space-y-3">
-              <p className="text-2xl font-bold text-[#FF4DB8]">{favoriteCategory.category || 'нет данных'}</p>
+              <p className="text-2xl font-bold text-[#FF4DB8]">{favoriteCategory.category || copy.noData}</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-[#FFF8FC] border border-[#F8D7EA] px-3 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#6B7280]">Куплено</p>
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#6B7280]">{copy.bought}</p>
                   <p className="mt-1 text-base font-bold text-[#111827]">
-                    {favoriteCategory.productsBought !== null ? favoriteCategory.productsBought : 'нет данных'}
+                    {favoriteCategory.productsBought !== null ? favoriteCategory.productsBought : copy.noData}
                   </p>
                 </div>
                 <div className="rounded-xl bg-[#FFF8FC] border border-[#F8D7EA] px-3 py-3">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#6B7280]">Потрачено</p>
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[#6B7280]">{copy.spent}</p>
                   <p className="mt-1 text-base font-bold text-[#111827]">
-                    {formatCategorySpend(favoriteCategory.totalSpent, favoriteCategory.currency)}
+                    {formatCategorySpend(favoriteCategory.totalSpent, favoriteCategory.currency, language, copy)}
                   </p>
                 </div>
               </div>
@@ -737,21 +993,19 @@ export default function ProfilePage() {
               <div className="space-y-1 text-sm text-[#6B7280]">
                 <p>
                   {favoriteCategory.historyItemsConsidered !== null
-                    ? `${favoriteCategory.historyItemsConsidered} позиций в истории`
-                    : 'Позиции в истории: нет данных'}
+                    ? copy.historyItems(favoriteCategory.historyItemsConsidered)
+                    : copy.historyItems(null)}
                 </p>
                 <p>
-                  {favoriteCategory.windowDays !== null
-                    ? `Окно анализа: ${favoriteCategory.windowDays} дней`
-                    : 'Окно анализа: нет данных'}
+                  {favoriteCategory.windowDays !== null ? copy.analysisWindow(favoriteCategory.windowDays) : copy.analysisWindow(null)}
                 </p>
               </div>
 
               <details className="text-xs text-[#6B7280] pt-2 border-t border-[#EAE6EF]">
                 <summary className="cursor-pointer hover:text-[#FF4DB8] transition-colors">
-                  Как мы считаем?
+                  {copy.howCalculated}
                 </summary>
-                <p className="mt-2">{favoriteCategory.explain || 'нет данных'}</p>
+                <p className="mt-2">{favoriteCategory.explain || copy.noData}</p>
               </details>
             </div>
           </div>
@@ -760,16 +1014,16 @@ export default function ProfilePage() {
         <section className="mb-12">
           <div className="rounded-2xl bg-white border border-[#EAE6EF] p-6 lg:p-8 shadow-sm">
             <div className="flex flex-col gap-2 mb-6">
-              <h2 className="text-2xl font-bold text-[#111827]">Personal details</h2>
+              <h2 className="text-2xl font-bold text-[#111827]">{copy.personalDetails}</h2>
               <p className="text-sm text-[#6B7280]">
-                Optional fields. You can fill them now, later, or leave them empty.
+                {copy.personalDetailsHint}
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="profile-first-name" className="block text-sm font-medium text-gray-700 mb-2">
-                  First name
+                  {copy.firstName}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -781,7 +1035,7 @@ export default function ProfilePage() {
                     value={personalDetails.firstName}
                     onChange={(event) => handlePersonalDetailChange('firstName', event.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                    placeholder="Enter first name"
+                    placeholder={copy.enterFirstName}
                     disabled={isPersonalDetailsSaving}
                   />
                 </div>
@@ -789,7 +1043,7 @@ export default function ProfilePage() {
 
               <div>
                 <label htmlFor="profile-last-name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Last name
+                  {copy.lastName}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -801,7 +1055,7 @@ export default function ProfilePage() {
                     value={personalDetails.lastName}
                     onChange={(event) => handlePersonalDetailChange('lastName', event.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                    placeholder="Enter last name"
+                    placeholder={copy.enterLastName}
                     disabled={isPersonalDetailsSaving}
                   />
                 </div>
@@ -809,7 +1063,7 @@ export default function ProfilePage() {
 
               <div>
                 <label htmlFor="profile-phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone
+                  {copy.phone}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -829,7 +1083,7 @@ export default function ProfilePage() {
 
               <div>
                 <label htmlFor="profile-city" className="block text-sm font-medium text-gray-700 mb-2">
-                  City
+                  {copy.city}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -841,7 +1095,7 @@ export default function ProfilePage() {
                     value={personalDetails.city}
                     onChange={(event) => handlePersonalDetailChange('city', event.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                    placeholder="Enter city"
+                    placeholder={copy.enterCity}
                     disabled={isPersonalDetailsSaving}
                   />
                 </div>
@@ -852,7 +1106,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 text-sm text-[#6B7280]">
                 <Mail className="w-4 h-4" />
                 <span className="break-all">
-                  Email: <span className="font-medium text-[#111827]">{user?.email || 'not set'}</span>
+                  {copy.email}: <span className="font-medium text-[#111827]">{user?.email || copy.notSpecified}</span>
                 </span>
               </div>
 
@@ -861,7 +1115,7 @@ export default function ProfilePage() {
                 onClick={() => void handleSavePersonalDetails()}
                 disabled={isPersonalDetailsSaving}
               >
-                {isPersonalDetailsSaving ? 'Saving...' : 'Save details'}
+                {isPersonalDetailsSaving ? copy.saving : copy.saveDetails}
               </Button>
             </div>
           </div>
@@ -876,9 +1130,9 @@ export default function ProfilePage() {
                     <Gift className="h-5 w-5 text-[#F97316]" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-[#111827]">Подарочные карты для вас</h2>
+                    <h2 className="text-2xl font-bold text-[#111827]">{copy.giftCardsForYou}</h2>
                     <p className="text-sm text-[#6B7280]">
-                      Показываем этот блок только если на ваш email действительно отправили gift card.
+                      {copy.giftCardsHint}
                     </p>
                   </div>
                 </div>
@@ -886,8 +1140,8 @@ export default function ProfilePage() {
 
               <div className="grid gap-4 lg:grid-cols-2">
                 {receivedGiftCards.map((giftCard) => {
-                  const senderLabel = giftCard.sender_name || giftCard.sender_email || 'Подарок';
-                  const expiresAt = formatDateRu(giftCard.snapshot?.expires_at as string | null | undefined);
+                  const senderLabel = giftCard.sender_name || giftCard.sender_email || copy.giftCardFallbackSender;
+                  const expiresAt = formatLocalizedDate(language, giftCard.snapshot?.expires_at as string | null | undefined);
                   const remainingAmount = giftCard.snapshot?.remaining_amount ?? 0;
                   const totalAmount = giftCard.snapshot?.amount ?? 0;
                   const status = String(giftCard.snapshot?.status ?? giftCard.status ?? '');
@@ -900,7 +1154,7 @@ export default function ProfilePage() {
                     >
                       <div className="mb-4 flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-medium text-[#6B7280]">От кого</p>
+                          <p className="text-sm font-medium text-[#6B7280]">{copy.fromWhom}</p>
                           <p className="break-words text-lg font-bold text-[#111827]">{senderLabel}</p>
                         </div>
                         <span
@@ -908,33 +1162,33 @@ export default function ProfilePage() {
                             isActive ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#4B5563]'
                           }`}
                         >
-                          {formatGiftCardStatus(status)}
+                          {formatGiftCardStatus(status, copy)}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-xl bg-white/80 px-4 py-3">
-                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">Остаток</p>
+                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">{copy.remaining}</p>
                           <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(remainingAmount)}</p>
                         </div>
                         <div className="rounded-xl bg-white/80 px-4 py-3">
-                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">Номинал</p>
+                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">{copy.nominal}</p>
                           <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(totalAmount)}</p>
                         </div>
                       </div>
 
                       <div className="mt-4 space-y-2 text-sm text-[#6B7280]">
                         <p>
-                          Код: <span className="font-medium text-[#111827]">{String(giftCard.snapshot?.masked_code ?? '-')}</span>
+                          {copy.code}: <span className="font-medium text-[#111827]">{String(giftCard.snapshot?.masked_code ?? '-')}</span>
                         </p>
                         {giftCard.message ? (
                           <p>
-                            Сообщение: <span className="text-[#111827]">{giftCard.message}</span>
+                            {copy.message}: <span className="text-[#111827]">{giftCard.message}</span>
                           </p>
                         ) : null}
                         {expiresAt ? (
                           <p>
-                            Действует до: <span className="font-medium text-[#111827]">{expiresAt}</span>
+                            {copy.validUntil}: <span className="font-medium text-[#111827]">{expiresAt}</span>
                           </p>
                         ) : null}
                       </div>
@@ -946,14 +1200,14 @@ export default function ProfilePage() {
                             onClick={() => void handleCopyGiftCardCode(giftCard.id, giftCard.code)}
                             className="inline-flex items-center justify-center rounded-full border border-[#E5E7EB] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-gray-50"
                           >
-                            {copiedGiftCardId === giftCard.id ? 'Скопировано' : 'Скопировать код'}
+                            {copiedGiftCardId === giftCard.id ? copy.copied : copy.copyCode}
                           </button>
                           <Link
                             to="/cart"
                             state={{ giftCardCodeToApply: giftCard.code }}
                             className="inline-flex items-center justify-center rounded-full border border-[#111827] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-[#111827] hover:text-white"
                           >
-                            Применить в корзине
+                            {copy.applyInCart}
                           </Link>
                         </div>
                       ) : null}
@@ -966,13 +1220,13 @@ export default function ProfilePage() {
         )}
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold text-[#111827] mb-6">Ваш персональный оффер</h2>
+          <h2 className="text-2xl font-bold text-[#111827] mb-6">{copy.personalOffer}</h2>
 
           <OfferCard
             status={offerStatus}
             title={offer?.offerName}
-            description={mapOfferDescription(offer?.target)}
-            expiresAt={formatDateRu(offer?.expiresAt)}
+            description={mapOfferDescription(offer?.target, copy)}
+            expiresAt={formatLocalizedDate(language, offer?.expiresAt)}
             discountType={offer?.offerType === 'points_multiplier' ? 'points' : offer?.offerType === 'gift' ? 'gift' : 'percentage'}
             discountValue={offer?.value}
             onApply={async () => {
@@ -980,7 +1234,7 @@ export default function ProfilePage() {
               try {
                 // POST /api/offers/click :contentReference[oaicite:25]{index=25}
                 await clickOffer(offer.assignmentId, { source: 'profile_page' });
-                toast.success('Оффер отмечен. Применение будет на этапе корзины/checkout.');
+                toast.success(copy.offerAppliedToast);
               } catch (e) {
                 // не блокируем UX
               }
@@ -995,18 +1249,18 @@ export default function ProfilePage() {
                 <Sparkles className="w-5 h-5 text-[#FF4DB8]" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-[#111827]">Специально для вас</h2>
-                <p className="text-sm text-[#6B7280]">Рекомендации на основе вашего профиля</p>
+                <h2 className="text-2xl font-bold text-[#111827]">{copy.specialForYou}</h2>
+                <p className="text-sm text-[#6B7280]">{copy.recommendationsByProfile}</p>
               </div>
             </div>
-            <Button variant="ghost">Смотреть всё</Button>
+            <Button variant="ghost">{copy.viewAll}</Button>
           </div>
 
           <ProductCarousel products={recommendations} />
         </section>
 
         <section>
-          <h2 className="text-2xl font-bold text-[#111827] mb-6">Управление</h2>
+          <h2 className="text-2xl font-bold text-[#111827] mb-6">{copy.management}</h2>
           <div className="grid md:grid-cols-2 gap-4">
             <Link
               to="/me/routine"
@@ -1018,8 +1272,8 @@ export default function ProfilePage() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-[#6B7280] group-hover:text-[#FF4DB8] transition-colors" />
               </div>
-              <h3 className="text-base font-bold text-[#111827] mb-1">Моя рутина</h3>
-              <p className="text-sm text-[#6B7280]">Персональный план ухода на основе вашего профиля</p>
+              <h3 className="text-base font-bold text-[#111827] mb-1">{copy.myRoutine}</h3>
+              <p className="text-sm text-[#6B7280]">{copy.myRoutineDescription}</p>
             </Link>
 
             <Link
@@ -1033,7 +1287,7 @@ export default function ProfilePage() {
                 <ChevronRight className="w-5 h-5 text-[#6B7280] group-hover:text-[#FF4DB8] transition-colors" />
               </div>
               <h3 className="text-base font-bold text-[#111827] mb-1">Roadmap</h3>
-              <p className="text-sm text-[#6B7280]">Пошаговый план построения идеальной бьюти-рутины</p>
+              <p className="text-sm text-[#6B7280]">{copy.roadmapDescription}</p>
             </Link>
 
             <Link
@@ -1046,8 +1300,8 @@ export default function ProfilePage() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-[#6B7280] group-hover:text-[#FF4DB8] transition-colors" />
               </div>
-              <h3 className="text-base font-bold text-[#111827] mb-1">Мои товары</h3>
-              <p className="text-sm text-[#6B7280]">Управление купленными товарами и заметки</p>
+              <h3 className="text-base font-bold text-[#111827] mb-1">{copy.myProducts}</h3>
+              <p className="text-sm text-[#6B7280]">{copy.myProductsDescription}</p>
             </Link>
 
             <Link
@@ -1060,8 +1314,8 @@ export default function ProfilePage() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-[#6B7280] group-hover:text-[#FF4DB8] transition-colors" />
               </div>
-              <h3 className="text-base font-bold text-[#111827] mb-1">История транзакций</h3>
-              <p className="text-sm text-[#6B7280]">Ваши покупки и начисления баллов</p>
+              <h3 className="text-base font-bold text-[#111827] mb-1">{copy.transactions}</h3>
+              <p className="text-sm text-[#6B7280]">{copy.transactionsDescription}</p>
             </Link>
           </div>
         </section>
@@ -1074,7 +1328,7 @@ export default function ProfilePage() {
             className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl p-8 shadow-2xl animate-in fade-in zoom-in"
             aria-describedby={undefined}
           >
-            <Dialog.Title className="sr-only">Анкета профиля</Dialog.Title>
+            <Dialog.Title className="sr-only">{copy.profileQuiz}</Dialog.Title>
 
             <ProfileWizard
               options={profileWizardOptions}
@@ -1166,9 +1420,9 @@ export default function ProfilePage() {
                         : 0;
 
                   if (awarded && Number.isFinite(pointsAdded) && pointsAdded > 0) {
-                    toast.success(`Профиль сохранён. +${pointsAdded} баллов`);
+                    toast.success(copy.profileSaveWithPoints(pointsAdded));
                   } else {
-                    toast.success('Профиль сохранён');
+                    toast.success(copy.profileSaved);
                   }
 
                   setWizardOpen(false);

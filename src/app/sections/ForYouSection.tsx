@@ -4,6 +4,7 @@ import { ProductCarousel } from '../components/ProductCarousel';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import type { HomeRecommendationProduct } from './useHomeRecommendations';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 interface ForYouSectionProps {
   products: HomeRecommendationProduct[];
@@ -24,36 +25,37 @@ export function ForYouSection({
 }: ForYouSectionProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { messages } = useI18n();
 
   return (
     <section className="py-12">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
         <CarouselHeader
-          title="for you"
-          subtitle="picked from your profile and recent activity"
+          title={messages.home.forYou.title}
+          subtitle={messages.home.forYou.subtitle}
         />
 
         {error ? (
           <ErrorState
-            title="could not load recommendations"
-            description="something went wrong while loading this section. try again."
+            title={messages.home.forYou.errorTitle}
+            description={messages.home.forYou.errorDescription}
             onRetry={onRetry}
           />
         ) : requiresAuth ? (
           <EmptyState
-            title="recommendations unlock after sign in"
-            description="sign in to see a personalized feed and keep your recommendation history."
+            title={messages.home.forYou.authTitle}
+            description={messages.home.forYou.authDescription}
             action={{
-              label: 'sign in',
+              label: messages.common.signIn,
               onClick: () => navigate('/login', { state: { from: location.pathname } }),
             }}
           />
         ) : !isLoading && products.length === 0 ? (
           <EmptyState
-            title="no recommendations yet"
-            description="complete your profile and check back later for a more tailored feed."
+            title={messages.home.forYou.emptyTitle}
+            description={messages.home.forYou.emptyDescription}
             action={{
-              label: 'refresh',
+              label: messages.common.refresh,
               onClick: onRetry,
             }}
           />

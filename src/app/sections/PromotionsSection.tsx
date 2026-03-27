@@ -7,12 +7,14 @@ import { ErrorState } from '../components/ErrorState';
 import { ApiError } from '../../shared/api/ApiError';
 import { clickOffer, listHomePromotions } from '../../shared/api/offers';
 import { mapOfferPayloadsToPromotions, type OfferPromotionCard } from '../../shared/offers/presentation';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 type PromoCardItem = OfferPromotionCard & {
   onClick?: () => void;
 };
 
 export function PromotionsSection() {
+  const { messages } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -77,7 +79,7 @@ export function PromotionsSection() {
         }
 
         setPromos([]);
-        setError(loadError instanceof Error ? loadError.message : 'could not load promotions');
+        setError(loadError instanceof Error ? loadError.message : messages.home.promotions.errorTitle);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -90,34 +92,34 @@ export function PromotionsSection() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [location.pathname, messages.home.promotions.errorTitle, navigate, retryKey]);
 
   return (
     <section className="py-12 bg-gradient-to-b from-white to-pink-50/30">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title="promotions and offers" />
+        <CarouselHeader title={messages.home.promotions.title} />
 
         {error ? (
           <ErrorState
-            title="could not load promotions"
-            description="something went wrong while loading the home offers. try again."
+            title={messages.home.promotions.errorTitle}
+            description={messages.home.promotions.errorDescription}
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : requiresAuth ? (
           <EmptyState
-            title="promotions are available after sign in"
-            description="sign in to see personalized offer banners on the home page."
+            title={messages.home.promotions.authTitle}
+            description={messages.home.promotions.authDescription}
             action={{
-              label: 'sign in',
+              label: messages.common.signIn,
               onClick: () => navigate('/login', { state: { from: location.pathname } }),
             }}
           />
         ) : !isLoading && promos.length === 0 ? (
           <EmptyState
-            title="no promotions yet"
-            description="there are no active offer banners for the home page right now."
+            title={messages.home.promotions.emptyTitle}
+            description={messages.home.promotions.emptyDescription}
             action={{
-              label: 'refresh',
+              label: messages.common.refresh,
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />

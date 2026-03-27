@@ -4,6 +4,7 @@ import { ProductCarousel } from '../components/ProductCarousel';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import type { HomeRecommendationProduct } from './useHomeRecommendations';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 interface TrendingSectionProps {
   products: HomeRecommendationProduct[];
@@ -24,36 +25,37 @@ export function TrendingSection({
 }: TrendingSectionProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { messages } = useI18n();
 
   return (
     <section className="py-12">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
         <CarouselHeader
-          title="trending"
-          subtitle="what customers are picking most often right now"
+          title={messages.home.trending.title}
+          subtitle={messages.home.trending.subtitle}
         />
 
         {error ? (
           <ErrorState
-            title="could not load trending products"
-            description="something went wrong while loading this section. try again."
+            title={messages.home.trending.errorTitle}
+            description={messages.home.trending.errorDescription}
             onRetry={onRetry}
           />
         ) : requiresAuth ? (
           <EmptyState
-            title="trending unlocks after sign in"
-            description="sign in to see picks we rank for you from recent platform activity."
+            title={messages.home.trending.authTitle}
+            description={messages.home.trending.authDescription}
             action={{
-              label: 'sign in',
+              label: messages.common.signIn,
               onClick: () => navigate('/login', { state: { from: location.pathname } }),
             }}
           />
         ) : !isLoading && products.length === 0 ? (
           <EmptyState
-            title="trending is empty right now"
-            description="there is not enough data yet to build this list."
+            title={messages.home.trending.emptyTitle}
+            description={messages.home.trending.emptyDescription}
             action={{
-              label: 'refresh',
+              label: messages.common.refresh,
               onClick: onRetry,
             }}
           />

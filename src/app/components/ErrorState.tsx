@@ -1,5 +1,7 @@
 import { AlertCircle } from 'lucide-react';
+
 import { Button } from './Button';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 interface ErrorStateProps {
   title?: string;
@@ -7,23 +9,25 @@ interface ErrorStateProps {
   onRetry?: () => void;
 }
 
-export function ErrorState({ 
-  title = 'Что-то пошло не так', 
-  description = 'Попробуйте обновить страницу или повторить попытку позже',
-  onRetry 
-}: ErrorStateProps) {
+export function ErrorState({ title, description, onRetry }: ErrorStateProps) {
+  const { messages } = useI18n();
+
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-      <div className="w-16 h-16 mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
-        <AlertCircle className="w-8 h-8 text-red-500" />
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
+        <AlertCircle className="h-8 w-8 text-red-500" />
       </div>
-      <h3 className="text-lg font-bold text-[#111827] mb-2">{title}</h3>
-      <p className="text-sm text-[#6B7280] mb-6 max-w-md">{description}</p>
-      {onRetry && (
+      <h3 className="mb-2 text-lg font-bold text-[#111827]">
+        {title ?? messages.errors.genericTitle}
+      </h3>
+      <p className="mb-6 max-w-md text-sm text-[#6B7280]">
+        {description ?? messages.errors.genericDescription}
+      </p>
+      {onRetry ? (
         <Button variant="primary" onClick={onRetry}>
-          Попробовать снова
+          {messages.errors.retry}
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

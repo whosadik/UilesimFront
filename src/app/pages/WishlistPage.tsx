@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Heart } from "lucide-react";
 import { ProductGrid, type Product } from "../components/ProductGrid";
@@ -7,8 +7,50 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { FilterBar } from "../components/FilterBar";
 import { ApiError } from "../../shared/api/ApiError";
 import { getWishlist, type WishlistItem } from "../../shared/api/wishlist";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
+const wishlistPageCopy = {
+  ru: {
+    productFallback: (id: string) => `Товар #${id}`,
+    brandFallback: "Uilesim",
+    loadError: "Не удалось загрузить избранное из API. Попробуйте ещё раз.",
+    title: "Избранное",
+    itemsCount: (count: number) => `${count} товаров в вашем списке желаний`,
+    emptyShort: "Ваш список желаний пуст",
+    retry: "Повторить",
+    tip: "Совет",
+    tipDescription: "Добавляйте товары в избранное, чтобы не потерять их. Мы уведомим вас о скидках и акциях на товары из вашего списка желаний.",
+    emptyDescription: "Добавляйте понравившиеся товары в избранное, чтобы не потерять их. Нажмите на иконку сердечка на карточке товара.",
+    toCatalog: "Перейти в каталог",
+  },
+  kk: {
+    productFallback: (id: string) => `Тауар #${id}`,
+    brandFallback: "Uilesim",
+    loadError: "Таңдаулыларды API-ден жүктеу мүмкін болмады. Қайталап көріңіз.",
+    title: "Таңдаулылар",
+    itemsCount: (count: number) => `Тілектер тізіміңізде ${count} тауар бар`,
+    emptyShort: "Тілектер тізіміңіз бос",
+    retry: "Қайталау",
+    tip: "Кеңес",
+    tipDescription: "Жоғалтып алмау үшін тауарларды таңдаулыларға қосыңыз. Біз тілектер тізіміңіздегі тауарлар бойынша жеңілдіктер мен акциялар туралы хабарлаймыз.",
+    emptyDescription: "Жоғалтып алмау үшін ұнаған тауарларды таңдаулыларға қосыңыз. Тауар карточкасындағы жүрек белгісін басыңыз.",
+    toCatalog: "Каталогқа өту",
+  },
+  en: {
+    productFallback: (id: string) => `Product #${id}`,
+    brandFallback: "Uilesim",
+    loadError: "Could not load wishlist from the API. Please try again.",
+    title: "Wishlist",
+    itemsCount: (count: number) => `${count} items in your wishlist`,
+    emptyShort: "Your wishlist is empty",
+    retry: "Retry",
+    tip: "Tip",
+    tipDescription: "Add products to your wishlist so you do not lose them. We will notify you about discounts and promotions for the products in your wishlist.",
+    emptyDescription: "Add products you like to your wishlist so you do not lose them. Tap the heart icon on a product card.",
+    toCatalog: "Go to catalog",
+  },
+} as const;
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -25,15 +67,19 @@ const toNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-const mapWishlistItem = (item: WishlistItem, index: number): Product => {
+const mapWishlistItem = (
+  item: WishlistItem,
+  index: number,
+  copy: (typeof wishlistPageCopy)[keyof typeof wishlistPageCopy],
+): Product => {
   const product = item.product ?? {};
   const id = product.id !== undefined && product.id !== null ? String(product.id) : `wishlist-${index}`;
   const price = toNumber(product.price) ?? 0;
 
   return {
     id,
-    name: typeof product.name === "string" && product.name.trim() ? product.name : `Товар #${id}`,
-    brand: typeof product.brand === "string" && product.brand.trim() ? product.brand : "Uilesim",
+    name: typeof product.name === "string" && product.name.trim() ? product.name : copy.productFallback(id),
+    brand: typeof product.brand === "string" && product.brand.trim() ? product.brand : copy.brandFallback,
     price,
     originalPrice: undefined,
     image:
@@ -52,6 +98,8 @@ const mapWishlistItem = (item: WishlistItem, index: number): Product => {
 };
 
 export default function WishlistPage() {
+  const { language } = useI18n();
+  const copy = wishlistPageCopy[language];
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -70,7 +118,7 @@ export default function WishlistPage() {
       try {
         const response = await getWishlist();
         const items = Array.isArray(response.items) ? response.items : [];
-        const mapped = items.map((item, index) => mapWishlistItem(item, index));
+        const mapped = items.map((item, index) => mapWishlistItem(item, index, copy));
 
         if (!cancelled) {
           setWishlistProducts(mapped);
@@ -89,7 +137,7 @@ export default function WishlistPage() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Не удалось загрузить избранное из API. Попробуйте ещё раз.",
+            : copy.loadError,
         );
       } finally {
         if (!cancelled) {
@@ -103,7 +151,7 @@ export default function WishlistPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [copy, location.pathname, navigate, retryKey]);
 
   if (isLoading) {
     return (
@@ -119,12 +167,12 @@ export default function WishlistPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-2">
             <Heart className="w-8 h-8 text-pink-500" />
-            <h1 className="text-3xl font-semibold text-gray-900">Избранное</h1>
+            <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
           </div>
           <p className="text-gray-600">
             {wishlistProducts.length > 0
-              ? `${wishlistProducts.length} товаров в вашем списке желаний`
-              : "Ваш список желаний пуст"}
+              ? copy.itemsCount(wishlistProducts.length)
+              : copy.emptyShort}
           </p>
         </div>
       </div>
@@ -137,7 +185,7 @@ export default function WishlistPage() {
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-2 text-xs text-[#111827] font-medium underline underline-offset-2"
             >
-              Повторить
+              {copy.retry}
             </button>
           </div>
         )}
@@ -161,20 +209,19 @@ export default function WishlistPage() {
             />
 
             <div className="mt-12 p-6 bg-white rounded-xl border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-3">Совет</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">{copy.tip}</h3>
               <p className="text-gray-600 text-sm leading-relaxed">
-                Добавляйте товары в избранное, чтобы не потерять их. Мы уведомим вас о скидках и акциях на товары из
-                вашего списка желаний.
+                {copy.tipDescription}
               </p>
             </div>
           </>
         ) : (
           <EmptyState
             icon={<Heart className="w-12 h-12" />}
-            title="Ваш список желаний пуст"
-            description="Добавляйте понравившиеся товары в избранное, чтобы не потерять их. Нажмите на иконку сердечка на карточке товара."
+            title={copy.emptyShort}
+            description={copy.emptyDescription}
             action={{
-              label: "Перейти в каталог",
+              label: copy.toCatalog,
               onClick: () => (window.location.href = "/catalog"),
             }}
           />

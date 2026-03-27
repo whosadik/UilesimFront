@@ -1,6 +1,8 @@
 import { Search, ChevronDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { useI18n } from '../../shared/i18n/LanguageContext';
+
 export type FilterCategoryOption = {
   id: string;
   label: string;
@@ -23,21 +25,6 @@ interface FilterBarProps {
   searchValue?: string;
 }
 
-const DEFAULT_CATEGORIES: FilterCategoryOption[] = [
-  { id: 'all', label: 'Все' },
-  { id: 'skincare', label: 'Skincare' },
-  { id: 'haircare', label: 'Haircare' },
-  { id: 'makeup', label: 'Makeup' },
-  { id: 'fragrance', label: 'Fragrance' },
-];
-
-const DEFAULT_SORT_OPTIONS: FilterSortOption[] = [
-  { value: 'popular', label: 'Популярные' },
-  { value: 'new', label: 'Новые' },
-  { value: 'price_asc', label: 'Цена: по возрастанию' },
-  { value: 'price_desc', label: 'Цена: по убыванию' },
-];
-
 export function FilterBar({
   onSortChange,
   onCategoryChange,
@@ -49,13 +36,37 @@ export function FilterBar({
   inStock,
   searchValue,
 }: FilterBarProps) {
-  const categoryOptions = useMemo(
-    () => (Array.isArray(categories) && categories.length > 0 ? categories : DEFAULT_CATEGORIES),
-    [categories],
+  const { messages } = useI18n();
+
+  const defaultCategories: FilterCategoryOption[] = useMemo(
+    () => [
+      { id: 'all', label: messages.filterBar.categories.all },
+      { id: 'skincare', label: messages.filterBar.categories.skincare },
+      { id: 'haircare', label: messages.filterBar.categories.haircare },
+      { id: 'makeup', label: messages.filterBar.categories.makeup },
+      { id: 'fragrance', label: messages.filterBar.categories.fragrance },
+    ],
+    [messages.filterBar.categories],
   );
+
+  const defaultSortOptions: FilterSortOption[] = useMemo(
+    () => [
+      { value: 'popular', label: messages.filterBar.sort.popular },
+      { value: 'new', label: messages.filterBar.sort.new },
+      { value: 'price_asc', label: messages.filterBar.sort.priceAsc },
+      { value: 'price_desc', label: messages.filterBar.sort.priceDesc },
+    ],
+    [messages.filterBar.sort],
+  );
+
+  const categoryOptions = useMemo(
+    () => (Array.isArray(categories) && categories.length > 0 ? categories : defaultCategories),
+    [categories, defaultCategories],
+  );
+
   const availableSortOptions = useMemo(
-    () => (Array.isArray(sortOptions) && sortOptions.length > 0 ? sortOptions : DEFAULT_SORT_OPTIONS),
-    [sortOptions],
+    () => (Array.isArray(sortOptions) && sortOptions.length > 0 ? sortOptions : defaultSortOptions),
+    [defaultSortOptions, sortOptions],
   );
 
   const [internalCategory, setInternalCategory] = useState('all');
@@ -67,12 +78,12 @@ export function FilterBar({
   const selectedSearch = searchValue !== undefined ? searchValue : internalSearch;
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-[#EAE6EF] mb-8">
-      <div className="flex flex-col lg:flex-row gap-4">
+    <div className="mb-8 rounded-2xl border border-[#EAE6EF] bg-white p-4">
+      <div className="flex flex-col gap-4 lg:flex-row">
         <div className="relative">
           <select
-            onChange={(e) => onSortChange?.(e.target.value)}
-            className="appearance-none w-full lg:w-auto px-4 py-2.5 pr-10 rounded-xl border border-[#EAE6EF] text-sm text-[#111827] bg-white hover:border-[#FF4DB8]/20 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20 transition-colors cursor-pointer"
+            onChange={(event) => onSortChange?.(event.target.value)}
+            className="w-full cursor-pointer appearance-none rounded-xl border border-[#EAE6EF] bg-white px-4 py-2.5 pr-10 text-sm text-[#111827] transition-colors hover:border-[#FF4DB8]/20 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20 lg:w-auto"
           >
             {availableSortOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -80,10 +91,10 @@ export function FilterBar({
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
         </div>
 
-        <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        <div className="scrollbar-hide flex flex-1 items-center gap-2 overflow-x-auto">
           {categoryOptions.map((category) => (
             <button
               key={category.id}
@@ -93,10 +104,10 @@ export function FilterBar({
                 }
                 onCategoryChange?.(category.id);
               }}
-              className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+              className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
                 selectedCategory === category.id
                   ? 'bg-[#111827] text-white shadow-md'
-                  : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100 border border-[#EAE6EF]'
+                  : 'border border-[#EAE6EF] bg-gray-50 text-[#6B7280] hover:bg-gray-100'
               }`}
             >
               {category.label}
@@ -105,36 +116,36 @@ export function FilterBar({
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className="relative inline-flex cursor-pointer items-center">
             <input
               type="checkbox"
               checked={selectedInStock}
-              onChange={(e) => {
+              onChange={(event) => {
                 if (inStock === undefined) {
-                  setInternalInStock(e.target.checked);
+                  setInternalInStock(event.target.checked);
                 }
-                onInStockChange?.(e.target.checked);
+                onInStockChange?.(event.target.checked);
               }}
-              className="sr-only peer"
+              className="peer sr-only"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#FF4DB8]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#FF4DB8]" />
+            <div className="peer h-6 w-11 rounded-full bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#FF4DB8]/20 peer-checked:bg-[#FF4DB8] peer-checked:after:translate-x-full peer-checked:after:border-white after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-['']" />
           </label>
-          <span className="text-sm text-[#6B7280] whitespace-nowrap">В наличии</span>
+          <span className="whitespace-nowrap text-sm text-[#6B7280]">{messages.filterBar.inStock}</span>
         </div>
 
-        <div className="relative flex-shrink-0 w-full lg:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="relative w-full shrink-0 lg:w-64">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Поиск"
+            placeholder={messages.filterBar.searchPlaceholder}
             value={selectedSearch}
-            onChange={(e) => {
+            onChange={(event) => {
               if (searchValue === undefined) {
-                setInternalSearch(e.target.value);
+                setInternalSearch(event.target.value);
               }
-              onSearchChange?.(e.target.value);
+              onSearchChange?.(event.target.value);
             }}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EAE6EF] text-sm text-[#111827] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20 transition-all"
+            className="w-full rounded-xl border border-[#EAE6EF] py-2.5 pr-4 pl-10 text-sm text-[#111827] transition-all placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20"
           />
         </div>
       </div>

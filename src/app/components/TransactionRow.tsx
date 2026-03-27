@@ -1,8 +1,9 @@
-import { Calendar, TrendingUp, TrendingDown, Gift, ShoppingBag } from 'lucide-react';
-import { Badge } from './Badge';
+import { Calendar, TrendingUp, TrendingDown, Gift, ShoppingBag } from "lucide-react";
+import { Badge } from "./Badge";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 
-type UiTransactionType = 'purchase' | 'reward' | 'refund' | 'redeem';
-type UiTransactionStatus = 'completed' | 'pending' | 'failed';
+type UiTransactionType = "purchase" | "reward" | "refund" | "redeem";
+type UiTransactionStatus = "completed" | "pending" | "failed";
 
 export interface Transaction {
   id: string | number;
@@ -25,12 +26,63 @@ interface TransactionRowProps {
   onClick?: () => void;
 }
 
+const transactionRowCopy = {
+  ru: {
+    statusCompleted: "Завершена",
+    statusPending: "В обработке",
+    statusFailed: "Ошибка",
+    dateMissing: "Дата не указана",
+    purchase: "Покупка",
+    reward: "Начисление баллов",
+    redeem: "Списание баллов",
+    refund: "Возврат",
+    typePurchase: "Покупка",
+    typeReward: "Начисление",
+    typeRedeem: "Списание",
+    typeRefund: "Возврат",
+    typeDefault: "Операция",
+    pointsShort: "б.",
+  },
+  kk: {
+    statusCompleted: "Аяқталды",
+    statusPending: "Өңделіп жатыр",
+    statusFailed: "Қате",
+    dateMissing: "Күні көрсетілмеген",
+    purchase: "Сатып алу",
+    reward: "Ұпай есептеу",
+    redeem: "Ұпай шегеру",
+    refund: "Қайтарым",
+    typePurchase: "Сатып алу",
+    typeReward: "Есептеу",
+    typeRedeem: "Шегеру",
+    typeRefund: "Қайтарым",
+    typeDefault: "Операция",
+    pointsShort: "ұп.",
+  },
+  en: {
+    statusCompleted: "Completed",
+    statusPending: "Processing",
+    statusFailed: "Failed",
+    dateMissing: "Date not specified",
+    purchase: "Purchase",
+    reward: "Points credited",
+    redeem: "Points redeemed",
+    refund: "Refund",
+    typePurchase: "Purchase",
+    typeReward: "Reward",
+    typeRedeem: "Redeem",
+    typeRefund: "Refund",
+    typeDefault: "Operation",
+    pointsShort: "pts",
+  },
+} as const;
+
 function toNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
 
-  if (typeof value === 'string' && value.trim()) {
+  if (typeof value === "string" && value.trim()) {
     const parsed = Number(value);
     if (Number.isFinite(parsed)) {
       return parsed;
@@ -41,74 +93,77 @@ function toNumber(value: unknown): number | undefined {
 }
 
 function normalizeType(value?: string): UiTransactionType {
-  const raw = String(value ?? '').trim().toLowerCase();
-  if (raw === 'purchase' || raw === 'reward' || raw === 'refund' || raw === 'redeem') {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "purchase" || raw === "reward" || raw === "refund" || raw === "redeem") {
     return raw;
   }
-  return 'purchase';
+  return "purchase";
 }
 
 function normalizeStatus(value?: string): UiTransactionStatus | undefined {
-  const raw = String(value ?? '').trim().toLowerCase();
-  if (raw === 'completed' || raw === 'pending' || raw === 'failed') {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "completed" || raw === "pending" || raw === "failed") {
     return raw;
   }
   return undefined;
 }
 
-function getStatusLabel(status?: UiTransactionStatus): string {
-  if (status === 'completed') return 'Завершена';
-  if (status === 'pending') return 'В обработке';
-  if (status === 'failed') return 'Ошибка';
-  return '';
-}
-
 export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
-  const type = normalizeType(typeof transaction.type === 'string' ? transaction.type : undefined);
-  const status = normalizeStatus(typeof transaction.status === 'string' ? transaction.status : undefined);
+  const { language } = useI18n();
+  const copy = transactionRowCopy[language];
+  const locale = language === "kk" ? "kk-KZ" : language === "en" ? "en-US" : "ru-RU";
+  const type = normalizeType(typeof transaction.type === "string" ? transaction.type : undefined);
+  const status = normalizeStatus(typeof transaction.status === "string" ? transaction.status : undefined);
 
   const amountRaw = toNumber(transaction.amount ?? transaction.total_amount);
   const amount = amountRaw !== undefined ? amountRaw : 0;
   const pointsRaw = toNumber(transaction.points_change ?? transaction.points_delta ?? transaction.points_earned);
   const pointsChange = pointsRaw !== undefined ? Math.round(pointsRaw) : 0;
   const pointsTone =
-    pointsChange > 0 ? 'text-green-600' : pointsChange < 0 ? 'text-red-600' : 'text-gray-500';
+    pointsChange > 0 ? "text-green-600" : pointsChange < 0 ? "text-red-600" : "text-gray-500";
 
   const dateValue =
-    (typeof transaction.date === 'string' && transaction.date) ||
-    (typeof transaction.created_at === 'string' && transaction.created_at) ||
-    '';
+    (typeof transaction.date === "string" && transaction.date) ||
+    (typeof transaction.created_at === "string" && transaction.created_at) ||
+    "";
   const parsedDate = dateValue ? new Date(dateValue) : null;
   const formattedDate =
     parsedDate && !Number.isNaN(parsedDate.getTime())
-      ? parsedDate.toLocaleDateString('ru-RU')
-      : 'Дата не указана';
+      ? parsedDate.toLocaleDateString(locale)
+      : copy.dateMissing;
 
   const description =
-    typeof transaction.description === 'string' && transaction.description.trim()
+    typeof transaction.description === "string" && transaction.description.trim()
       ? transaction.description
-      : type === 'purchase'
-        ? 'Покупка'
-        : type === 'reward'
-          ? 'Начисление баллов'
-          : type === 'redeem'
-            ? 'Списание баллов'
-            : 'Возврат';
+      : type === "purchase"
+        ? copy.purchase
+        : type === "reward"
+          ? copy.reward
+          : type === "redeem"
+            ? copy.redeem
+            : copy.refund;
 
   const transactionId =
     transaction.transaction_id !== undefined && transaction.transaction_id !== null
       ? String(transaction.transaction_id)
-      : '';
+      : "";
+
+  const getStatusLabel = () => {
+    if (status === "completed") return copy.statusCompleted;
+    if (status === "pending") return copy.statusPending;
+    if (status === "failed") return copy.statusFailed;
+    return "";
+  };
 
   const getIcon = () => {
     switch (type) {
-      case 'purchase':
+      case "purchase":
         return <ShoppingBag className="w-5 h-5" />;
-      case 'reward':
+      case "reward":
         return <Gift className="w-5 h-5" />;
-      case 'refund':
+      case "refund":
         return <TrendingDown className="w-5 h-5" />;
-      case 'redeem':
+      case "redeem":
         return <TrendingUp className="w-5 h-5" />;
       default:
         return <ShoppingBag className="w-5 h-5" />;
@@ -117,36 +172,36 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
   const getTypeLabel = () => {
     switch (type) {
-      case 'purchase':
-        return 'Покупка';
-      case 'reward':
-        return 'Начисление';
-      case 'refund':
-        return 'Возврат';
-      case 'redeem':
-        return 'Списание';
+      case "purchase":
+        return copy.typePurchase;
+      case "reward":
+        return copy.typeReward;
+      case "refund":
+        return copy.typeRefund;
+      case "redeem":
+        return copy.typeRedeem;
       default:
-        return 'Операция';
+        return copy.typeDefault;
     }
   };
 
   const getStatusColor = () => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-50 text-green-700';
-      case 'pending':
-        return 'bg-yellow-50 text-yellow-700';
-      case 'failed':
-        return 'bg-red-50 text-red-700';
+      case "completed":
+        return "bg-green-50 text-green-700";
+      case "pending":
+        return "bg-yellow-50 text-yellow-700";
+      case "failed":
+        return "bg-red-50 text-red-700";
       default:
-        return 'bg-gray-50 text-gray-700';
+        return "bg-gray-50 text-gray-700";
     }
   };
 
   return (
     <div
       className={`flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-100 transition-all ${
-        onClick ? 'cursor-pointer hover:shadow-sm hover:border-gray-200' : ''
+        onClick ? "cursor-pointer hover:shadow-sm hover:border-gray-200" : ""
       }`}
       onClick={onClick}
     >
@@ -159,7 +214,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
           <p className="font-medium text-gray-900 truncate">{description}</p>
           {status && (
             <Badge variant="secondary" className={`text-xs ${getStatusColor()}`}>
-              {getStatusLabel(status)}
+              {getStatusLabel()}
             </Badge>
           )}
         </div>
@@ -168,11 +223,11 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
             <Calendar className="w-3.5 h-3.5" />
             {formattedDate}
           </span>
-          <span>•</span>
+          <span>|</span>
           <span>{getTypeLabel()}</span>
           {transactionId && (
             <>
-              <span className="hidden sm:inline">•</span>
+              <span className="hidden sm:inline">|</span>
               <span className="hidden sm:inline font-mono text-xs">#{transactionId.slice(0, 8)}</span>
             </>
           )}
@@ -181,11 +236,11 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
       <div className="flex-shrink-0 text-right">
         <p className={`font-semibold ${pointsTone}`}>
-          {pointsChange > 0 ? '+' : ''}
-          {pointsChange} б.
+          {pointsChange > 0 ? "+" : ""}
+          {pointsChange} {copy.pointsShort}
         </p>
         {amount !== 0 && (
-          <p className="text-sm text-gray-500 mt-0.5">{amount.toLocaleString('ru-RU')} ₸</p>
+          <p className="text-sm text-gray-500 mt-0.5">{amount.toLocaleString(locale)} ₸</p>
         )}
       </div>
     </div>

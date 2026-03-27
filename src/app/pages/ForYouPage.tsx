@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
   Sparkles, ArrowRight, TrendingUp, ShoppingBag,
@@ -41,6 +41,8 @@ import {
   mapProfileSingleLabelToApiValue,
   resolveProfileTaxonomy,
 } from '../../shared/profile/taxonomy';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+import type { AppLanguage } from '../../shared/i18n/messages';
 
 /**
  * DEV NOTES:
@@ -52,6 +54,425 @@ import {
  * - PATCH /api/me/profile { skin_type, goals } → quick prefs update
  * - POST /api/me/recommendations/event { action, product_id, page, section_key, context }
  */
+
+const forYouPageCopy = {
+  ru: {
+    points: 'баллов',
+    pointsShort: 'б.',
+    buyFor: (amount: number) => `Купите на ${amount.toLocaleString('ru-RU')} ₸`,
+    untilTier: (tier: string, points: number) => `До ${tier}: ${points} баллов`,
+    match: (value: number) => `${value}% совпадение`,
+    addToCart: 'В корзину',
+    preferences: 'Мои предпочтения',
+    affectsRecommendations: 'влияет на рекомендации',
+    skinType: 'Тип кожи',
+    goals: 'Мои цели',
+    updating: 'Обновляем...',
+    updateRecommendations: 'Обновить рекомендации',
+    selectSkinAndGoal: 'Выберите тип кожи и хотя бы одну цель',
+    setupTitle: 'Давайте настроим вашу персонализацию',
+    setupDescription: 'Ответьте на два быстрых вопроса, и платформа сразу перестроит рекомендации под вас.',
+    whatSkinType: 'Какой у вас тип кожи?',
+    next: 'Далее',
+    goalsTitle: 'Какие у вас цели?',
+    goalsDescription: 'Можно выбрать несколько, а рекомендации и roadmap подстроятся автоматически.',
+    back: 'Назад',
+    saving: 'Сохраняем...',
+    showRecommendations: 'Показать мои рекомендации',
+    confirmEmail: 'Подтвердите email',
+    confirmEmailDescription: (email: string) => `Мы отправили ссылку на ${email}. Подтвердите адрес, чтобы завершить настройку аккаунта.`,
+    sending: 'Отправляем...',
+    resendEmail: 'Отправить письмо ещё раз',
+    ready: 'Готово',
+    profile: 'Профиль',
+    roadmap: 'Roadmap',
+    soon: 'Скоро',
+    active: 'Активен',
+    waiting: 'Ожидание',
+    catalog: 'Каталог',
+    profileConfigured: 'Профиль настроен',
+    profileConfiguredDescription: 'Тип кожи и цели уже участвуют в персонализации.',
+    refineProfile: 'Уточните профиль',
+    refineProfileDescription: 'Добавьте тип кожи и цели, чтобы рекомендации стали точнее.',
+    nextRoadmapStep: 'Следующий шаг roadmap',
+    roadmapBuilding: 'Roadmap формируется',
+    roadmapBuildingDescription: 'Когда план будет готов, следующий шаг появится здесь.',
+    currentPersonalOffer: 'Текущий персональный оффер',
+    offerWillAppear: 'Оффер появится позже',
+    offerWillAppearDescription: 'Когда для вас будет назначено предложение, оно отобразится здесь.',
+    cartRecommendation: 'Рекомендация для корзины',
+    cartRecommendationDescription: (name: string, points: number) => `${name} · +${points} баллов после покупки`,
+    recommendationsLoading: 'Рекомендации загружаются',
+    recommendationsLoadingDescription: 'Как только API вернет персональные товары, они появятся слева.',
+    bronze: 'Bronze',
+    silver: 'Silver',
+    gold: 'Gold',
+    platinum: 'Platinum',
+    personalRecommendation: 'Персональная рекомендация',
+    suitableForSkin: (value: string) => `Подходит для ${value.toLowerCase()} кожи`,
+    complementsPurchases: 'Дополняет прошлые покупки',
+    popularForProfiles: 'Популярно среди похожих профилей',
+    selectionByType: (value: string) => `Подбор по типу ${value.toLowerCase()}`,
+    selectionByCategory: (value: string) => `Подбор по категории ${value.toLowerCase()}`,
+    underYourProfile: 'Под ваш профиль',
+    intensity: (value: string) => `Интенсивность: ${value.toLowerCase()}`,
+    actives: (value: string) => `Активы: ${value}`,
+    blendsWithPurchases: 'Хорошо сочетается с вашими предыдущими покупками',
+    chosenBySimilarUsers: 'Часто выбирают пользователи с похожим профилем',
+    openProductForDetails: 'Откройте карточку товара для деталей и способа применения',
+    productFallback: (id: string) => `Товар #${id}`,
+    fallbackRoadmapTitle: 'Добавьте тоник в рутину',
+    fallbackRoadmapDescription: 'Вы завершили очищение. Следующий шаг поможет сбалансировать кожу и подготовить её к увлажнению.',
+    fallbackRoadmapWhy: 'Этот этап логично следует за очищением и помогает быстрее увидеть результат рутины.',
+    fallbackRoadmapSteps: ['Очищение', 'Тоник', 'Увлажнение', 'SPF', 'Спецуход'],
+    openRoadmapStep: 'Откройте roadmap, чтобы увидеть следующий шаг.',
+    stepLabel: (step: number) => `Шаг ${step}`,
+    roadmapStepTitle: 'Следующий шаг roadmap',
+    personalOfferTitle: 'Персональный оффер',
+    discountOnType: (value: string, label: string) => `Скидка ${value}% на ${label.toLowerCase()}`,
+    discountOnCategory: (value: string, label: string) => `Скидка ${value}% на ${label.toLowerCase()}`,
+    discountForYou: (value: string) => `Скидка ${value}% для вас`,
+    pointsMultiplier: (value: string) => `x${value} баллы на следующую покупку`,
+    giftWithOrder: 'Подарок к заказу',
+    offerAvailable: 'Персональное предложение доступно прямо сейчас.',
+    offerAutoCart: (amount: number) => `Применяется автоматически к следующей корзине от ${amount.toLocaleString('ru-RU')} ₸.`,
+    offerCategoryScope: (value: string) => `Предложение действует на категорию «${value}».`,
+    offerTypeScope: (value: string) => `Предложение действует на товары типа «${value}».`,
+    offerProductScope: (value: string) => `Сработает на рекомендованный товар типа «${value}».`,
+    offerRoadmapScope: (value: string) => `Оффер связан с roadmap и поддерживает шаг «${value}».`,
+    offerBoundToProfile: 'Предложение уже закреплено за вашим профилем.',
+    offerSaving: (amount: number, saving: number) => `На корзине ${amount.toLocaleString('ru-RU')} ₸ вы сэкономите ${saving.toLocaleString('ru-RU')} ₸`,
+    offerAutoDiscount: (value: string) => `Скидка ${value}% применится автоматически на подходящую покупку`,
+    offerAutoPoints: (value: string) => `Получите x${value} баллы на следующую подходящую покупку`,
+    offerAutoGift: 'Подарок добавится автоматически при выполнении условий оффера',
+    recommendationsUpdated: 'Рекомендации обновлены!',
+    saveSettingsError: 'Не удалось сохранить настройки.',
+    recommendationsPersonalized: 'Рекомендации персонализированы!',
+    savePersonalizationError: 'Не удалось сохранить персонализацию.',
+    emailAlreadyVerified: 'Email уже подтвержден.',
+    emailSent: (email: string) => `Письмо с подтверждением отправлено на ${email}.`,
+    emailSendError: 'Не удалось отправить письмо с подтверждением.',
+    addedToCart: 'Добавлено в корзину!',
+    cartNowHas: (count: number) => `Теперь в корзине ${count} шт.`,
+    pointsAfterPurchase: (points: number) => `+${points} баллов после покупки`,
+    addToCartError: 'Не удалось добавить товар в корзину',
+    updateCartError: 'Не удалось обновить корзину',
+    personalCenter: 'Персональный центр',
+    hello: (name: string) => `Привет, ${name} ✦`,
+    defaultName: 'Аяла',
+    loadingPersonalData: 'Загружаем персональные данные...',
+    retry: 'Повторить',
+    nextStep: 'Ваш следующий шаг',
+    whyNow: 'Почему сейчас',
+    goToStep: 'Перейти к шагу',
+    specialForYou: 'Специально для вас',
+    basedOn: (skinType: string, goals: string[]) => `На основе: ${skinType.toLowerCase()} кожа · ${goals.join(', ').toLowerCase()}`,
+    all: 'Все',
+    personalRecommendationsBuilding: 'Персональные рекомендации формируются',
+    personalRecommendationsBuildingDescription: 'Когда API соберёт товары под ваш профиль и roadmap, они появятся в этом блоке.',
+    openCatalog: 'Открыть каталог',
+    trendingForYou: 'В тренде для вас',
+    trendingDescription: 'Популярно среди Gold-пользователей с похожим профилем',
+    trendsPending: 'Тренды для вашего профиля пока не готовы',
+    trendsPendingDescription: 'Как только backend вернёт популярные товары для похожих пользователей, они появятся здесь.',
+    viewNew: 'Смотреть новинки',
+    myRoadmap: 'Мой Roadmap',
+    stepProgress: (current: number, total: number) => `Шаг ${current}/${total}`,
+    offerBadge: 'ОФФЕР',
+    personal: 'Персональный',
+    noOfferTitle: 'Персональный оффер пока недоступен',
+    noOfferDescription: 'Когда API подберёт подходящее предложение, оно появится здесь.',
+    noOfferHighlight: 'Сейчас для вашего профиля нет активного предложения.',
+    expiresIn: 'Истекает через:',
+    hoursShort: 'ч',
+    minutesShort: 'мин',
+    quickActions: 'Быстрые действия',
+    loadRecommendationsError: 'Не удалось загрузить рекомендации. Попробуйте ещё раз.',
+    partialDataError: 'Часть персональных данных недоступна. Некоторые разделы рекомендаций могут быть временно пустыми.',
+    loadOfferError: 'Не удалось загрузить персональный оффер. Остальные данные отображаются.',
+    offerAccent: 'ОФФЕР',
+  },
+  kk: {
+    points: 'ұпай',
+    pointsShort: 'ұп.',
+    buyFor: (amount: number) => `${amount.toLocaleString('kk-KZ')} ₸ сомаға сатып алыңыз`,
+    untilTier: (tier: string, points: number) => `${tier} деңгейіне дейін: ${points} ұпай`,
+    match: (value: number) => `${value}% сәйкестік`,
+    addToCart: 'Себетке',
+    preferences: 'Менің қалауым',
+    affectsRecommendations: 'ұсыныстарға әсер етеді',
+    skinType: 'Тері түрі',
+    goals: 'Менің мақсаттарым',
+    updating: 'Жаңартып жатырмыз...',
+    updateRecommendations: 'Ұсыныстарды жаңарту',
+    selectSkinAndGoal: 'Тері түрін және кемінде бір мақсатты таңдаңыз',
+    setupTitle: 'Жеке баптауды реттейік',
+    setupDescription: 'Екі қысқа сұраққа жауап беріңіз, платформа ұсыныстарды бірден сізге бейімдейді.',
+    whatSkinType: 'Сіздің тері түріңіз қандай?',
+    next: 'Келесі',
+    goalsTitle: 'Мақсаттарыңыз қандай?',
+    goalsDescription: 'Бірнешеуін таңдауға болады, ұсыныстар мен roadmap автоматты түрде бейімделеді.',
+    back: 'Артқа',
+    saving: 'Сақтап жатырмыз...',
+    showRecommendations: 'Менің ұсыныстарымды көрсету',
+    confirmEmail: 'Email-ді растаңыз',
+    confirmEmailDescription: (email: string) => `Біз ${email} адресіне сілтеме жібердік. Аккаунтты аяқтау үшін email-ді растаңыз.`,
+    sending: 'Жіберіп жатырмыз...',
+    resendEmail: 'Хатты қайта жіберу',
+    ready: 'Дайын',
+    profile: 'Профиль',
+    roadmap: 'Roadmap',
+    soon: 'Жақында',
+    active: 'Белсенді',
+    waiting: 'Күту',
+    catalog: 'Каталог',
+    profileConfigured: 'Профиль бапталған',
+    profileConfiguredDescription: 'Тері түрі мен мақсаттар жекелендіруге қатысып тұр.',
+    refineProfile: 'Профильді нақтылаңыз',
+    refineProfileDescription: 'Ұсыныстар дәлірек болуы үшін тері түрі мен мақсаттарды қосыңыз.',
+    nextRoadmapStep: 'Roadmap келесі қадамы',
+    roadmapBuilding: 'Roadmap жасалып жатыр',
+    roadmapBuildingDescription: 'Жоспар дайын болғанда, келесі қадам осында көрінеді.',
+    currentPersonalOffer: 'Ағымдағы жеке оффер',
+    offerWillAppear: 'Оффер кейінірек шығады',
+    offerWillAppearDescription: 'Сізге ұсыныс тағайындалғанда, ол осында көрінеді.',
+    cartRecommendation: 'Себетке ұсыныс',
+    cartRecommendationDescription: (name: string, points: number) => `${name} · сатып алғаннан кейін +${points} ұпай`,
+    recommendationsLoading: 'Ұсыныстар жүктелуде',
+    recommendationsLoadingDescription: 'API жеке тауарларды қайтарғанда, олар осы жерде пайда болады.',
+    bronze: 'Bronze',
+    silver: 'Silver',
+    gold: 'Gold',
+    platinum: 'Platinum',
+    personalRecommendation: 'Жеке ұсыныс',
+    suitableForSkin: (value: string) => `${value.toLowerCase()} терісіне сай`,
+    complementsPurchases: 'Алдыңғы сатып алуларды толықтырады',
+    popularForProfiles: 'Ұқсас профильдер арасында танымал',
+    selectionByType: (value: string) => `${value.toLowerCase()} түрі бойынша таңдау`,
+    selectionByCategory: (value: string) => `${value.toLowerCase()} санаты бойынша таңдау`,
+    underYourProfile: 'Профильге сай',
+    intensity: (value: string) => `Қарқындылығы: ${value.toLowerCase()}`,
+    actives: (value: string) => `Белсенділер: ${value}`,
+    blendsWithPurchases: 'Алдыңғы сатып алуларыңызбен жақсы үйлеседі',
+    chosenBySimilarUsers: 'Ұқсас профильдері бар қолданушылар жиі таңдайды',
+    openProductForDetails: 'Толық мәлімет пен қолдану тәсілі үшін тауар картасын ашыңыз',
+    productFallback: (id: string) => `Тауар #${id}`,
+    fallbackRoadmapTitle: 'Рутинаға тонер қосыңыз',
+    fallbackRoadmapDescription: 'Сіз тазартуды аяқтадыңыз. Келесі қадам теріні теңестіріп, ылғалдандыруға дайындайды.',
+    fallbackRoadmapWhy: 'Бұл кезең тазартудан кейін табиғи түрде келеді және нәтижені тезірек көруге көмектеседі.',
+    fallbackRoadmapSteps: ['Тазарту', 'Тонер', 'Ылғалдандыру', 'SPF', 'Арнайы күтім'],
+    openRoadmapStep: 'Келесі қадамды көру үшін roadmap-ты ашыңыз.',
+    stepLabel: (step: number) => `${step}-қадам`,
+    roadmapStepTitle: 'Roadmap келесі қадамы',
+    personalOfferTitle: 'Жеке оффер',
+    discountOnType: (value: string, label: string) => `${label.toLowerCase()} үшін ${value}% жеңілдік`,
+    discountOnCategory: (value: string, label: string) => `${label.toLowerCase()} санатына ${value}% жеңілдік`,
+    discountForYou: (value: string) => `Сізге ${value}% жеңілдік`,
+    pointsMultiplier: (value: string) => `Келесі сатып алуға x${value} ұпай`,
+    giftWithOrder: 'Тапсырысқа сыйлық',
+    offerAvailable: 'Жеке ұсыныс қазір қолжетімді.',
+    offerAutoCart: (amount: number) => `${amount.toLocaleString('kk-KZ')} ₸ бастап келесі себетке автоматты қолданылады.`,
+    offerCategoryScope: (value: string) => `Ұсыныс «${value}» санатына жарамды.`,
+    offerTypeScope: (value: string) => `Ұсыныс «${value}» түріндегі тауарларға жарамды.`,
+    offerProductScope: (value: string) => `Ұсыныс «${value}» түріндегі ұсынылған тауарға қолданылады.`,
+    offerRoadmapScope: (value: string) => `Оффер roadmap-пен байланысты және «${value}» қадамын қолдайды.`,
+    offerBoundToProfile: 'Ұсыныс профиліңізге бекітілген.',
+    offerSaving: (amount: number, saving: number) => `${amount.toLocaleString('kk-KZ')} ₸ себетте ${saving.toLocaleString('kk-KZ')} ₸ үнемдейсіз`,
+    offerAutoDiscount: (value: string) => `${value}% жеңілдік сәйкес сатып алуға автоматты қолданылады`,
+    offerAutoPoints: (value: string) => `Келесі сәйкес сатып алуға x${value} ұпай аласыз`,
+    offerAutoGift: 'Оффер шарттары орындалса, сыйлық автоматты қосылады',
+    recommendationsUpdated: 'Ұсыныстар жаңартылды!',
+    saveSettingsError: 'Баптауларды сақтау мүмкін болмады.',
+    recommendationsPersonalized: 'Ұсыныстар жекелендірілді!',
+    savePersonalizationError: 'Жекелендіруді сақтау мүмкін болмады.',
+    emailAlreadyVerified: 'Email әлдеқашан расталған.',
+    emailSent: (email: string) => `Растау хаты ${email} адресіне жіберілді.`,
+    emailSendError: 'Растау хатын жіберу мүмкін болмады.',
+    addedToCart: 'Себетке қосылды!',
+    cartNowHas: (count: number) => `Себетте енді ${count} дана бар.`,
+    pointsAfterPurchase: (points: number) => `Сатып алғаннан кейін +${points} ұпай`,
+    addToCartError: 'Тауарды себетке қосу мүмкін болмады',
+    updateCartError: 'Себетті жаңарту мүмкін болмады',
+    personalCenter: 'Жеке орталық',
+    hello: (name: string) => `Сәлем, ${name} ✦`,
+    defaultName: 'Аяла',
+    loadingPersonalData: 'Жеке деректер жүктелуде...',
+    retry: 'Қайталау',
+    nextStep: 'Келесі қадамыңыз',
+    whyNow: 'Неге қазір',
+    goToStep: 'Қадамға өту',
+    specialForYou: 'Арнайы сіз үшін',
+    basedOn: (skinType: string, goals: string[]) => `Негізі: ${skinType.toLowerCase()} тері · ${goals.join(', ').toLowerCase()}`,
+    all: 'Барлығы',
+    personalRecommendationsBuilding: 'Жеке ұсыныстар қалыптасуда',
+    personalRecommendationsBuildingDescription: 'API профиль мен roadmap бойынша тауарларды жинағанда, олар осы блокта пайда болады.',
+    openCatalog: 'Каталогты ашу',
+    trendingForYou: 'Сіз үшін трендте',
+    trendingDescription: 'Ұқсас профилі бар Gold қолданушылар арасында танымал',
+    trendsPending: 'Профильге арналған трендтер әлі дайын емес',
+    trendsPendingDescription: 'Backend ұқсас қолданушыларға танымал тауарларды қайтарғанда, олар осында көрінеді.',
+    viewNew: 'Жаңалықтарды көру',
+    myRoadmap: 'Менің Roadmap-ым',
+    stepProgress: (current: number, total: number) => `${current}/${total} қадам`,
+    offerBadge: 'ОФФЕР',
+    personal: 'Жеке',
+    noOfferTitle: 'Жеке оффер әзірге қолжетімсіз',
+    noOfferDescription: 'API лайықты ұсыныс тапқанда, ол осында пайда болады.',
+    noOfferHighlight: 'Қазір профиліңіз үшін белсенді ұсыныс жоқ.',
+    expiresIn: 'Аяқталуына:',
+    hoursShort: 'сағ',
+    minutesShort: 'мин',
+    quickActions: 'Жылдам әрекеттер',
+    loadRecommendationsError: 'Ұсыныстарды жүктеу мүмкін болмады. Қайта көріңіз.',
+    partialDataError: 'Жеке деректердің бір бөлігі қолжетімсіз. Кей бөлімдер уақытша бос болуы мүмкін.',
+    loadOfferError: 'Жеке офферді жүктеу мүмкін болмады. Қалған деректер көрсетіліп тұр.',
+    offerAccent: 'ОФФЕР',
+  },
+  en: {
+    points: 'points',
+    pointsShort: 'pts',
+    buyFor: (amount: number) => `Buy for ${amount.toLocaleString('en-US')} ₸`,
+    untilTier: (tier: string, points: number) => `To ${tier}: ${points} points`,
+    match: (value: number) => `${value}% match`,
+    addToCart: 'Add to cart',
+    preferences: 'My preferences',
+    affectsRecommendations: 'affects recommendations',
+    skinType: 'Skin type',
+    goals: 'My goals',
+    updating: 'Updating...',
+    updateRecommendations: 'Update recommendations',
+    selectSkinAndGoal: 'Choose a skin type and at least one goal',
+    setupTitle: "Let's set up your personalization",
+    setupDescription: 'Answer two quick questions and the platform will immediately tailor recommendations to you.',
+    whatSkinType: 'What is your skin type?',
+    next: 'Next',
+    goalsTitle: 'What are your goals?',
+    goalsDescription: 'You can choose several, and recommendations plus roadmap will adapt automatically.',
+    back: 'Back',
+    saving: 'Saving...',
+    showRecommendations: 'Show my recommendations',
+    confirmEmail: 'Confirm your email',
+    confirmEmailDescription: (email: string) => `We sent a confirmation link to ${email}. Confirm it to finish account setup.`,
+    sending: 'Sending...',
+    resendEmail: 'Send again',
+    ready: 'Ready',
+    profile: 'Profile',
+    roadmap: 'Roadmap',
+    soon: 'Soon',
+    active: 'Active',
+    waiting: 'Waiting',
+    catalog: 'Catalog',
+    profileConfigured: 'Profile configured',
+    profileConfiguredDescription: 'Skin type and goals already affect personalization.',
+    refineProfile: 'Refine profile',
+    refineProfileDescription: 'Add skin type and goals to make recommendations more precise.',
+    nextRoadmapStep: 'Next roadmap step',
+    roadmapBuilding: 'Roadmap is being prepared',
+    roadmapBuildingDescription: 'When the plan is ready, the next step will appear here.',
+    currentPersonalOffer: 'Current personal offer',
+    offerWillAppear: 'Offer will appear later',
+    offerWillAppearDescription: 'When an offer is assigned to you, it will be shown here.',
+    cartRecommendation: 'Cart recommendation',
+    cartRecommendationDescription: (name: string, points: number) => `${name} · +${points} points after purchase`,
+    recommendationsLoading: 'Recommendations are loading',
+    recommendationsLoadingDescription: 'As soon as the API returns personal products, they will appear here.',
+    bronze: 'Bronze',
+    silver: 'Silver',
+    gold: 'Gold',
+    platinum: 'Platinum',
+    personalRecommendation: 'Personal recommendation',
+    suitableForSkin: (value: string) => `Suitable for ${value.toLowerCase()} skin`,
+    complementsPurchases: 'Complements your previous purchases',
+    popularForProfiles: 'Popular among similar profiles',
+    selectionByType: (value: string) => `Matched by ${value.toLowerCase()} type`,
+    selectionByCategory: (value: string) => `Matched by ${value.toLowerCase()} category`,
+    underYourProfile: 'Matched to your profile',
+    intensity: (value: string) => `Intensity: ${value.toLowerCase()}`,
+    actives: (value: string) => `Actives: ${value}`,
+    blendsWithPurchases: 'Pairs well with your previous purchases',
+    chosenBySimilarUsers: 'Often chosen by users with a similar profile',
+    openProductForDetails: 'Open the product page for details and usage instructions',
+    productFallback: (id: string) => `Product #${id}`,
+    fallbackRoadmapTitle: 'Add a toner to your routine',
+    fallbackRoadmapDescription: 'You completed cleansing. The next step helps balance the skin and prepare it for hydration.',
+    fallbackRoadmapWhy: 'This stage naturally follows cleansing and helps you see routine results faster.',
+    fallbackRoadmapSteps: ['Cleanse', 'Toner', 'Hydration', 'SPF', 'Special care'],
+    openRoadmapStep: 'Open the roadmap to see the next step.',
+    stepLabel: (step: number) => `Step ${step}`,
+    roadmapStepTitle: 'Next roadmap step',
+    personalOfferTitle: 'Personal offer',
+    discountOnType: (value: string, label: string) => `${value}% off ${label.toLowerCase()}`,
+    discountOnCategory: (value: string, label: string) => `${value}% off ${label.toLowerCase()}`,
+    discountForYou: (value: string) => `${value}% off for you`,
+    pointsMultiplier: (value: string) => `x${value} points on your next purchase`,
+    giftWithOrder: 'Gift with order',
+    offerAvailable: 'A personal offer is available right now.',
+    offerAutoCart: (amount: number) => `Applied automatically to the next cart from ${amount.toLocaleString('en-US')} ₸.`,
+    offerCategoryScope: (value: string) => `The offer applies to the “${value}” category.`,
+    offerTypeScope: (value: string) => `The offer applies to products of type “${value}”.`,
+    offerProductScope: (value: string) => `It will work for the recommended product type “${value}”.`,
+    offerRoadmapScope: (value: string) => `The offer is tied to the roadmap and supports the “${value}” step.`,
+    offerBoundToProfile: 'The offer is already attached to your profile.',
+    offerSaving: (amount: number, saving: number) => `On a ${amount.toLocaleString('en-US')} ₸ cart you save ${saving.toLocaleString('en-US')} ₸`,
+    offerAutoDiscount: (value: string) => `${value}% discount will be applied automatically to an eligible purchase`,
+    offerAutoPoints: (value: string) => `Get x${value} points on your next eligible purchase`,
+    offerAutoGift: 'The gift will be added automatically when the offer conditions are met',
+    recommendationsUpdated: 'Recommendations updated!',
+    saveSettingsError: 'Could not save settings.',
+    recommendationsPersonalized: 'Recommendations personalized!',
+    savePersonalizationError: 'Could not save personalization.',
+    emailAlreadyVerified: 'Email is already verified.',
+    emailSent: (email: string) => `Confirmation email sent to ${email}.`,
+    emailSendError: 'Could not send the confirmation email.',
+    addedToCart: 'Added to cart!',
+    cartNowHas: (count: number) => `There are now ${count} items in the cart.`,
+    pointsAfterPurchase: (points: number) => `+${points} points after purchase`,
+    addToCartError: 'Could not add product to cart',
+    updateCartError: 'Could not update cart',
+    personalCenter: 'Personal hub',
+    hello: (name: string) => `Hi, ${name} ✦`,
+    defaultName: 'Ayala',
+    loadingPersonalData: 'Loading personal data...',
+    retry: 'Retry',
+    nextStep: 'Your next step',
+    whyNow: 'Why now',
+    goToStep: 'Go to step',
+    specialForYou: 'Special for you',
+    basedOn: (skinType: string, goals: string[]) => `Based on: ${skinType.toLowerCase()} skin · ${goals.join(', ').toLowerCase()}`,
+    all: 'All',
+    personalRecommendationsBuilding: 'Personal recommendations are being prepared',
+    personalRecommendationsBuildingDescription: 'When the API collects products for your profile and roadmap, they will appear in this block.',
+    openCatalog: 'Open catalog',
+    trendingForYou: 'Trending for you',
+    trendingDescription: 'Popular among Gold users with a similar profile',
+    trendsPending: 'Trends for your profile are not ready yet',
+    trendsPendingDescription: 'As soon as the backend returns popular products for similar users, they will appear here.',
+    viewNew: 'View new arrivals',
+    myRoadmap: 'My roadmap',
+    stepProgress: (current: number, total: number) => `Step ${current}/${total}`,
+    offerBadge: 'OFFER',
+    personal: 'Personal',
+    noOfferTitle: 'Personal offer is not available yet',
+    noOfferDescription: 'When the API finds a suitable offer, it will appear here.',
+    noOfferHighlight: 'There is no active offer for your profile right now.',
+    expiresIn: 'Expires in:',
+    hoursShort: 'h',
+    minutesShort: 'min',
+    quickActions: 'Quick actions',
+    loadRecommendationsError: 'Could not load recommendations. Please try again.',
+    partialDataError: 'Some personal data is unavailable. Some recommendation sections may be temporarily empty.',
+    loadOfferError: 'Could not load the personal offer. Other data is still shown.',
+    offerAccent: 'OFFER',
+  },
+} as const;
+
+const forYouLocale: Record<AppLanguage, string> = {
+  ru: 'ru-RU',
+  kk: 'kk-KZ',
+  en: 'en-US',
+};
+
+type ForYouCopy = (typeof forYouPageCopy)[AppLanguage];
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
@@ -252,24 +673,26 @@ type SidebarQuickAction = {
   muted?: boolean;
 };
 
-const FALLBACK_ROADMAP_OVERVIEW: RoadmapOverview = {
-  nextStepTitle: 'Добавьте тоник в рутину',
-  nextStepDescription: 'Вы завершили очищение. Следующий шаг поможет сбалансировать кожу и подготовить её к увлажнению.',
-  nextStepWhy: 'Этот этап логично следует за очищением и помогает быстрее увидеть результат рутины.',
+const buildFallbackRoadmapOverview = (copy: ForYouCopy): RoadmapOverview => ({
+  nextStepTitle: copy.fallbackRoadmapTitle,
+  nextStepDescription: copy.fallbackRoadmapDescription,
+  nextStepWhy: copy.fallbackRoadmapWhy,
   nextStepPoints: 89,
   currentStepIndex: 2,
   totalSteps: 5,
   progressPercent: 20,
-  steps: [
-    { key: 'roadmap-cleanser', title: 'Очищение', state: 'completed', stepIndex: 1 },
-    { key: 'roadmap-toner', title: 'Тоник', state: 'current', stepIndex: 2 },
-    { key: 'roadmap-moisturizer', title: 'Увлажнение', state: 'pending', stepIndex: 3 },
-    { key: 'roadmap-spf', title: 'SPF', state: 'pending', stepIndex: 4 },
-    { key: 'roadmap-special', title: 'Спецуход', state: 'pending', stepIndex: 5 },
-  ],
-};
+  steps: copy.fallbackRoadmapSteps.map((title, index) => ({
+    key: `roadmap-fallback-${index + 1}`,
+    title,
+    state: index === 0 ? 'completed' : index === 1 ? 'current' : 'pending',
+    stepIndex: index + 1,
+  })),
+});
 
-const buildPersonalOfferCard = (value: Record<string, unknown>): PersonalOfferCard | null => {
+const buildPersonalOfferCard = (
+  value: Record<string, unknown>,
+  copy: ForYouCopy,
+): PersonalOfferCard | null => {
   const offer = isRecord(value.offer) ? value.offer : null;
   if (!offer) {
     return null;
@@ -293,44 +716,44 @@ const buildPersonalOfferCard = (value: Record<string, unknown>): PersonalOfferCa
   const savingAmount = toNumber(value.saving_amount ?? value.discount_amount);
   const roadmapReason = isRecord(reason.roadmap) ? reason.roadmap : null;
 
-  let title = offerName ?? 'Персональный оффер';
+  let title = offerName ?? copy.personalOfferTitle;
   if (offerType === 'discount' && offerValue !== undefined) {
     const valueLabel = formatOfferValueLabel(offerValue);
     if (productTypeLabel) {
-      title = `Скидка ${valueLabel}% на ${productTypeLabel.toLowerCase()}`;
+      title = copy.discountOnType(valueLabel, productTypeLabel);
     } else if (categoryLabel) {
-      title = `Скидка ${valueLabel}% на ${categoryLabel.toLowerCase()}`;
+      title = copy.discountOnCategory(valueLabel, categoryLabel);
     } else {
-      title = `Скидка ${valueLabel}% для вас`;
+      title = copy.discountForYou(valueLabel);
     }
   } else if (offerType === 'points_multiplier' && offerValue !== undefined) {
-    title = `x${formatOfferValueLabel(offerValue)} баллы на следующую покупку`;
+    title = copy.pointsMultiplier(formatOfferValueLabel(offerValue));
   } else if (offerType === 'gift') {
-    title = offerName ?? 'Подарок к заказу';
+    title = offerName ?? copy.giftWithOrder;
   }
 
-  let description = 'Персональное предложение доступно прямо сейчас.';
+  let description = copy.offerAvailable;
   if (scope === 'cart' && minBasketAmount !== undefined) {
-    description = `Применяется автоматически к следующей корзине от ${minBasketAmount.toLocaleString('ru')} ₸.`;
+    description = copy.offerAutoCart(minBasketAmount);
   } else if (scope === 'category' && categoryLabel) {
-    description = `Предложение действует на категорию «${categoryLabel}».`;
+    description = copy.offerCategoryScope(categoryLabel);
   } else if (scope === 'product_type' && productTypeLabel) {
-    description = `Предложение действует на товары типа «${productTypeLabel}».`;
+    description = copy.offerTypeScope(productTypeLabel);
   } else if (scope === 'product_id' && productTypeLabel) {
-    description = `Сработает на рекомендованный товар типа «${productTypeLabel}».`;
+    description = copy.offerProductScope(productTypeLabel);
   } else if (roadmapReason && productTypeLabel) {
-    description = `Оффер связан с roadmap и поддерживает шаг «${productTypeLabel}».`;
+    description = copy.offerRoadmapScope(productTypeLabel);
   }
 
-  let highlight = 'Предложение уже закреплено за вашим профилем.';
+  let highlight = copy.offerBoundToProfile;
   if (savingAmount !== undefined && minBasketAmount !== undefined) {
-    highlight = `На корзине ${minBasketAmount.toLocaleString('ru')} ₸ вы сэкономите ${savingAmount.toLocaleString('ru')} ₸`;
+    highlight = copy.offerSaving(minBasketAmount, savingAmount);
   } else if (offerType === 'discount' && offerValue !== undefined) {
-    highlight = `Скидка ${formatOfferValueLabel(offerValue)}% применится автоматически на подходящую покупку`;
+    highlight = copy.offerAutoDiscount(formatOfferValueLabel(offerValue));
   } else if (offerType === 'points_multiplier' && offerValue !== undefined) {
-    highlight = `Получите x${formatOfferValueLabel(offerValue)} баллы на следующую подходящую покупку`;
+    highlight = copy.offerAutoPoints(formatOfferValueLabel(offerValue));
   } else if (offerType === 'gift') {
-    highlight = 'Подарок добавится автоматически при выполнении условий оффера';
+    highlight = copy.offerAutoGift;
   }
 
   const expiresAtRaw = firstString(value.expires_at);
@@ -393,7 +816,7 @@ const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapLikeStep | null => {
   return fallbackStep && isRecord(fallbackStep) ? (fallbackStep as RoadmapStepApi) : null;
 };
 
-const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | null => {
+const buildRoadmapOverview = (plan: RoadmapPlanApi | null, copy: ForYouCopy): RoadmapOverview | null => {
   if (!plan) {
     return null;
   }
@@ -453,8 +876,8 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
     return {
       key: stepId !== undefined ? `roadmap-step-${stepId}` : `roadmap-step-${stepIndex}`,
       title:
-        firstString(stepPresentation?.title, step.title, formatProductTypeLabel(step.product_type), `Шаг ${stepIndex}`) ??
-        `Шаг ${stepIndex}`,
+        firstString(stepPresentation?.title, step.title, formatProductTypeLabel(step.product_type), copy.stepLabel(stepIndex)) ??
+        copy.stepLabel(stepIndex),
       state: isCurrent ? 'current' : isCompletedRoadmapStatus(step.status) ? 'completed' : 'pending',
       stepIndex,
     };
@@ -464,10 +887,10 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
     nextStepId,
     nextStepTitle:
       firstString(nextStepPresentation?.title, nextStep?.title, formatProductTypeLabel(nextStep?.product_type)) ??
-      'Следующий шаг roadmap',
+      copy.roadmapStepTitle,
     nextStepDescription:
       firstString(nextStepPresentation?.description, nextStep?.description) ??
-      'Откройте roadmap, чтобы увидеть следующий шаг.',
+      copy.openRoadmapStep,
     nextStepWhy:
       firstString(toTextList(nextStep?.why), stepMeta.why) ??
       stepMeta.why,
@@ -478,7 +901,7 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null): RoadmapOverview | nu
     totalSteps,
     progressPercent:
       totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0,
-    steps: stepsForUi.length > 0 ? stepsForUi : FALLBACK_ROADMAP_OVERVIEW.steps,
+    steps: stepsForUi.length > 0 ? stepsForUi : buildFallbackRoadmapOverview(copy).steps,
   };
 };
 
@@ -490,6 +913,7 @@ const buildSidebarQuickActions = ({
   personalOffer,
   recommendations,
   trendingRecommendations,
+  copy,
 }: {
   skinType: string;
   goals: string[];
@@ -498,6 +922,7 @@ const buildSidebarQuickActions = ({
   personalOffer: PersonalOfferCard | null;
   recommendations: RecommendationCard[];
   trendingRecommendations: RecommendationCard[];
+  copy: ForYouCopy;
 }): SidebarQuickAction[] => {
   const profileConfigured = Boolean(skinType.trim()) && goals.length > 0;
   const topRecommendation = recommendations[0] ?? trendingRecommendations[0] ?? null;
@@ -507,57 +932,57 @@ const buildSidebarQuickActions = ({
     profileConfigured
       ? {
           key: 'profile',
-          title: 'Профиль настроен',
-          description: 'Тип кожи и цели уже участвуют в персонализации.',
-          accent: 'Готово',
+          title: copy.profileConfigured,
+          description: copy.profileConfiguredDescription,
+          accent: copy.ready,
           done: true,
         }
       : {
           key: 'profile',
-          title: 'Уточните профиль',
-          description: 'Добавьте тип кожи и цели, чтобы рекомендации стали точнее.',
-          accent: 'Профиль',
+          title: copy.refineProfile,
+          description: copy.refineProfileDescription,
+          accent: copy.profile,
         },
     hasRoadmap
       ? {
           key: 'roadmap',
-          title: 'Следующий шаг roadmap',
+          title: copy.nextRoadmapStep,
           description: roadmapOverview.nextStepTitle,
-          accent: roadmapOverview.nextStepPoints ? `+${roadmapOverview.nextStepPoints}` : 'Roadmap',
+          accent: roadmapOverview.nextStepPoints ? `+${roadmapOverview.nextStepPoints}` : copy.roadmap,
         }
       : {
           key: 'roadmap',
-          title: 'Roadmap формируется',
-          description: 'Когда план будет готов, следующий шаг появится здесь.',
-          accent: 'Скоро',
+          title: copy.roadmapBuilding,
+          description: copy.roadmapBuildingDescription,
+          accent: copy.soon,
           muted: true,
         },
     personalOffer
       ? {
           key: 'offer',
-          title: 'Текущий персональный оффер',
+          title: copy.currentPersonalOffer,
           description: personalOffer.highlight,
-          accent: 'Активен',
+          accent: copy.active,
         }
       : {
           key: 'offer',
-          title: 'Оффер появится позже',
-          description: 'Когда для вас будет назначено предложение, оно отобразится здесь.',
-          accent: 'Ожидание',
+          title: copy.offerWillAppear,
+          description: copy.offerWillAppearDescription,
+          accent: copy.waiting,
           muted: true,
         },
     topRecommendation
       ? {
           key: 'recommendation',
-          title: 'Рекомендация для корзины',
-          description: `${topRecommendation.name} • +${topRecommendation.pointsEarned} баллов после покупки`,
+          title: copy.cartRecommendation,
+          description: copy.cartRecommendationDescription(topRecommendation.name, topRecommendation.pointsEarned),
           accent: `+${topRecommendation.pointsEarned}`,
         }
       : {
           key: 'recommendation',
-          title: 'Рекомендации загружаются',
-          description: 'Как только API вернет персональные товары, они появятся слева.',
-          accent: 'Каталог',
+          title: copy.recommendationsLoading,
+          description: copy.recommendationsLoadingDescription,
+          accent: copy.catalog,
           muted: true,
         },
   ];
@@ -601,21 +1026,21 @@ const mapUiGoalsToApi = (value: string[]): string[] => {
   return Array.from(new Set(mapped));
 };
 
-const formatTierLabel = (value: string): string => {
+const formatTierLabel = (value: string, copy: ForYouCopy): string => {
   const normalized = value.toLowerCase();
   if (normalized === 'bronze') {
-    return 'Bronze';
+    return copy.bronze;
   }
   if (normalized === 'silver') {
-    return 'Silver';
+    return copy.silver;
   }
   if (normalized === 'gold') {
-    return 'Gold';
+    return copy.gold;
   }
   if (normalized === 'platinum') {
-    return 'Platinum';
+    return copy.platinum;
   }
-  return value || 'Gold';
+  return value || copy.gold;
 };
 
 type HomeResultItem = { item: unknown; sectionKey?: string };
@@ -673,6 +1098,7 @@ const buildRecommendationWhy = (
   source: Record<string, unknown>,
   product: Record<string, unknown>,
   section: string,
+  copy: ForYouCopy,
 ): string => {
   const whySource = source.why;
   const whyList = Array.isArray(whySource)
@@ -698,26 +1124,27 @@ const buildRecommendationWhy = (
   const categoryLabel = formatCategoryLabel(product.category);
 
   if (supportedSkinTypeLabel) {
-    return `Подходит для ${supportedSkinTypeLabel.toLowerCase()} кожи`;
+    return copy.suitableForSkin(supportedSkinTypeLabel);
   }
   if (section === 'because_you_bought') {
-    return 'Дополняет прошлые покупки';
+    return copy.complementsPurchases;
   }
   if (section === 'trending') {
-    return 'Популярно среди похожих профилей';
+    return copy.popularForProfiles;
   }
   if (productTypeLabel) {
-    return `Подбор по типу ${productTypeLabel.toLowerCase()}`;
+    return copy.selectionByType(productTypeLabel);
   }
   if (categoryLabel) {
-    return `Подбор по категории ${categoryLabel.toLowerCase()}`;
+    return copy.selectionByCategory(categoryLabel);
   }
-  return 'Персональная рекомендация';
+  return copy.personalRecommendation;
 };
 
 const buildRecommendationImprovement = (
   source: Record<string, unknown>,
   product: Record<string, unknown>,
+  copy: ForYouCopy,
 ): string => {
   if (typeof source.whatImproves === 'string' && source.whatImproves.trim().length > 0) {
     return source.whatImproves.trim();
@@ -739,13 +1166,14 @@ const buildRecommendationImprovement = (
   }
 
   const categoryLabel = formatCategoryLabel(product.category);
-  return categoryLabel ?? 'Под ваш профиль';
+  return categoryLabel ?? copy.underYourProfile;
 };
 
 const buildRecommendationBenefit = (
   source: Record<string, unknown>,
   product: Record<string, unknown>,
   section: string,
+  copy: ForYouCopy,
 ): string => {
   if (typeof source.expectedBenefit === 'string' && source.expectedBenefit.trim().length > 0) {
     return source.expectedBenefit.trim();
@@ -753,25 +1181,30 @@ const buildRecommendationBenefit = (
 
   const strengthLabel = formatFreeTextLabel(product.strength);
   if (strengthLabel) {
-    return `Интенсивность: ${strengthLabel.toLowerCase()}`;
+    return copy.intensity(strengthLabel);
   }
 
   const actives = toStringArray(product.actives).slice(0, 2);
   if (actives.length > 0) {
-    return `Активы: ${actives.join(', ')}`;
+    return copy.actives(actives.join(', '));
   }
 
   if (section === 'because_you_bought') {
-    return 'Хорошо сочетается с вашими предыдущими покупками';
+    return copy.blendsWithPurchases;
   }
   if (section === 'trending') {
-    return 'Часто выбирают пользователи с похожим профилем';
+    return copy.chosenBySimilarUsers;
   }
 
-  return 'Откройте карточку товара для деталей и способа применения';
+  return copy.openProductForDetails;
 };
 
-const normalizeRec = (item: unknown, index: number, sectionKey?: string): RecommendationCard => {
+const normalizeRec = (
+  item: unknown,
+  index: number,
+  sectionKey: string | undefined,
+  copy: ForYouCopy,
+): RecommendationCard => {
   const source = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
   const product = (
     source.product && typeof source.product === 'object' ? source.product : source
@@ -786,14 +1219,14 @@ const normalizeRec = (item: unknown, index: number, sectionKey?: string): Recomm
   const pointsEarned =
     toNumber(product.points_earned ?? source.points_earned ?? source.pointsEarned) ??
     Math.max(0, Math.round(price * 0.1));
-  const whyRecommended = buildRecommendationWhy(source, product, section);
+  const whyRecommended = buildRecommendationWhy(source, product, section, copy);
 
   return {
     id,
     name:
       (typeof product.name === 'string' && product.name) ||
       (typeof source.name === 'string' && source.name) ||
-      `Товар #${id}`,
+      copy.productFallback(id),
     brand:
       (typeof product.brand === 'string' && product.brand) ||
       (typeof source.brand === 'string' && source.brand) ||
@@ -810,8 +1243,8 @@ const normalizeRec = (item: unknown, index: number, sectionKey?: string): Recomm
     pointsEarned: Math.max(0, Math.round(pointsEarned)),
     recommendationScore: Math.max(0, Math.min(100, Math.round(score))),
     whyRecommended,
-    whatImproves: buildRecommendationImprovement(source, product),
-    expectedBenefit: buildRecommendationBenefit(source, product, section),
+    whatImproves: buildRecommendationImprovement(source, product, copy),
+    expectedBenefit: buildRecommendationBenefit(source, product, section, copy),
     section,
   };
 };
@@ -819,13 +1252,15 @@ const normalizeRec = (item: unknown, index: number, sectionKey?: string): Recomm
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function LoyaltyProgressMini({ points, tier }: { points: number; tier: string }) {
+  const { language } = useI18n();
+  const copy = forYouPageCopy[language];
   const tiers = [
-    { name: 'Bronze', min: 0, max: 500, color: '#CD7F32' },
-    { name: 'Silver', min: 500, max: 1000, color: '#9CA3AF' },
-    { name: 'Gold', min: 1000, max: 1500, color: '#F59E0B' },
-    { name: 'Platinum', min: 1500, max: 2500, color: '#6366F1' },
+    { name: copy.bronze, key: 'bronze', min: 0, max: 500, color: '#CD7F32' },
+    { name: copy.silver, key: 'silver', min: 500, max: 1000, color: '#9CA3AF' },
+    { name: copy.gold, key: 'gold', min: 1000, max: 1500, color: '#F59E0B' },
+    { name: copy.platinum, key: 'platinum', min: 1500, max: 2500, color: '#6366F1' },
   ];
-  const currentTier = tiers.find(t => t.name.toLowerCase() === tier) || tiers[2];
+  const currentTier = tiers.find(t => t.key === tier) || tiers[2];
   const nextTier = tiers[tiers.indexOf(currentTier) + 1];
   const progress = nextTier
     ? ((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100
@@ -837,7 +1272,7 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-          <span className="text-sm font-semibold text-[#111827]">{points.toLocaleString('ru')} баллов</span>
+          <span className="text-sm font-semibold text-[#111827]">{points.toLocaleString(forYouLocale[language])} {copy.points}</span>
         </div>
         <span
           className="text-xs font-semibold px-2.5 py-1 rounded-full"
@@ -857,9 +1292,9 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
       {nextTier && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-[#6B7280]">
-            До <span className="font-semibold" style={{ color: nextTier.color }}>{nextTier.name}</span>: {toNext} баллов
+            {copy.untilTier(nextTier.name, toNext)}
           </p>
-          <p className="text-[10px] text-[#6B7280]">Купите на {Math.ceil(toNext / 0.1).toLocaleString('ru')} ₸</p>
+          <p className="text-[10px] text-[#6B7280]">{copy.buyFor(Math.ceil(toNext / 0.1))}</p>
         </div>
       )}
     </div>
@@ -875,6 +1310,8 @@ interface EnhancedRecCardProps {
 }
 
 function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProductClick }: EnhancedRecCardProps) {
+  const { language } = useI18n();
+  const copy = forYouPageCopy[language];
   const [isCartPending, setIsCartPending] = useState(false);
   const inCart = cartQuantity > 0;
   const qty = inCart ? cartQuantity : 1;
@@ -919,7 +1356,7 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
           {/* Score badge */}
           <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-white/95 backdrop-blur-sm shadow-sm">
             <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
-            <span className="text-[10px] font-semibold text-[#111827]">{product.recommendationScore}% совпадение</span>
+            <span className="text-[10px] font-semibold text-[#111827]">{copy.match(product.recommendationScore)}</span>
           </div>
         </div>
 
@@ -927,7 +1364,7 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
           {/* Why chip */}
           <div className="flex flex-wrap gap-1.5 mb-3">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-              ✦ {product.whyRecommended}
+              • {product.whyRecommended}
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280] text-[10px]">
               ↑ {product.whatImproves}
@@ -946,12 +1383,12 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
           {/* Price + points */}
           <div className="flex items-baseline justify-between mb-3">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-base font-bold text-[#111827]">{product.price.toLocaleString('ru')} ₸</span>
+              <span className="text-base font-bold text-[#111827]">{product.price.toLocaleString(forYouLocale[language])} ₸</span>
               {product.originalPrice && (
-                <span className="text-xs text-[#6B7280] line-through">{product.originalPrice.toLocaleString('ru')} ₸</span>
+                <span className="text-xs text-[#6B7280] line-through">{product.originalPrice.toLocaleString(forYouLocale[language])} ₸</span>
               )}
             </div>
-            <span className="text-[10px] text-[#FF4DB8] font-medium">+{product.pointsEarned} б.</span>
+            <span className="text-[10px] text-[#FF4DB8] font-medium">+{product.pointsEarned} {copy.pointsShort}</span>
           </div>
 
           {inCart ? (
@@ -982,7 +1419,7 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
               className="w-full h-10 rounded-xl bg-[#111827] text-white text-xs font-medium hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              В корзину
+              {copy.addToCart}
             </button>
           )}
         </div>
@@ -1004,6 +1441,8 @@ function QuickPrefsPanel({
   skinTypeOptions: string[];
   goalOptions: string[];
 }) {
+  const { language } = useI18n();
+  const copy = forYouPageCopy[language];
   const toggleGoal = (g: string) => {
     setGoals(goals.includes(g) ? goals.filter(x => x !== g) : [...goals, g]);
   };
@@ -1012,12 +1451,12 @@ function QuickPrefsPanel({
     <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">
       <div className="flex items-center gap-2 mb-4">
         <Settings className="w-4 h-4 text-[#6B7280]" />
-        <span className="text-sm font-semibold text-[#111827]">Мои предпочтения</span>
-        <span className="ml-auto text-[10px] text-[#6B7280] bg-gray-100 px-2 py-0.5 rounded-full">влияет на рекомендации</span>
+        <span className="text-sm font-semibold text-[#111827]">{copy.preferences}</span>
+        <span className="ml-auto text-[10px] text-[#6B7280] bg-gray-100 px-2 py-0.5 rounded-full">{copy.affectsRecommendations}</span>
       </div>
 
       <div className="mb-4">
-        <p className="text-xs text-[#6B7280] font-medium mb-2">Тип кожи</p>
+        <p className="text-xs text-[#6B7280] font-medium mb-2">{copy.skinType}</p>
         <div className="flex flex-wrap gap-1.5">
           {skinTypeOptions.map(s => (
             <button
@@ -1037,7 +1476,7 @@ function QuickPrefsPanel({
       </div>
 
       <div className="mb-4">
-        <p className="text-xs text-[#6B7280] font-medium mb-2">Мои цели</p>
+        <p className="text-xs text-[#6B7280] font-medium mb-2">{copy.goals}</p>
         <div className="flex flex-wrap gap-1.5">
           {goalOptions.map(g => (
             <button
@@ -1062,7 +1501,7 @@ function QuickPrefsPanel({
         className="w-full h-9 rounded-xl border border-[#111827] text-[#111827] text-xs font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
       >
         <RefreshCw className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
-        {isSaving ? 'Обновляем...' : 'Обновить рекомендации'}
+        {isSaving ? copy.updating : copy.updateRecommendations}
       </button>
     </div>
   );
@@ -1112,6 +1551,8 @@ function ColdStartState({
   skinTypeOptions: string[];
   goalOptions: string[];
 }) {
+  const { language } = useI18n();
+  const copy = forYouPageCopy[language];
   const [step, setStep] = useState((initialGoals?.length ?? 0) > 0 ? 2 : 1);
   const [skinType, setSkinType] = useState(initialSkinType ?? '');
   const [goals, setGoals] = useState<string[]>(initialGoals ?? []);
@@ -1126,7 +1567,7 @@ function ColdStartState({
 
   const handleFinish = async () => {
     if (!skinType || goals.length === 0 || isSaving) {
-      toast.error('Выберите тип кожи и хотя бы одну цель');
+      toast.error(copy.selectSkinAndGoal);
       return;
     }
 
@@ -1151,11 +1592,11 @@ function ColdStartState({
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#FFE1F2] flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-[#FF4DB8]" />
           </div>
-          <h2 className="text-2xl font-semibold text-[#111827] mb-2">Давайте настроим вашу персонализацию</h2>
-          <p className="text-[#6B7280] mb-8">Ответьте на два быстрых вопроса, и платформа сразу перестроит рекомендации под вас.</p>
+          <h2 className="text-2xl font-semibold text-[#111827] mb-2">{copy.setupTitle}</h2>
+          <p className="text-[#6B7280] mb-8">{copy.setupDescription}</p>
 
           <div className="text-left mb-6">
-            <p className="text-sm font-semibold text-[#111827] mb-3">Какой у вас тип кожи?</p>
+            <p className="text-sm font-semibold text-[#111827] mb-3">{copy.whatSkinType}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {skinTypeOptions.map((value) => (
                 <button
@@ -1178,7 +1619,7 @@ function ColdStartState({
             disabled={!skinType}
             className="w-full h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
           >
-            Далее <ArrowRight className="w-4 h-4" />
+            {copy.next} <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       ) : (
@@ -1186,8 +1627,8 @@ function ColdStartState({
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-[#111827]" />
           </div>
-          <h2 className="text-2xl font-semibold text-[#111827] mb-2">Какие у вас цели?</h2>
-          <p className="text-[#6B7280] mb-8">Можно выбрать несколько, а рекомендации и roadmap подстроятся автоматически.</p>
+          <h2 className="text-2xl font-semibold text-[#111827] mb-2">{copy.goalsTitle}</h2>
+          <p className="text-[#6B7280] mb-8">{copy.goalsDescription}</p>
 
           <div className="flex flex-wrap gap-2 justify-center mb-8">
             {goalOptions.map((goal) => (
@@ -1210,7 +1651,7 @@ function ColdStartState({
               onClick={() => setStep(1)}
               className="flex-1 h-12 rounded-xl border border-[#EAE6EF] text-[#111827] font-medium text-sm hover:bg-gray-50"
             >
-              Назад
+              {copy.back}
             </button>
             <button
               onClick={() => void handleFinish()}
@@ -1218,7 +1659,7 @@ function ColdStartState({
               className="flex-2 flex-1 h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              {isSaving ? 'Сохраняем...' : 'Показать мои рекомендации'}
+              {isSaving ? copy.saving : copy.showRecommendations}
             </button>
           </div>
         </div>
@@ -1238,16 +1679,18 @@ function EmailVerificationNotice({
   isSending: boolean;
   onResend: () => void;
 }) {
+  const { language } = useI18n();
+  const copy = forYouPageCopy[language];
   return (
     <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-amber-900 font-semibold">
             <Mail className="w-4 h-4" />
-            Confirm your email
+            {copy.confirmEmail}
           </div>
           <p className="mt-1 text-sm text-amber-800">
-            We sent a confirmation link to <span className="font-medium">{email}</span>. Confirm it to finish account setup.
+            {copy.confirmEmailDescription(email)}
           </p>
         </div>
         <button
@@ -1257,7 +1700,7 @@ function EmailVerificationNotice({
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCw className={`w-4 h-4 ${isSending ? 'animate-spin' : ''}`} />
-          {isSending ? 'Sending...' : 'Resend email'}
+          {isSending ? copy.sending : copy.resendEmail}
         </button>
       </div>
     </div>
@@ -1269,6 +1712,8 @@ export default function ForYouPage() {
   const location = useLocation();
   const { user, isLoading: isAuthLoading, resendVerificationEmail } = useAuth();
   const { addToCart, getCartQuantity, setCartQuantity } = useCommerce();
+  const { language } = useI18n();
+  const copy = forYouPageCopy[language];
 
   const [skinType, setSkinType] = useState('Жирная');
   const [goals, setGoals] = useState(['Увлажнение', 'Сияние']);
@@ -1293,9 +1738,9 @@ export default function ForYouPage() {
   const skinTypeOptions = getProfileOptionLabels(resolvedProfileTaxonomy.skin_types);
   const goalOptions = getProfileOptionLabels(resolvedProfileTaxonomy.goals);
 
-  const roadmapOverview = buildRoadmapOverview(roadmapPlan) ?? FALLBACK_ROADMAP_OVERVIEW;
+  const roadmapOverview = buildRoadmapOverview(roadmapPlan, copy) ?? buildFallbackRoadmapOverview(copy);
   const roadmapHeading = roadmapOverview.totalSteps > 0
-    ? `Шаг ${Math.min(roadmapOverview.currentStepIndex, roadmapOverview.totalSteps)} из ${roadmapOverview.totalSteps}: ${roadmapOverview.nextStepTitle}`
+    ? `${copy.stepLabel(Math.min(roadmapOverview.currentStepIndex, roadmapOverview.totalSteps))} / ${roadmapOverview.totalSteps}: ${roadmapOverview.nextStepTitle}`
     : roadmapOverview.nextStepTitle;
   const sidebarQuickActions = buildSidebarQuickActions({
     skinType,
@@ -1305,6 +1750,7 @@ export default function ForYouPage() {
     personalOffer,
     recommendations,
     trendingRecommendations,
+    copy,
   });
   const offerCountdownMs = personalOffer?.expiresAt
     ? personalOffer.expiresAt.getTime() - Date.now()
@@ -1407,7 +1853,7 @@ export default function ForYouPage() {
         const homeResponse = homeResult.status === 'fulfilled' ? homeResult.value : null;
         const normalized = homeResponse
           ? extractHomeResults(homeResponse).map(({ item, sectionKey }, index) =>
-              normalizeRec(item, index, sectionKey),
+              normalizeRec(item, index, sectionKey, copy),
             )
           : [];
 
@@ -1443,7 +1889,7 @@ export default function ForYouPage() {
 
         setPersonalOffer(
           effectiveOffer && isRecord(effectiveOffer)
-            ? buildPersonalOfferCard(effectiveOffer)
+            ? buildPersonalOfferCard(effectiveOffer, copy)
             : null,
         );
 
@@ -1461,15 +1907,15 @@ export default function ForYouPage() {
         }
 
         if (homeResult.status === 'rejected' && offerResult.status === 'rejected') {
-          setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
+          setLoadError(copy.loadRecommendationsError);
         } else if (homeResult.status === 'rejected') {
-          setLoadError('Часть персональных данных недоступна. Некоторые разделы рекомендаций могут быть временно пустыми.');
+          setLoadError(copy.partialDataError);
         } else if (offerResult.status === 'rejected') {
-          setLoadError('Не удалось загрузить персональный оффер. Остальные данные отображаются.');
+          setLoadError(copy.loadOfferError);
         }
       } catch {
         if (!cancelled) {
-          setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
+          setLoadError(copy.loadRecommendationsError);
         }
       } finally {
         if (!cancelled) {
@@ -1480,7 +1926,7 @@ export default function ForYouPage() {
 
     loadPersonalization().catch(() => {
       if (!cancelled) {
-        setLoadError('Не удалось загрузить рекомендации. Попробуйте ещё раз.');
+        setLoadError(copy.loadRecommendationsError);
         setIsDataLoading(false);
       }
     });
@@ -1488,7 +1934,7 @@ export default function ForYouPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, retryKey, user]);
+  }, [copy, isAuthLoading, location.pathname, navigate, retryKey, user]);
 
   const handleRecommendationClick = (product: RecommendationCard) => {
     const productId = Number(product.id);
@@ -1508,11 +1954,11 @@ export default function ForYouPage() {
   const handleRecommendationAddToCart = async (product: RecommendationCard, quantity: number) => {
     try {
       const nextQuantity = await addToCart(product.id, quantity);
-      toast.success('Добавлено в корзину!', {
+      toast.success(copy.addedToCart, {
         description:
           nextQuantity > 1
-            ? `Теперь в корзине ${nextQuantity} шт.`
-            : `+${product.pointsEarned} баллов после покупки`,
+            ? copy.cartNowHas(nextQuantity)
+            : copy.pointsAfterPurchase(product.pointsEarned),
       });
 
       const productId = Number(product.id);
@@ -1531,7 +1977,7 @@ export default function ForYouPage() {
         return;
       }
 
-      toast.error(error instanceof Error ? error.message : 'Не удалось добавить товар в корзину');
+      toast.error(error instanceof Error ? error.message : copy.addToCartError);
     }
   };
 
@@ -1544,7 +1990,7 @@ export default function ForYouPage() {
         return;
       }
 
-      toast.error(error instanceof Error ? error.message : 'Не удалось обновить корзину');
+      toast.error(error instanceof Error ? error.message : copy.updateCartError);
     }
   };
 
@@ -1572,7 +2018,7 @@ export default function ForYouPage() {
         goals: mapProfileLabelsToApiValues(resolvedProfileTaxonomy.goals, goals),
       });
       setRetryKey((value) => value + 1);
-      toast.success('Рекомендации обновлены!');
+      toast.success(copy.recommendationsUpdated);
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -1582,7 +2028,7 @@ export default function ForYouPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Не удалось сохранить настройки.');
+        toast.error(copy.saveSettingsError);
       }
     } finally {
       setIsSaving(false);
@@ -1612,7 +2058,7 @@ export default function ForYouPage() {
       setOnboardingInitialGoals(nextGoals);
       setShowAutoOnboarding(false);
       setRetryKey((value) => value + 1);
-      toast.success('Рекомендации персонализированы!');
+      toast.success(copy.recommendationsPersonalized);
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -1622,7 +2068,7 @@ export default function ForYouPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Не удалось сохранить персонализацию.');
+        toast.error(copy.savePersonalizationError);
       }
     } finally {
       setIsOnboardingSaving(false);
@@ -1638,9 +2084,9 @@ export default function ForYouPage() {
     try {
       const response = await resendVerificationEmail();
       if (response.already_verified) {
-        toast.success('Email already confirmed.');
+        toast.success(copy.emailAlreadyVerified);
       } else {
-        toast.success(`Confirmation email sent to ${response.email}.`);
+        toast.success(copy.emailSent(response.email));
       }
     } catch (error) {
       if (isAuthError(error)) {
@@ -1648,7 +2094,7 @@ export default function ForYouPage() {
         return;
       }
 
-      toast.error(error instanceof Error ? error.message : 'Unable to send confirmation email.');
+      toast.error(error instanceof Error ? error.message : copy.emailSendError);
     } finally {
       setIsVerificationEmailSending(false);
     }
@@ -1692,17 +2138,17 @@ export default function ForYouPage() {
         {/* ─── Header ──────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <p className="text-sm text-[#6B7280] mb-1">Персональный центр</p>
+            <p className="text-sm text-[#6B7280] mb-1">{copy.personalCenter}</p>
             <h1 className="text-3xl font-semibold text-[#111827]">
-              Привет, {user?.username ?? 'Аяла'} ✦
+              {copy.hello(user?.username ?? copy.defaultName)}
             </h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-[#EAE6EF]">
               <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-              <span className="text-sm font-semibold text-[#111827]">{loyaltyPoints.toLocaleString('ru')} баллов</span>
+              <span className="text-sm font-semibold text-[#111827]">{loyaltyPoints.toLocaleString(forYouLocale[language])} {copy.points}</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold ml-1">
-                {formatTierLabel(loyaltyTier)}
+                {formatTierLabel(loyaltyTier, copy)}
               </span>
             </div>
           </div>
@@ -1710,7 +2156,7 @@ export default function ForYouPage() {
 
         {isDataLoading && (
           <div className="mb-4 p-3 rounded-xl border border-[#EAE6EF] bg-white text-sm text-[#6B7280]">
-            Загружаем персональные данные...
+            {copy.loadingPersonalData}
           </div>
         )}
 
@@ -1721,7 +2167,7 @@ export default function ForYouPage() {
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
             >
-              Повторить
+              {copy.retry}
             </button>
           </div>
         )}
@@ -1741,7 +2187,7 @@ export default function ForYouPage() {
                   <div className="w-7 h-7 rounded-lg bg-[#FF4DB8]/20 flex items-center justify-center">
                     <Zap className="w-3.5 h-3.5 text-[#FF4DB8]" />
                   </div>
-                  <span className="text-xs text-white/60 font-medium uppercase tracking-wide">Ваш следующий шаг</span>
+                  <span className="text-xs text-white/60 font-medium uppercase tracking-wide">{copy.nextStep}</span>
                 </div>
 
                 <h2 className="text-xl font-semibold text-white mb-2">
@@ -1754,7 +2200,7 @@ export default function ForYouPage() {
                 {/* Relevance tag */}
                 <p className="text-xs text-[#FF4DB8] mb-5 flex items-center gap-1">
                   <Star className="w-3 h-3" />
-                  Почему сейчас: {roadmapOverview.nextStepWhy}
+                  {copy.whyNow}: {roadmapOverview.nextStepWhy}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -1763,13 +2209,13 @@ export default function ForYouPage() {
                     onClick={handleRoadmapClick}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-[#111827] text-sm font-semibold hover:bg-gray-50 transition-colors"
                   >
-                    Перейти к шагу
+                    {copy.goToStep}
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                   {roadmapOverview.nextStepPoints ? (
                     <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-white text-sm">
                       <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
-                      <span>+{roadmapOverview.nextStepPoints} баллов после покупки</span>
+                      <span>{copy.pointsAfterPurchase(roadmapOverview.nextStepPoints)}</span>
                     </div>
                   ) : null}
                 </div>
@@ -1784,12 +2230,12 @@ export default function ForYouPage() {
                     <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-[#111827]">Специально для вас</h2>
-                    <p className="text-xs text-[#6B7280]">На основе: {skinType.toLowerCase()} кожа · {goals.join(', ').toLowerCase()}</p>
+                    <h2 className="text-lg font-semibold text-[#111827]">{copy.specialForYou}</h2>
+                    <p className="text-xs text-[#6B7280]">{copy.basedOn(skinType, goals)}</p>
                   </div>
                 </div>
                 <Link to="/catalog" className="text-sm text-[#6B7280] hover:text-[#111827] flex items-center gap-1 transition-colors">
-                  Все <ChevronRight className="w-4 h-4" />
+                  {copy.all} <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
 
@@ -1808,9 +2254,9 @@ export default function ForYouPage() {
                 </div>
               ) : (
                 <RecommendationEmptyState
-                  title="Персональные рекомендации формируются"
-                  description="Когда API соберёт товары под ваш профиль и roadmap, они появятся в этом блоке."
-                  ctaLabel="Открыть каталог"
+                  title={copy.personalRecommendationsBuilding}
+                  description={copy.personalRecommendationsBuildingDescription}
+                  ctaLabel={copy.openCatalog}
                   ctaTo="/catalog"
                 />
               )}
@@ -1824,12 +2270,12 @@ export default function ForYouPage() {
                     <TrendingUp className="w-4 h-4 text-[#111827]" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-[#111827]">В тренде для вас</h2>
-                    <p className="text-xs text-[#6B7280]">Популярно среди Gold-пользователей с похожим профилем</p>
+                    <h2 className="text-lg font-semibold text-[#111827]">{copy.trendingForYou}</h2>
+                    <p className="text-xs text-[#6B7280]">{copy.trendingDescription}</p>
                   </div>
                 </div>
                 <Link to="/new" className="text-sm text-[#6B7280] hover:text-[#111827] flex items-center gap-1 transition-colors">
-                  Все <ChevronRight className="w-4 h-4" />
+                  {copy.all} <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
 
@@ -1848,9 +2294,9 @@ export default function ForYouPage() {
                 </div>
               ) : (
                 <RecommendationEmptyState
-                  title="Тренды для вашего профиля пока не готовы"
-                  description="Как только backend вернёт популярные товары для похожих пользователей, они появятся здесь."
-                  ctaLabel="Смотреть новинки"
+                  title={copy.trendsPending}
+                  description={copy.trendsPendingDescription}
+                  ctaLabel={copy.viewNew}
                   ctaTo="/new"
                 />
               )}
@@ -1868,9 +2314,12 @@ export default function ForYouPage() {
               <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF] hover:shadow-md transition-all">
                 <div className="flex items-center gap-2 mb-3">
                   <Map className="w-4 h-4 text-[#6B7280]" />
-                  <span className="text-sm font-semibold text-[#111827]">Мой Roadmap</span>
+                  <span className="text-sm font-semibold text-[#111827]">{copy.myRoadmap}</span>
                   <span className="ml-auto text-[10px] text-[#FF4DB8] font-semibold flex items-center gap-1">
-                    Шаг {Math.min(roadmapOverview.currentStepIndex, Math.max(1, roadmapOverview.totalSteps))}/{Math.max(1, roadmapOverview.totalSteps)} <ChevronRight className="w-3 h-3" />
+                    {copy.stepProgress(
+                      Math.min(roadmapOverview.currentStepIndex, Math.max(1, roadmapOverview.totalSteps)),
+                      Math.max(1, roadmapOverview.totalSteps),
+                    )} <ChevronRight className="w-3 h-3" />
                   </span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
@@ -1899,21 +2348,21 @@ export default function ForYouPage() {
             {/* Active Offer */}
             <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">ОФФЕР</span>
-                <span className="text-xs text-[#6B7280]">Персональный</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">{copy.offerBadge}</span>
+                <span className="text-xs text-[#6B7280]">{copy.personal}</span>
               </div>
               <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">
-                {personalOffer?.title ?? 'Персональный оффер пока недоступен'}
+                {personalOffer?.title ?? copy.noOfferTitle}
               </h3>
               <p className="text-xs text-[#6B7280] mb-3">
-                {personalOffer?.description ?? 'Когда API подберёт подходящее предложение, оно появится здесь.'}
+                {personalOffer?.description ?? copy.noOfferDescription}
               </p>
 
               {/* Saving highlight */}
               <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
                 <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
                 <p className="text-xs text-[#111827]">
-                  {personalOffer?.highlight ?? 'Сейчас для вашего профиля нет активного предложения.'}
+                  {personalOffer?.highlight ?? copy.noOfferHighlight}
                 </p>
               </div>
 
@@ -1921,10 +2370,10 @@ export default function ForYouPage() {
               {hasOfferCountdown ? (
                 <div className="flex items-center gap-2 text-xs text-[#6B7280]">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Истекает через:</span>
+                  <span>{copy.expiresIn}</span>
                   <span className="font-semibold text-[#111827]">
-                    {Math.floor((offerCountdownMs ?? 0) / 3600000)}ч{' '}
-                    {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}мин
+                    {Math.floor((offerCountdownMs ?? 0) / 3600000)}{copy.hoursShort}{' '}
+                    {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}{copy.minutesShort}
                   </span>
                 </div>
               ) : null}
@@ -1944,7 +2393,7 @@ export default function ForYouPage() {
 
             {/* Quick actions */}
             <div className="p-5 bg-gray-50 rounded-2xl border border-[#EAE6EF]">
-              <p className="text-xs font-semibold text-[#111827] mb-3">Быстрые действия</p>
+              <p className="text-xs font-semibold text-[#111827] mb-3">{copy.quickActions}</p>
               <div className="flex flex-col gap-2.5">
                 {sidebarQuickActions.map((item) => (
                   <div key={item.key} className="flex items-start gap-2">

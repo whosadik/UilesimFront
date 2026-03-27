@@ -1,5 +1,6 @@
-import { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 interface CarouselHeaderProps {
   title: string;
@@ -20,46 +21,42 @@ export function CarouselHeader({
   onPrevious,
   onNext,
 }: CarouselHeaderProps) {
+  const { messages } = useI18n();
+
   return (
-    <div className="flex items-center justify-between mb-6">
-      {/* Left: Title & Subtitle */}
+    <div className="mb-6 flex items-center justify-between">
       <div>
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="text-sm text-gray-600">{subtitle}</p>
-        )}
+        <h2 className="mb-1 text-2xl font-bold text-gray-900 lg:text-3xl">{title}</h2>
+        {subtitle ? <p className="text-sm text-gray-600">{subtitle}</p> : null}
       </div>
 
-      {/* Right: View All Link & Arrows */}
       <div className="flex items-center gap-3">
-        {showViewAll && (
+        {showViewAll ? (
           <button
             onClick={onViewAll}
-            className="text-sm text-[#FF4DB8] hover:text-[#FF2AA8] font-medium flex items-center gap-1 transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-[#FF4DB8] transition-colors hover:text-[#FF2AA8]"
           >
-            Смотреть все
-            <ChevronRight className="w-4 h-4" />
+            {messages.common.viewAll}
+            <ChevronRight className="h-4 w-4" />
           </button>
-        )}
-        
-        {showArrows && (
-          <div className="hidden lg:flex items-center gap-2">
+        ) : null}
+
+        {showArrows ? (
+          <div className="hidden items-center gap-2 lg:flex">
             <button
               onClick={onPrevious}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#EAE6EF] text-[#111827] hover:bg-gray-50 hover:border-[#FF4DB8]/20 transition-all duration-200"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#EAE6EF] bg-white text-[#111827] transition-all duration-200 hover:border-[#FF4DB8]/20 hover:bg-gray-50"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               onClick={onNext}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#EAE6EF] text-[#111827] hover:bg-gray-50 hover:border-[#FF4DB8]/20 transition-all duration-200"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#EAE6EF] bg-white text-[#111827] transition-all duration-200 hover:border-[#FF4DB8]/20 hover:bg-gray-50"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Package, ToggleLeft, ToggleRight, Calendar, Edit2, Check, X } from "lucide-react";
 import { EmptyState } from "../components/EmptyState";
@@ -8,6 +8,7 @@ import { Badge } from "../components/Badge";
 import { ErrorState } from "../components/ErrorState";
 import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
   activateOwnedProduct,
   deactivateOwnedProduct,
@@ -31,29 +32,144 @@ interface OwnedProduct {
 }
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  skincare: "Уход за кожей",
-  haircare: "Уход за волосами",
-  makeup: "Макияж",
-  fragrance: "Ароматы",
-};
+const ownedProductsPageCopy = {
+  ru: {
+    categories: { skincare: "Уход за кожей", haircare: "Уход за волосами", makeup: "Макияж", fragrance: "Ароматы" },
+    dateMissing: "—",
+    productFallback: (id: string) => `Товар #${id}`,
+    brandFallback: "Uilesim",
+    categoryFallback: "Категория не указана",
+    loadError: "Не удалось загрузить список товаров",
+    activated: "Товар активирован",
+    deactivated: "Товар деактивирован",
+    statusError: "Не удалось обновить статус товара",
+    invalidFinishDate: "Дата окончания не может быть раньше даты открытия",
+    notesSaved: "Заметки сохранены",
+    notesError: "Не удалось сохранить заметки",
+    loading: "Загружаем ваши товары",
+    title: "Мои товары",
+    subtitle: "Управляйте вашими покупками: отслеживайте активные товары и добавляйте заметки.",
+    total: "Всего товаров",
+    active: "Активные",
+    completed: "Завершенные",
+    errorTitle: "Не удалось загрузить товары",
+    errorDescription: "Произошла ошибка при загрузке. Попробуйте еще раз.",
+    statusActive: "Активен",
+    statusCompleted: "Завершен",
+    bought: "Куплен",
+    opened: "Открыт",
+    finished: "Закончен",
+    notesPlaceholder: "Добавьте заметки о товаре...",
+    openedDate: "Дата открытия",
+    finishedDate: "Дата окончания",
+    saving: "Сохраняем...",
+    save: "Сохранить",
+    cancel: "Отмена",
+    noNotes: "Нет заметок",
+    updatingStatus: "Обновляем статус...",
+    markCompleted: "Отметить как завершенный",
+    activateAgain: "Активировать снова",
+    emptyTitle: "Нет товаров",
+    emptyDescription: "Здесь будут отображаться товары, которые вы купили на платформе.",
+    toCatalog: "Перейти в каталог",
+  },
+  kk: {
+    categories: { skincare: "Тері күтімі", haircare: "Шаш күтімі", makeup: "Макияж", fragrance: "Хош иістер" },
+    dateMissing: "—",
+    productFallback: (id: string) => `Тауар #${id}`,
+    brandFallback: "Uilesim",
+    categoryFallback: "Санат көрсетілмеген",
+    loadError: "Тауарлар тізімін жүктеу мүмкін болмады",
+    activated: "Тауар белсендірілді",
+    deactivated: "Тауар өшірілді",
+    statusError: "Тауар күйін жаңарту мүмкін болмады",
+    invalidFinishDate: "Аяқталу күні ашылу күнінен ерте болмауы керек",
+    notesSaved: "Жазбалар сақталды",
+    notesError: "Жазбаларды сақтау мүмкін болмады",
+    loading: "Тауарларыңызды жүктеп жатырмыз",
+    title: "Менің тауарларым",
+    subtitle: "Сатып алуларыңызды басқарыңыз: белсенді тауарларды бақылап, жазбалар қосыңыз.",
+    total: "Барлық тауар",
+    active: "Белсенді",
+    completed: "Аяқталған",
+    errorTitle: "Тауарларды жүктеу мүмкін болмады",
+    errorDescription: "Жүктеу кезінде қате шықты. Қайталап көріңіз.",
+    statusActive: "Белсенді",
+    statusCompleted: "Аяқталған",
+    bought: "Сатып алынған",
+    opened: "Ашылған",
+    finished: "Аяқталған",
+    notesPlaceholder: "Тауар туралы жазба қосыңыз...",
+    openedDate: "Ашу күні",
+    finishedDate: "Аяқталу күні",
+    saving: "Сақтап жатырмыз...",
+    save: "Сақтау",
+    cancel: "Бас тарту",
+    noNotes: "Жазба жоқ",
+    updatingStatus: "Күй жаңартылып жатыр...",
+    markCompleted: "Аяқталған деп белгілеу",
+    activateAgain: "Қайта белсендіру",
+    emptyTitle: "Тауар жоқ",
+    emptyDescription: "Мұнда платформада сатып алған тауарларыңыз көрсетіледі.",
+    toCatalog: "Каталогқа өту",
+  },
+  en: {
+    categories: { skincare: "Skincare", haircare: "Haircare", makeup: "Makeup", fragrance: "Fragrance" },
+    dateMissing: "—",
+    productFallback: (id: string) => `Product #${id}`,
+    brandFallback: "Uilesim",
+    categoryFallback: "Category not specified",
+    loadError: "Could not load the product list",
+    activated: "Product activated",
+    deactivated: "Product deactivated",
+    statusError: "Could not update product status",
+    invalidFinishDate: "Finish date cannot be earlier than open date",
+    notesSaved: "Notes saved",
+    notesError: "Could not save notes",
+    loading: "Loading your products",
+    title: "My products",
+    subtitle: "Manage your purchases: track active products and add notes.",
+    total: "Total products",
+    active: "Active",
+    completed: "Completed",
+    errorTitle: "Could not load products",
+    errorDescription: "An error occurred while loading. Please try again.",
+    statusActive: "Active",
+    statusCompleted: "Completed",
+    bought: "Bought",
+    opened: "Opened",
+    finished: "Finished",
+    notesPlaceholder: "Add product notes...",
+    openedDate: "Open date",
+    finishedDate: "Finish date",
+    saving: "Saving...",
+    save: "Save",
+    cancel: "Cancel",
+    noNotes: "No notes",
+    updatingStatus: "Updating status...",
+    markCompleted: "Mark as completed",
+    activateAgain: "Activate again",
+    emptyTitle: "No products",
+    emptyDescription: "Products you bought on the platform will appear here.",
+    toCatalog: "Go to catalog",
+  },
+} as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function formatDate(value?: string): string {
+function formatDate(value: string | undefined, locale: string, emptyLabel: string): string {
   if (!value) {
-    return "—";
+    return emptyLabel;
   }
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return "—";
+    return emptyLabel;
   }
 
-  return parsed.toLocaleDateString("ru-RU");
+  return parsed.toLocaleDateString(locale);
 }
 
 function normalizeDateForInput(value?: string): string {
@@ -74,7 +190,11 @@ function normalizeDateForInput(value?: string): string {
   return parsed.toISOString().slice(0, 10);
 }
 
-function mapOwnedProduct(item: OwnedProductRecord, index: number): OwnedProduct {
+function mapOwnedProduct(
+  item: OwnedProductRecord,
+  index: number,
+  copy: (typeof ownedProductsPageCopy)[keyof typeof ownedProductsPageCopy],
+): OwnedProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `owned-${index}`;
   const product = isRecord(item.product) ? item.product : null;
 
@@ -91,13 +211,13 @@ function mapOwnedProduct(item: OwnedProductRecord, index: number): OwnedProduct 
         ? String(product.id)
         : id,
     product_name:
-      (typeof product?.name === "string" && product.name.trim()) || `Товар #${id}`,
+      (typeof product?.name === "string" && product.name.trim()) || copy.productFallback(id),
     product_image:
       (typeof product?.image_url === "string" && product.image_url) ||
       (typeof product?.image === "string" && product.image) ||
       FALLBACK_IMAGE,
-    brand: (typeof product?.brand === "string" && product.brand.trim()) || "Uilesim",
-    category: CATEGORY_LABELS[categoryKey] ?? rawCategory ?? "Категория не указана",
+    brand: (typeof product?.brand === "string" && product.brand.trim()) || copy.brandFallback,
+    category: copy.categories[categoryKey as keyof typeof copy.categories] ?? rawCategory ?? copy.categoryFallback,
     purchase_date:
       (typeof item.last_acquired_at === "string" && item.last_acquired_at) ||
       (typeof item.acquired_at === "string" && item.acquired_at) ||
@@ -110,6 +230,9 @@ function mapOwnedProduct(item: OwnedProductRecord, index: number): OwnedProduct 
 }
 
 export default function OwnedProductsPage() {
+  const { language } = useI18n();
+  const copy = ownedProductsPageCopy[language];
+  const locale = language === "kk" ? "kk-KZ" : language === "en" ? "en-US" : "ru-RU";
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -133,7 +256,7 @@ export default function OwnedProductsPage() {
 
       try {
         const response = await listOwnedProducts();
-        const mapped = response.map((item, index) => mapOwnedProduct(item, index));
+        const mapped = response.map((item, index) => mapOwnedProduct(item, index, copy));
 
         if (!cancelled) {
           setOwnedProducts(mapped);
@@ -149,7 +272,7 @@ export default function OwnedProductsPage() {
         }
 
         setOwnedProducts([]);
-        setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить список товаров");
+        setError(loadError instanceof Error ? loadError.message : copy.loadError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -162,7 +285,7 @@ export default function OwnedProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, retryKey]);
+  }, [copy, location.pathname, navigate, retryKey]);
 
   const handleToggleActive = async (productId: string, currentActive: boolean) => {
     setPendingToggleId(productId);
@@ -183,14 +306,14 @@ export default function OwnedProductsPage() {
         ),
       );
 
-      toast.success(nextIsActive ? "Товар активирован" : "Товар деактивирован");
+      toast.success(nextIsActive ? copy.activated : copy.deactivated);
     } catch (toggleError) {
       if (toggleError instanceof ApiError && (toggleError.status === 401 || toggleError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
         return;
       }
 
-      toast.error("Не удалось обновить статус товара");
+      toast.error(copy.statusError);
     } finally {
       setPendingToggleId(null);
     }
@@ -205,7 +328,7 @@ export default function OwnedProductsPage() {
 
   const handleSaveNotes = async (productId: string) => {
     if (editOpenedAt && editFinishDate && editFinishDate < editOpenedAt) {
-      toast.error("Дата окончания не может быть раньше даты открытия");
+      toast.error(copy.invalidFinishDate);
       return;
     }
 
@@ -233,14 +356,14 @@ export default function OwnedProductsPage() {
       );
 
       setEditingId(null);
-      toast.success("Заметки сохранены");
+      toast.success(copy.notesSaved);
     } catch (saveError) {
       if (saveError instanceof ApiError && (saveError.status === 401 || saveError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
         return;
       }
 
-      toast.error("Не удалось сохранить заметки");
+      toast.error(copy.notesError);
     } finally {
       setPendingNotesId(null);
     }
@@ -261,7 +384,7 @@ export default function OwnedProductsPage() {
   if (isLoading) {
     return (
       <div className="page-centered-with-navbar-offset bg-gray-50 flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Загружаем ваши товары" />
+        <LoadingSpinner size="lg" text={copy.loading} />
       </div>
     );
   }
@@ -272,23 +395,21 @@ export default function OwnedProductsPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-3 mb-4">
             <Package className="w-8 h-8 text-gray-700" />
-            <h1 className="text-3xl font-semibold text-gray-900">Мои товары</h1>
+            <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
           </div>
-          <p className="text-gray-600 mb-4">
-            Управляйте вашими покупками: отслеживайте активные товары и добавляйте заметки.
-          </p>
+          <p className="text-gray-600 mb-4">{copy.subtitle}</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Всего товаров</p>
+              <p className="text-sm text-gray-600 mb-1">{copy.total}</p>
               <p className="text-2xl font-semibold text-gray-900">{ownedProducts.length}</p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Активные</p>
+              <p className="text-sm text-gray-600 mb-1">{copy.active}</p>
               <p className="text-2xl font-semibold text-green-600">{activeCount}</p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Завершенные</p>
+              <p className="text-sm text-gray-600 mb-1">{copy.completed}</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {ownedProducts.length - activeCount}
               </p>
@@ -300,8 +421,8 @@ export default function OwnedProductsPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error ? (
           <ErrorState
-            title="Не удалось загрузить товары"
-            description="Произошла ошибка при загрузке. Попробуйте еще раз."
+            title={copy.errorTitle}
+            description={copy.errorDescription}
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : ownedProducts.length > 0 ? (
@@ -346,23 +467,23 @@ export default function OwnedProductsPage() {
                               : "bg-gray-100 text-gray-600"
                           }
                         >
-                          {product.is_active ? "Активен" : "Завершен"}
+                          {product.is_active ? copy.statusActive : copy.statusCompleted}
                         </Badge>
                       </div>
 
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          <span>Куплен: {formatDate(product.purchase_date)}</span>
+                          <span>{copy.bought}: {formatDate(product.purchase_date, locale, copy.dateMissing)}</span>
                         </div>
                         {product.opened_at && (
                           <div className="flex items-center gap-1">
-                            <span>Открыт: {formatDate(product.opened_at)}</span>
+                            <span>{copy.opened}: {formatDate(product.opened_at, locale, copy.dateMissing)}</span>
                           </div>
                         )}
                         {product.finish_date && (
                           <div className="flex items-center gap-1">
-                            <span>Закончен: {formatDate(product.finish_date)}</span>
+                            <span>{copy.finished}: {formatDate(product.finish_date, locale, copy.dateMissing)}</span>
                           </div>
                         )}
                       </div>
@@ -373,13 +494,13 @@ export default function OwnedProductsPage() {
                             <textarea
                               value={editNotes}
                               onChange={(event) => setEditNotes(event.target.value)}
-                              placeholder="Добавьте заметки о товаре..."
+                              placeholder={copy.notesPlaceholder}
                               className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                               rows={2}
                             />
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-500">Дата открытия</label>
+                                <label className="text-xs font-medium text-gray-500">{copy.openedDate}</label>
                                 <input
                                   type="date"
                                   value={editOpenedAt}
@@ -388,7 +509,7 @@ export default function OwnedProductsPage() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-500">Дата окончания</label>
+                                <label className="text-xs font-medium text-gray-500">{copy.finishedDate}</label>
                                 <input
                                   type="date"
                                   value={editFinishDate}
@@ -405,7 +526,7 @@ export default function OwnedProductsPage() {
                                 onClick={() => handleSaveNotes(product.id)}
                               >
                                 <Check className="w-4 h-4 mr-1" />
-                                {isSavingNotes ? "Сохраняем..." : "Сохранить"}
+                                {isSavingNotes ? copy.saving : copy.save}
                               </Button>
                               <Button
                                 variant="secondary"
@@ -414,7 +535,7 @@ export default function OwnedProductsPage() {
                                 onClick={handleCancelEdit}
                               >
                                 <X className="w-4 h-4 mr-1" />
-                                Отмена
+                                {copy.cancel}
                               </Button>
                             </div>
                           </div>
@@ -424,13 +545,13 @@ export default function OwnedProductsPage() {
                               {product.notes ? (
                                 <p className="text-sm text-gray-700">{product.notes}</p>
                               ) : (
-                                <p className="text-sm text-gray-400 italic">Нет заметок</p>
+                                <p className="text-sm text-gray-400 italic">{copy.noNotes}</p>
                               )}
                               {(product.opened_at || product.finish_date) && (
                                 <p className="mt-2 text-xs text-gray-500">
-                                  {product.opened_at ? `Открыт: ${formatDate(product.opened_at)}` : "Открыт: —"}
+                                  {product.opened_at ? `${copy.opened}: ${formatDate(product.opened_at, locale, copy.dateMissing)}` : `${copy.opened}: ${copy.dateMissing}`}
                                   {" · "}
-                                  {product.finish_date ? `Закончен: ${formatDate(product.finish_date)}` : "Закончен: —"}
+                                  {product.finish_date ? `${copy.finished}: ${formatDate(product.finish_date, locale, copy.dateMissing)}` : `${copy.finished}: ${copy.dateMissing}`}
                                 </p>
                               )}
                             </div>
@@ -452,12 +573,12 @@ export default function OwnedProductsPage() {
                         {product.is_active ? (
                           <>
                             <ToggleRight className="w-5 h-5 text-green-600" />
-                            {isPending ? "Обновляем статус..." : "Отметить как завершенный"}
+                            {isPending ? copy.updatingStatus : copy.markCompleted}
                           </>
                         ) : (
                           <>
                             <ToggleLeft className="w-5 h-5 text-gray-400" />
-                            {isPending ? "Обновляем статус..." : "Активировать снова"}
+                            {isPending ? copy.updatingStatus : copy.activateAgain}
                           </>
                         )}
                       </button>
@@ -470,10 +591,10 @@ export default function OwnedProductsPage() {
         ) : (
           <EmptyState
             icon={<Package className="w-12 h-12" />}
-            title="Нет товаров"
-            description="Здесь будут отображаться товары, которые вы купили на платформе."
+            title={copy.emptyTitle}
+            description={copy.emptyDescription}
             action={{
-              label: "Перейти в каталог",
+              label: copy.toCatalog,
               onClick: () => navigate("/catalog"),
             }}
           />

@@ -6,8 +6,10 @@ import { PromotionsSection } from '../sections/PromotionsSection';
 import { BrandSpotlightSection } from '../sections/BrandSpotlightSection';
 import { ProductFeedSection } from '../sections/ProductFeedSection';
 import { useHomeRecommendations } from '../sections/useHomeRecommendations';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 export default function HomePage() {
+  useI18n();
   const {
     forYouProducts,
     trendingProducts,

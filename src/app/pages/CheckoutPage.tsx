@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ArrowRight, CheckCircle, ChevronRight, Map, Sparkles } from 'lucide-react';
 import { ApiError } from '../../shared/api/ApiError';
 import { getLastCheckout } from '../../shared/api/checkout';
 import type { GiftCardSnapshot } from '../../shared/api/giftCards';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import {
@@ -61,6 +62,123 @@ type LocationCheckoutState = {
 
 const FALLBACK_OFFER_IMAGE =
   'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
+
+const checkoutPageCopy = {
+  ru: {
+    loading: 'Загружаем данные заказа...',
+    emptyTitle: 'Нет данных для страницы оформления',
+    emptyDescription: 'Откройте страницу оформления сразу после заказа в корзине.',
+    retry: 'Повторить',
+    goToCart: 'Перейти в корзину',
+    orderPlaced: 'Заказ оформлен',
+    orderDetails: 'Детали заказа',
+    products: 'Товары',
+    discount: 'Скидка',
+    giftCard: 'Подарочная карта',
+    pointsRedeemed: 'Списано баллов',
+    totalPaid: 'Итого оплачено',
+    pointsEarnedLabel: 'Начислено баллов',
+    points: 'баллов',
+    currentBalance: 'Баланс сейчас',
+    currentTier: 'Текущий уровень',
+    tierHint: 'Уровень программы лояльности считается по сумме покупок за 90 дней, а не по текущему балансу баллов.',
+    nextStep: 'Следующий шаг',
+    roadmap: 'Roadmap',
+    roadmapDescription: 'Откройте roadmap и продолжайте свой персональный уход.',
+    openRoadmap: 'Открыть roadmap',
+    nextOfferTitle: 'Следующий оффер',
+    nextOfferFallback: 'Новый персональный оффер появится после следующего обновления профиля.',
+    nextOfferButton: 'Посмотреть рекомендации',
+    backHome: 'На главную',
+    loadErrorFallback: 'Не удалось загрузить данные оформления.',
+    roadmapStep: (step: number, title: string) => `Шаг ${step}. ${title}`,
+    roadmapEmpty: 'Откройте roadmap для следующего шага ухода',
+    roadmapApiHint: 'Актуальные рекомендации берутся из API roadmap',
+    nextStepProduct: 'Товар для следующего шага',
+    personalOffer: 'Персональный оффер',
+    productId: (id: string) => `ID товара: ${id}`,
+    expiresUntil: (value: string) => `До: ${value}`,
+    personalOfferUnavailable: 'Персональный оффер сейчас недоступен.',
+    myRecommendations: 'Мои рекомендации',
+    continueShopping: 'Продолжить покупки',
+  },
+  kk: {
+    loading: 'Тапсырыс деректерін жүктеп жатырмыз...',
+    emptyTitle: 'Рәсімдеу бетіне дерек жоқ',
+    emptyDescription: 'Тапсырыстан кейін бұл бетті себеттен бірден ашыңыз.',
+    retry: 'Қайта көру',
+    goToCart: 'Себетке өту',
+    orderPlaced: 'Тапсырыс рәсімделді',
+    orderDetails: 'Тапсырыс мәліметтері',
+    products: 'Тауарлар',
+    discount: 'Жеңілдік',
+    giftCard: 'Сыйлық картасы',
+    pointsRedeemed: 'Шегерілген ұпайлар',
+    totalPaid: 'Жалпы төленді',
+    pointsEarnedLabel: 'Есептелген ұпайлар',
+    points: 'ұпай',
+    currentBalance: 'Ағымдағы баланс',
+    currentTier: 'Ағымдағы деңгей',
+    tierHint: 'Адалдық деңгейі ағымдағы ұпай балансына емес, соңғы 90 күндегі сатып алу сомасына байланысты есептеледі.',
+    nextStep: 'Келесі қадам',
+    roadmap: 'Roadmap',
+    roadmapDescription: 'Roadmap-ты ашып, жеке күтіміңізді жалғастырыңыз.',
+    openRoadmap: 'Roadmap ашу',
+    nextOfferTitle: 'Келесі оффер',
+    nextOfferFallback: 'Келесі профиль жаңартуынан кейін жаңа жеке оффер пайда болады.',
+    nextOfferButton: 'Ұсыныстарды көру',
+    backHome: 'Басты бетке',
+    loadErrorFallback: 'Рәсімдеу деректерін жүктеу мүмкін болмады.',
+    roadmapStep: (step: number, title: string) => `${step}-қадам. ${title}`,
+    roadmapEmpty: 'Келесі күтім қадамын көру үшін roadmap ашыңыз',
+    roadmapApiHint: 'Өзекті ұсыныстар roadmap API-ден алынады',
+    nextStepProduct: 'Келесі қадамға арналған тауар',
+    personalOffer: 'Жеке оффер',
+    productId: (id: string) => `Тауар ID: ${id}`,
+    expiresUntil: (value: string) => `Дейін: ${value}`,
+    personalOfferUnavailable: 'Жеке оффер қазір қолжетімсіз.',
+    myRecommendations: 'Менің ұсыныстарым',
+    continueShopping: 'Сауданы жалғастыру',
+  },
+  en: {
+    loading: 'Loading order details...',
+    emptyTitle: 'No checkout data available',
+    emptyDescription: 'Open the checkout page directly after placing an order from the cart.',
+    retry: 'Retry',
+    goToCart: 'Go to cart',
+    orderPlaced: 'Order placed',
+    orderDetails: 'Order details',
+    products: 'Products',
+    discount: 'Discount',
+    giftCard: 'Gift card',
+    pointsRedeemed: 'Points redeemed',
+    totalPaid: 'Total paid',
+    pointsEarnedLabel: 'Points earned',
+    points: 'points',
+    currentBalance: 'Current balance',
+    currentTier: 'Current tier',
+    tierHint: 'Loyalty tier is based on your purchase total for the last 90 days, not your current points balance.',
+    nextStep: 'Next step',
+    roadmap: 'Roadmap',
+    roadmapDescription: 'Open your roadmap and continue your personal routine.',
+    openRoadmap: 'Open roadmap',
+    nextOfferTitle: 'Next offer',
+    nextOfferFallback: 'A new personal offer will appear after your next profile update.',
+    nextOfferButton: 'View recommendations',
+    backHome: 'Go home',
+    loadErrorFallback: 'Could not load checkout data.',
+    roadmapStep: (step: number, title: string) => `Step ${step}. ${title}`,
+    roadmapEmpty: 'Open your roadmap for the next care step',
+    roadmapApiHint: 'Current recommendations come from the roadmap API',
+    nextStepProduct: 'Product for the next step',
+    personalOffer: 'Personal offer',
+    productId: (id: string) => `Product ID: ${id}`,
+    expiresUntil: (value: string) => `Until: ${value}`,
+    personalOfferUnavailable: 'Personal offer is currently unavailable.',
+    myRecommendations: 'My recommendations',
+    continueShopping: 'Continue shopping',
+  },
+} as const;
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -387,6 +505,8 @@ const buildCheckoutRoadmapStep = async (): Promise<CheckoutRoadmapNextStep | nul
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { language } = useI18n();
+  const copy = checkoutPageCopy[language];
 
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [nextOfferHint, setNextOfferHint] = useState<NextOfferHint | null>(null);
@@ -472,14 +592,14 @@ export default function CheckoutPage() {
         }
 
         if (!checkoutPayload) {
-          fail('Не удалось получить данные checkout.');
+          fail('Не удалось получить данные заказа.');
           return;
         }
 
         const parsed = parseCheckoutResult(checkoutPayload);
         if (!parsed) {
           fail(
-            'Ответ checkout API не содержит обязательные поля gross_total/net_total.',
+            'Ответ API оформления заказа не содержит обязательные поля gross_total/net_total.',
           );
           return;
         }
@@ -530,7 +650,7 @@ export default function CheckoutPage() {
         setLoadError(
           error instanceof Error
             ? error.message
-            : 'Не удалось загрузить данные оформления.',
+            : copy.loadErrorFallback,
         );
       } finally {
         if (!cancelled) {
@@ -544,7 +664,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, location.state, navigate, retryKey]);
+  }, [copy.loadErrorFallback, location.pathname, location.state, navigate, retryKey]);
 
   const previousBalance = useMemo(() => {
     if (!result || result.pointsBalance === undefined) {
@@ -570,7 +690,7 @@ export default function CheckoutPage() {
       <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF] text-sm text-[#6B7280]">
-            Загружаем данные checkout...
+            {copy.loading}
           </div>
         </div>
       </div>
@@ -583,10 +703,10 @@ export default function CheckoutPage() {
         <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF]">
             <h1 className="text-2xl font-semibold text-[#111827] mb-2">
-              Нет данных для страницы checkout
+              {copy.emptyTitle}
             </h1>
             <p className="text-sm text-[#6B7280] mb-4">
-              Откройте checkout сразу после оформления заказа в корзине.
+              {copy.emptyDescription}
             </p>
             {loadError && (
               <p className="text-sm text-[#B42318] mb-4">{loadError}</p>
@@ -596,13 +716,13 @@ export default function CheckoutPage() {
                 onClick={() => setRetryKey((value) => value + 1)}
                 className="h-11 px-4 rounded-xl border border-[#EAE6EF] text-sm font-medium text-[#111827] hover:bg-gray-50 transition-colors"
               >
-                Повторить
+                {copy.retry}
               </button>
               <button
                 onClick={() => navigate('/cart')}
                 className="h-11 px-4 rounded-xl bg-[#111827] text-white text-sm font-medium hover:bg-[#0B1220] transition-colors"
               >
-                Перейти в корзину
+                {copy.goToCart}
               </button>
             </div>
           </div>
@@ -619,7 +739,7 @@ export default function CheckoutPage() {
             <CheckCircle className="w-10 h-10 text-emerald-600" />
           </div>
           <h1 className="text-3xl font-semibold text-[#111827] mb-2">
-            Заказ оформлен
+            {copy.orderPlaced}
           </h1>
           <p className="text-[#6B7280]">
             Номер: <span className="font-semibold text-[#111827]">{result.transactionId}</span>
@@ -633,26 +753,26 @@ export default function CheckoutPage() {
               onClick={() => setRetryKey((value) => value + 1)}
               className="mt-2 text-xs font-medium text-[#111827] underline underline-offset-2"
             >
-              Повторить
+              {copy.retry}
             </button>
           </div>
         )}
 
         <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF] mb-4 space-y-3">
           <h2 className="text-base font-semibold text-[#111827] mb-4">
-            Детали заказа
+            {copy.orderDetails}
           </h2>
 
           <div className="space-y-2.5 pb-3 border-b border-[#EAE6EF]">
             <div className="flex justify-between text-sm">
-              <span className="text-[#6B7280]">Товары</span>
+                <span className="text-[#6B7280]">{copy.products}</span>
               <span className="font-semibold text-[#111827]">
                 {result.grossAmount.toLocaleString('ru')} тг
               </span>
             </div>
             {result.discount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">Скидка</span>
+                <span className="text-[#6B7280]">{copy.discount}</span>
                 <span className="font-semibold text-[#FF4DB8]">
                   -{result.discount.toLocaleString('ru')} тг
                 </span>
@@ -661,16 +781,16 @@ export default function CheckoutPage() {
             {result.giftCardApplied > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">
-                  Gift card{result.giftCard?.masked_code ? ` (${result.giftCard.masked_code})` : ''}
+                  {copy.giftCard}{result.giftCard?.masked_code ? ` (${result.giftCard.masked_code})` : ''}
                 </span>
                 <span className="font-semibold text-[#FF4DB8]">
-                  -{result.giftCardApplied.toLocaleString('ru')} KZT
+                  -{result.giftCardApplied.toLocaleString('ru-RU')} ₸
                 </span>
               </div>
             )}
             {result.pointsUsed > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">Списано баллов</span>
+                <span className="text-[#6B7280]">{copy.pointsRedeemed}</span>
                 <span className="font-semibold text-[#FF4DB8]">
                   -{result.pointsUsed.toLocaleString('ru')} тг
                 </span>
@@ -679,7 +799,7 @@ export default function CheckoutPage() {
           </div>
 
           <div className="flex justify-between items-baseline pt-1">
-            <span className="font-semibold text-[#111827]">Итого оплачено</span>
+            <span className="font-semibold text-[#111827]">{copy.totalPaid}</span>
             <span className="text-2xl font-bold text-[#111827]">
               {result.netAmount.toLocaleString('ru')} тг
             </span>
@@ -693,18 +813,18 @@ export default function CheckoutPage() {
         >
           <div className="flex items-start justify-between mb-4">
             <div>
-              <p className="text-xs text-[#6B7280] mb-1">Начислено баллов</p>
+              <p className="text-xs text-[#6B7280] mb-1">{copy.pointsEarnedLabel}</p>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-[#FF4DB8]">
                   +{result.pointsEarned}
                 </span>
-                <span className="text-sm text-[#6B7280]">баллов</span>
+                <span className="text-sm text-[#6B7280]">{copy.points}</span>
               </div>
             </div>
 
             {result.pointsBalance !== undefined && (
               <div className="text-right">
-                <p className="text-xs text-[#6B7280] mb-1">Баланс сейчас</p>
+                <p className="text-xs text-[#6B7280] mb-1">{copy.currentBalance}</p>
                 <div className="flex items-center gap-1.5 justify-end">
                   {previousBalance !== undefined && (
                     <span className="text-sm text-[#6B7280] line-through">
@@ -722,10 +842,10 @@ export default function CheckoutPage() {
 
           {result.tier && (
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-xs text-[#6B7280] mb-0.5">Текущий уровень</p>
+              <p className="text-xs text-[#6B7280] mb-0.5">{copy.currentTier}</p>
               <p className="text-sm font-semibold text-[#111827]">{formatTierName(result.tier)}</p>
               <p className="text-xs text-[#6B7280] mt-1">
-                Уровень программы лояльности считается по сумме покупок за 90 дней, а не по текущему балансу баллов.
+                {copy.tierHint}
               </p>
             </div>
           )}
@@ -737,7 +857,7 @@ export default function CheckoutPage() {
           }`}
         >
           <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide mb-3">
-            Следующий шаг
+            {copy.nextStep}
           </p>
 
           <Link
@@ -752,18 +872,18 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white/60 mb-0.5">
-                    Roadmap
+                    {copy.roadmap}
                     {roadmapNextStep?.category
                       ? ` · ${ROADMAP_CATEGORY_LABELS[roadmapNextStep.category] ?? roadmapNextStep.category}`
                       : ''}
                   </p>
                   <p className="text-sm font-semibold text-white mb-0.5">
                     {roadmapNextStep
-                      ? `Шаг ${roadmapNextStep.stepNumber}. ${roadmapNextStep.title}`
-                      : 'Откройте roadmap для следующего шага ухода'}
+                      ? copy.roadmapStep(roadmapNextStep.stepNumber, roadmapNextStep.title)
+                      : copy.roadmapEmpty}
                   </p>
                   <p className="text-xs text-white/60">
-                    {roadmapNextStep?.description ?? 'Актуальные рекомендации берутся из API roadmap'}
+                    {roadmapNextStep?.description ?? copy.roadmapApiHint}
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-white/70 transition-colors flex-shrink-0 mt-1" />
@@ -791,7 +911,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex-1 min-w-0">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EEF2FF] text-[#4338CA] text-[10px] font-medium mb-1">
-                    Товар для следующего шага
+                    {copy.nextStepProduct}
                   </span>
                   <p className="text-sm font-semibold text-[#111827] line-clamp-1">
                     {roadmapNextStep.productName}
@@ -823,17 +943,17 @@ export default function CheckoutPage() {
                 />
                 <div className="flex-1 min-w-0">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium mb-1">
-                    Персональный оффер
+                    {copy.personalOffer}
                   </span>
                   <p className="text-sm font-semibold text-[#111827] line-clamp-1">
                     {nextOfferHint.offerName ?? `Товар #${nextOfferHint.productId}`}
                   </p>
                   <p className="text-xs text-[#6B7280]">
-                    ID товара: {nextOfferHint.productId}
+                    {copy.productId(nextOfferHint.productId)}
                   </p>
                   {nextOfferHint.expiresAt && (
                     <p className="text-xs text-[#6B7280]">
-                      До: {new Date(nextOfferHint.expiresAt).toLocaleString('ru')}
+                      {copy.expiresUntil(new Date(nextOfferHint.expiresAt).toLocaleString('ru'))}
                     </p>
                   )}
                 </div>
@@ -844,7 +964,7 @@ export default function CheckoutPage() {
             </Link>
           ) : (
             <div className="p-4 rounded-2xl bg-white border border-[#EAE6EF] text-sm text-[#6B7280]">
-              Персональный оффер сейчас недоступен.
+              {copy.personalOfferUnavailable}
             </div>
           )}
         </div>
@@ -855,13 +975,13 @@ export default function CheckoutPage() {
             className="h-12 rounded-xl border border-[#EAE6EF] text-[#111827] font-medium text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
           >
             <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-            Мои рекомендации
+            {copy.myRecommendations}
           </button>
           <button
             onClick={() => navigate('/catalog')}
             className="h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors flex items-center justify-center gap-2"
           >
-            Продолжить покупки
+            {copy.continueShopping}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

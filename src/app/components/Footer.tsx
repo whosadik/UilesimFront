@@ -1,166 +1,129 @@
 import { MapPin, Phone, Mail, Instagram, Facebook, Twitter } from 'lucide-react';
+import { Link } from 'react-router';
+
+import logoImage from '@/assets/UylesimLogo.png';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 export function Footer() {
+  const { messages } = useI18n();
+
   return (
-    <footer className="bg-gradient-to-b from-white to-gray-50 border-t border-gray-200 pt-16 pb-8">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        {/* Main Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Brand Column */}
+    <footer className="border-t border-gray-200 bg-gradient-to-b from-white to-gray-50 pt-16 pb-8">
+      <div className="mx-auto max-w-[1160px] px-6 lg:px-[140px]">
+        <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF4DB8] to-[#FF2AA8] flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-lg">Ü</span>
-              </div>
-              <span className="text-[#111827] font-semibold text-lg tracking-tight">Uilesim</span>
+            <div className="mb-4 flex items-center gap-2">
+              <img src={logoImage} alt="Uilesim" className="h-10 w-10 rounded-full object-contain" />
+              <span className="text-lg font-semibold tracking-tight text-[#111827]">Uilesim</span>
             </div>
-            <p className="text-sm text-[#6B7280] leading-relaxed mb-4">
-              Премиум e-commerce для косметики, ухода и ароматов
-            </p>
+            <p className="mb-4 text-sm leading-relaxed text-[#6B7280]">{messages.footer.description}</p>
+
             <div className="flex items-center gap-3">
-              <a
-                href="#"
-                className="w-9 h-9 rounded-full bg-white border border-[#EAE6EF] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 hover:text-[#FF4DB8] hover:border-[#FF4DB8]/20 transition-all"
-              >
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a
-                href="#"
-                className="w-9 h-9 rounded-full bg-white border border-[#EAE6EF] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 hover:text-[#FF4DB8] hover:border-[#FF4DB8]/20 transition-all"
-              >
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a
-                href="#"
-                className="w-9 h-9 rounded-full bg-white border border-[#EAE6EF] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 hover:text-[#FF4DB8] hover:border-[#FF4DB8]/20 transition-all"
-              >
-                <Twitter className="w-4 h-4" />
-              </a>
+              {[Instagram, Facebook, Twitter].map((Icon, index) => (
+                <a
+                  key={index}
+                  href="#"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#EAE6EF] bg-white text-[#6B7280] transition-all hover:border-[#FF4DB8]/20 hover:bg-gray-50 hover:text-[#FF4DB8]"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Catalog Column */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">Каталог</h4>
+            <h4 className="mb-4 text-sm font-semibold text-gray-900">{messages.footer.catalogTitle}</h4>
             <ul className="space-y-2.5">
-              {['Уход за кожей', 'Макияж', 'Волосы', 'Ароматы', 'Товары для дома', 'Бренды'].map(
-                (item) => (
-                  <li key={item}>
-                    <a
-                      href="#"
-                      className="text-sm text-gray-600 hover:text-pink-500 transition-colors"
-                    >
-                      {item}
-                    </a>
-                  </li>
-                )
-              )}
+              {messages.footer.catalogItems.map((item) => (
+                <li key={item}>
+                  <Link to="/catalog" className="text-sm text-gray-600 transition-colors hover:text-pink-500">
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Info Column */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">Информация</h4>
+            <h4 className="mb-4 text-sm font-semibold text-gray-900">{messages.footer.infoTitle}</h4>
             <ul className="space-y-2.5">
               <li>
-                <a
-                  href="/about"
-                  className="text-sm text-gray-600 hover:text-pink-500 transition-colors"
-                >
-                  О нас
-                </a>
+                <Link to="/about" className="text-sm text-gray-600 transition-colors hover:text-pink-500">
+                  {messages.footer.infoLinks.about}
+                </Link>
               </li>
               <li>
-                <a
-                  href="/delivery-returns"
-                  className="text-sm text-gray-600 hover:text-pink-500 transition-colors"
+                <Link
+                  to="/delivery-returns"
+                  className="text-sm text-gray-600 transition-colors hover:text-pink-500"
                 >
-                  Доставка и возврат
-                </a>
+                  {messages.footer.infoLinks.deliveryReturns}
+                </Link>
               </li>
               <li>
-                <a
-                  href="/help"
-                  className="text-sm text-gray-600 hover:text-pink-500 transition-colors"
-                >
-                  Помощь
-                </a>
+                <Link to="/help" className="text-sm text-gray-600 transition-colors hover:text-pink-500">
+                  {messages.footer.infoLinks.help}
+                </Link>
               </li>
               <li>
-                <a
-                  href="/for-you"
-                  className="text-sm text-gray-600 hover:text-pink-500 transition-colors"
-                >
-                  Программа лояльности
-                </a>
+                <Link to="/for-you" className="text-sm text-gray-600 transition-colors hover:text-pink-500">
+                  {messages.footer.infoLinks.loyaltyProgram}
+                </Link>
               </li>
               <li>
-                <a
-                  href="/stores"
-                  className="text-sm text-gray-600 hover:text-pink-500 transition-colors"
-                >
-                  Магазины
-                </a>
+                <Link to="/stores" className="text-sm text-gray-600 transition-colors hover:text-pink-500">
+                  {messages.footer.infoLinks.stores}
+                </Link>
               </li>
             </ul>
           </div>
 
-          {/* Contact Column */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">Контакты</h4>
+            <h4 className="mb-4 text-sm font-semibold text-gray-900">{messages.footer.contactsTitle}</h4>
             <ul className="space-y-3">
               <li className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-pink-500 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-600">
-                  Астана, пр. Мангилик Ел, 53/1
-                </span>
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-pink-500" />
+                <span className="text-sm text-gray-600">{messages.footer.address}</span>
               </li>
               <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-pink-500 flex-shrink-0" />
+                <Phone className="h-4 w-4 shrink-0 text-pink-500" />
                 <a href="tel:+77172000000" className="text-sm text-gray-600 hover:text-pink-500">
                   +7 (717) 200-00-00
                 </a>
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-pink-500 flex-shrink-0" />
-                <a
-                  href="mailto:hello@uilesim.kz"
-                  className="text-sm text-gray-600 hover:text-pink-500"
-                >
+                <Mail className="h-4 w-4 shrink-0 text-pink-500" />
+                <a href="mailto:hello@uilesim.kz" className="text-sm text-gray-600 hover:text-pink-500">
                   hello@uilesim.kz
                 </a>
               </li>
             </ul>
 
-            {/* Newsletter */}
             <div className="mt-6">
-              <h5 className="text-sm font-medium text-gray-900 mb-2">Новости и акции</h5>
+              <h5 className="mb-2 text-sm font-medium text-gray-900">{messages.footer.newsletterTitle}</h5>
               <div className="flex gap-2">
                 <input
                   type="email"
-                  placeholder="Email"
-                  className="flex-1 px-3 py-2 rounded-lg border border-[#EAE6EF] text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20"
+                  placeholder={messages.footer.newsletterPlaceholder}
+                  className="flex-1 rounded-lg border border-[#EAE6EF] px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20"
                 />
-                <button className="px-4 py-2 rounded-lg bg-[#111827] text-white text-sm font-medium hover:bg-[#0B1220] hover:shadow-md transition-all">
-                  →
+                <button className="rounded-lg bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[#0B1220] hover:shadow-md">
+                  {messages.footer.newsletterButton}
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500">
-            © 2026 Uilesim. Все права защищены.
-          </p>
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 md:flex-row">
+          <p className="text-xs text-gray-500">{messages.footer.copyright}</p>
           <div className="flex items-center gap-6">
-            <a href="/privacy" className="text-xs text-gray-500 hover:text-pink-500 transition-colors">
-              Политика конфиденциальности
-            </a>
-            <a href="/terms" className="text-xs text-gray-500 hover:text-pink-500 transition-colors">
-              Условия использования
-            </a>
+            <Link to="/privacy" className="text-xs text-gray-500 transition-colors hover:text-pink-500">
+              {messages.footer.privacy}
+            </Link>
+            <Link to="/terms" className="text-xs text-gray-500 transition-colors hover:text-pink-500">
+              {messages.footer.terms}
+            </Link>
           </div>
         </div>
       </div>

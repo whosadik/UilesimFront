@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router';
 
 import { ApiError } from '../../shared/api/ApiError';
 import { listBrands, type BrandSummary } from '../../shared/api/brands';
-import { Breadcrumbs } from '../components/Breadcrumbs';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { BrandCard } from '../components/BrandCard';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -13,6 +14,8 @@ const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export default function BrandsPage() {
   const navigate = useNavigate();
+  const { messages } = useI18n();
+  const brandsMessages = messages.pages.brands;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [brands, setBrands] = useState<BrandSummary[]>([]);
@@ -43,7 +46,7 @@ export default function BrandsPage() {
         }
 
         setBrands([]);
-        setLoadError(error instanceof Error ? error.message : 'failed to load brands.');
+        setLoadError(error instanceof Error ? error.message : brandsMessages.loadError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -56,7 +59,7 @@ export default function BrandsPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [brandsMessages.loadError, reloadKey]);
 
   const filteredBrands = useMemo(
     () =>
@@ -70,16 +73,14 @@ export default function BrandsPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
-      <div className="max-w-[1160px] mx-auto px-6 py-8 lg:px-[140px] lg:py-12">
+      <div className="mx-auto max-w-[1160px] px-6 py-8 lg:px-[140px] lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'brands' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: brandsMessages.breadcrumb }]} />
         </div>
 
         <div className="mb-8">
-          <h1 className="mb-3 text-3xl font-bold text-[#111827] lg:text-4xl">brands</h1>
-          <p className="text-base text-[#6B7280]">
-            {brands.length > 0 ? `${brands.length} brands in catalog` : 'browse brands from the catalog'}
-          </p>
+          <h1 className="mb-3 text-3xl font-bold text-[#111827] lg:text-4xl">{brandsMessages.title}</h1>
+          <p className="text-base text-[#6B7280]">{brandsMessages.subtitle(brands.length)}</p>
         </div>
 
         <div className="mb-8">
@@ -87,7 +88,7 @@ export default function BrandsPage() {
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#6B7280]" />
             <input
               type="text"
-              placeholder="find a brand..."
+              placeholder={brandsMessages.searchPlaceholder}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full rounded-xl border border-[#EAE6EF] bg-white py-3 pl-12 pr-4 text-sm text-[#111827] placeholder:text-[#6B7280] focus:border-[#FF4DB8] focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20"
@@ -105,7 +106,7 @@ export default function BrandsPage() {
                   : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100'
               }`}
             >
-              all
+              {brandsMessages.all}
             </button>
             {alphabet.map((letter) => (
               <button
@@ -127,15 +128,15 @@ export default function BrandsPage() {
           <LoadingSpinner />
         ) : loadError ? (
           <ErrorState
-            title="failed to load brands"
+            title={brandsMessages.loadErrorTitle}
             description={loadError}
             onRetry={() => setReloadKey((value) => value + 1)}
           />
         ) : (
           <>
-            {!searchQuery && !selectedLetter && brands.length > 0 && (
+            {!searchQuery && !selectedLetter && brands.length > 0 ? (
               <div className="mb-12">
-                <h2 className="mb-6 text-xl font-bold text-[#111827]">popular brands</h2>
+                <h2 className="mb-6 text-xl font-bold text-[#111827]">{brandsMessages.popularTitle}</h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {brands.slice(0, 8).map((brand) => (
                     <BrandCard
@@ -147,11 +148,11 @@ export default function BrandsPage() {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {(searchQuery || selectedLetter) && (
+            {searchQuery || selectedLetter ? (
               <>
-                <h2 className="mb-6 text-xl font-bold text-[#111827]">{filteredBrands.length} results</h2>
+                <h2 className="mb-6 text-xl font-bold text-[#111827]">{brandsMessages.results(filteredBrands.length)}</h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {filteredBrands.map((brand) => (
                     <BrandCard
@@ -163,17 +164,16 @@ export default function BrandsPage() {
                   ))}
                 </div>
               </>
-            )}
+            ) : null}
 
-            {filteredBrands.length === 0 && (
+            {filteredBrands.length === 0 ? (
               <div className="py-12 text-center">
-                <p className="text-[#6B7280]">no brands found</p>
+                <p className="text-[#6B7280]">{brandsMessages.empty}</p>
               </div>
-            )}
+            ) : null}
           </>
         )}
       </div>
     </div>
   );
 }
-

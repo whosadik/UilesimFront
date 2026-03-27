@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { listProducts, type ProductListResponse } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 
 type CarouselProduct = {
   id: string;
@@ -82,6 +83,7 @@ function toResults(payload: CarouselProduct[] | ProductListResponse): ApiProduct
 }
 
 export function NewArrivalsSection() {
+  const { messages } = useI18n();
   const [products, setProducts] = useState<CarouselProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export function NewArrivalsSection() {
         }
 
         setProducts([]);
-        setError(loadError instanceof Error ? loadError.message : 'could not load new arrivals');
+        setError(loadError instanceof Error ? loadError.message : messages.home.newArrivals.errorTitle);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -125,25 +127,28 @@ export function NewArrivalsSection() {
     return () => {
       cancelled = true;
     };
-  }, [retryKey]);
+  }, [messages.home.newArrivals.errorTitle, retryKey]);
 
   return (
     <section className="py-12">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title="new arrivals" subtitle="fresh releases from the current catalog" />
+        <CarouselHeader
+          title={messages.home.newArrivals.title}
+          subtitle={messages.home.newArrivals.subtitle}
+        />
 
         {error ? (
           <ErrorState
-            title="could not load new arrivals"
-            description="something went wrong while loading this section. try again."
+            title={messages.home.newArrivals.errorTitle}
+            description={messages.home.newArrivals.errorDescription}
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : !isLoading && products.length === 0 ? (
           <EmptyState
-            title="no new arrivals yet"
-            description="the catalog API does not return items flagged as new right now."
+            title={messages.home.newArrivals.emptyTitle}
+            description={messages.home.newArrivals.emptyDescription}
             action={{
-              label: 'refresh',
+              label: messages.common.refresh,
               onClick: () => setRetryKey((value) => value + 1),
             }}
           />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { SlidersHorizontal, X } from 'lucide-react';
 import { Breadcrumbs } from '../components/Breadcrumbs';
@@ -10,33 +10,102 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
 import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  skincare: 'skincare',
-  makeup: 'makeup',
-  haircare: 'haircare',
-  fragrance: 'fragrance',
-};
-
-const FALLBACK_CATEGORY_OPTIONS = [
-  { id: 'skincare', label: 'skincare', count: 0 },
-  { id: 'makeup', label: 'makeup', count: 0 },
-  { id: 'haircare', label: 'haircare', count: 0 },
-  { id: 'fragrance', label: 'fragrance', count: 0 },
-];
-
 const ACTIVE_QUERY_KEYS = ['category', 'product_type', 'brand', 'in_stock', 'new', 'sale', 'search'] as const;
 const SERVER_QUERY_KEYS = ['category', 'product_type', 'brand', 'in_stock', 'new', 'sale', 'search'] as const;
 const AVAILABILITY_FILTER_IDS = ['in_stock', 'new', 'sale'] as const;
-const FILTER_CHIP_LABELS: Record<string, string> = {
-  in_stock: 'In Stock',
-  new: 'New',
-  sale: 'Sale',
-};
 const DEFAULT_PRICE_RANGE: [number, number] = [0, 10000];
+
+const catalogPageCopy = {
+  ru: {
+    breadcrumb: 'Каталог',
+    title: 'Каталог',
+    availableProducts: (count: number) => `Доступно товаров: ${count}`,
+    searchPrefix: 'Поиск',
+    resetAll: 'Сбросить все',
+    hideFilters: 'Скрыть фильтры',
+    showFilters: 'Показать фильтры',
+    active: (count: number) => `Активно: ${count}`,
+    foundProducts: (count: number) => `Найдено ${count} товаров`,
+    loading: 'Загружаем товары...',
+    loadErrorTitle: 'Не удалось загрузить каталог',
+    loadErrorDescription: 'Не удалось загрузить данные каталога. Попробуйте еще раз.',
+    showMore: 'Показать еще',
+    empty: 'В каталоге пока нет товаров.',
+    filterTitles: {
+      category: 'Категория',
+      productType: 'Тип товара',
+      brand: 'Бренд',
+      availability: 'Наличие',
+      price: 'Цена',
+    },
+    availability: {
+      inStock: 'В наличии',
+      new: 'Новинки',
+      sale: 'Скидки',
+    },
+  },
+  kk: {
+    breadcrumb: 'Каталог',
+    title: 'Каталог',
+    availableProducts: (count: number) => `Қолжетімді тауарлар: ${count}`,
+    searchPrefix: 'Іздеу',
+    resetAll: 'Барлығын тазарту',
+    hideFilters: 'Сүзгілерді жасыру',
+    showFilters: 'Сүзгілерді көрсету',
+    active: (count: number) => `Белсенді: ${count}`,
+    foundProducts: (count: number) => `${count} тауар табылды`,
+    loading: 'Тауарларды жүктеп жатырмыз...',
+    loadErrorTitle: 'Каталогты жүктеу мүмкін болмады',
+    loadErrorDescription: 'Каталог деректерін жүктеу мүмкін болмады. Қайта көріңіз.',
+    showMore: 'Тағы көрсету',
+    empty: 'Каталогта әзірге тауар жоқ.',
+    filterTitles: {
+      category: 'Санат',
+      productType: 'Тауар түрі',
+      brand: 'Бренд',
+      availability: 'Қолжетімділік',
+      price: 'Баға',
+    },
+    availability: {
+      inStock: 'Қоймада бар',
+      new: 'Жаңалықтар',
+      sale: 'Жеңілдіктер',
+    },
+  },
+  en: {
+    breadcrumb: 'Catalog',
+    title: 'Catalog',
+    availableProducts: (count: number) => `Products available: ${count}`,
+    searchPrefix: 'Search',
+    resetAll: 'Reset all',
+    hideFilters: 'Hide filters',
+    showFilters: 'Show filters',
+    active: (count: number) => `Active: ${count}`,
+    foundProducts: (count: number) => `Found ${count} products`,
+    loading: 'Loading products...',
+    loadErrorTitle: 'Could not load the catalog',
+    loadErrorDescription: 'Could not load catalog data. Try again.',
+    showMore: 'Show more',
+    empty: 'There are no products in the catalog yet.',
+    filterTitles: {
+      category: 'Category',
+      productType: 'Product type',
+      brand: 'Brand',
+      availability: 'Availability',
+      price: 'Price',
+    },
+    availability: {
+      inStock: 'In stock',
+      new: 'New',
+      sale: 'Sale',
+    },
+  },
+} as const;
 
 type RequestParams = {
   category?: string;
@@ -96,7 +165,12 @@ const buildSelectedFilters = (params: RequestParams) => ({
   availability: AVAILABILITY_FILTER_IDS.filter((key) => params[key] === 'true'),
 });
 
-const buildFilters = (items: Product[]) => {
+const buildFilters = (
+  items: Product[],
+  categoryLabels: Record<string, string>,
+  fallbackCategoryOptions: Array<{ id: string; label: string; count: number }>,
+  copy: (typeof catalogPageCopy)[keyof typeof catalogPageCopy],
+) => {
   const categoryCounts = new Map<string, number>();
   const productTypeCounts = new Map<string, number>();
   const brandCounts = new Map<string, { label: string; count: number }>();
@@ -138,7 +212,7 @@ const buildFilters = (items: Product[]) => {
   const categoryOptions = Array.from(categoryCounts.entries())
     .map(([id, count]) => ({
       id,
-      label: CATEGORY_LABELS[id] ?? id,
+      label: categoryLabels[id] ?? id,
       count,
     }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
@@ -162,31 +236,31 @@ const buildFilters = (items: Product[]) => {
   return [
     {
       id: 'category',
-      title: 'category',
-      options: categoryOptions.length > 0 ? categoryOptions : FALLBACK_CATEGORY_OPTIONS,
+      title: copy.filterTitles.category,
+      options: categoryOptions.length > 0 ? categoryOptions : fallbackCategoryOptions,
     },
     {
       id: 'product_type',
-      title: 'product type',
+      title: copy.filterTitles.productType,
       options: productTypeOptions,
     },
     {
       id: 'brand',
-      title: 'brand',
+      title: copy.filterTitles.brand,
       options: brandOptions,
     },
     {
       id: 'availability',
-      title: 'availability',
+      title: copy.filterTitles.availability,
       options: [
-        { id: 'in_stock', label: 'in stock', count: inStockCount },
-        { id: 'new', label: 'new', count: newCount },
-        { id: 'sale', label: 'sale', count: saleCount },
+        { id: 'in_stock', label: copy.availability.inStock, count: inStockCount },
+        { id: 'new', label: copy.availability.new, count: newCount },
+        { id: 'sale', label: copy.availability.sale, count: saleCount },
       ],
     },
     {
       id: 'price',
-      title: 'price',
+      title: copy.filterTitles.price,
       type: 'range' as const,
       options: [],
     },
@@ -196,6 +270,8 @@ const buildFilters = (items: Product[]) => {
 export default function CatalogPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { language, messages } = useI18n();
+  const copy = catalogPageCopy[language];
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [showFilters, setShowFilters] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -204,7 +280,46 @@ export default function CatalogPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const filters = useMemo(() => buildFilters(products), [products]);
+  const categoryLabels = useMemo(
+    () => ({
+      skincare: messages.catalog.categories.skincare,
+      makeup: messages.catalog.categories.makeup,
+      haircare: messages.catalog.categories.haircare,
+      fragrance: messages.catalog.categories.fragrance,
+    }),
+    [messages.catalog.categories],
+  );
+  const fallbackCategoryOptions = useMemo(
+    () => [
+      { id: 'skincare', label: messages.catalog.categories.skincare, count: 0 },
+      { id: 'makeup', label: messages.catalog.categories.makeup, count: 0 },
+      { id: 'haircare', label: messages.catalog.categories.haircare, count: 0 },
+      { id: 'fragrance', label: messages.catalog.categories.fragrance, count: 0 },
+    ],
+    [messages.catalog.categories],
+  );
+  const filterChipLabels = useMemo(
+    () => ({
+      in_stock: copy.availability.inStock,
+      new: copy.availability.new,
+      sale: copy.availability.sale,
+    }),
+    [copy.availability.inStock, copy.availability.new, copy.availability.sale],
+  );
+  const sortOptions = useMemo(
+    () => [
+      { value: 'popular' as const, label: messages.filterBar.sort.popular },
+      { value: 'new' as const, label: messages.filterBar.sort.new },
+      { value: 'price_asc' as const, label: messages.filterBar.sort.priceAsc },
+      { value: 'price_desc' as const, label: messages.filterBar.sort.priceDesc },
+      { value: 'rating' as const, label: 'Rating' },
+    ],
+    [messages.filterBar.sort],
+  );
+  const filters = useMemo(
+    () => buildFilters(products, categoryLabels, fallbackCategoryOptions, copy),
+    [categoryLabels, copy, fallbackCategoryOptions, products],
+  );
   const requestParams = useMemo(() => parseRequestParams(location.search), [location.search]);
   const selectedFilters = useMemo(() => buildSelectedFilters(requestParams), [requestParams]);
   const priceBounds = useMemo<[number, number]>(() => {
@@ -232,12 +347,12 @@ export default function CatalogPage() {
       formatFilterLabel(requestParams.product_type) ||
       formatFilterLabel(requestParams.category) ||
       formatFilterLabel(requestParams.brand) ||
-      (requestParams.in_stock === 'true' ? 'In Stock' : null) ||
-      (requestParams.sale ? 'Sale' : null) ||
-      (requestParams.new ? 'New Arrivals' : null) ||
-      (requestParams.search ? `Search: ${requestParams.search}` : null)
+      (requestParams.in_stock === 'true' ? copy.availability.inStock : null) ||
+      (requestParams.sale ? copy.availability.sale : null) ||
+      (requestParams.new ? copy.availability.new : null) ||
+      (requestParams.search ? `${copy.searchPrefix}: ${requestParams.search}` : null)
     );
-  }, [requestParams]);
+  }, [copy.availability.inStock, copy.availability.new, copy.availability.sale, copy.searchPrefix, requestParams]);
   const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const chips: ActiveFilterChip[] = [];
     if (requestParams.category) {
@@ -251,17 +366,17 @@ export default function CatalogPage() {
     }
     for (const availabilityKey of AVAILABILITY_FILTER_IDS) {
       if (requestParams[availabilityKey] === 'true') {
-        chips.push({ key: availabilityKey, label: FILTER_CHIP_LABELS[availabilityKey] });
+        chips.push({ key: availabilityKey, label: filterChipLabels[availabilityKey] });
       }
     }
     if (requestParams.search) {
-      chips.push({ key: 'search', label: `Search: ${requestParams.search}` });
+      chips.push({ key: 'search', label: `${copy.searchPrefix}: ${requestParams.search}` });
     }
     if (priceRange[0] !== priceBounds[0] || priceRange[1] !== priceBounds[1]) {
       chips.push({ key: 'price', label: `${priceRange[0]} - ${priceRange[1]} ₸` });
     }
     return chips;
-  }, [priceBounds, priceRange, requestParams]);
+  }, [copy.searchPrefix, filterChipLabels, priceBounds, priceRange, requestParams]);
 
   useEffect(() => {
     setPriceRange(priceBounds);
@@ -297,7 +412,7 @@ export default function CatalogPage() {
         }
 
         setProducts([]);
-        setLoadError('failed to load catalog data. please try again.');
+        setLoadError(copy.loadErrorDescription);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -310,7 +425,7 @@ export default function CatalogPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey, requestParams]);
+  }, [copy.loadErrorDescription, reloadKey, requestParams]);
 
   const displayedProducts = useMemo(() => {
     const filtered = products.filter(
@@ -411,14 +526,14 @@ export default function CatalogPage() {
     <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
         <div className="mb-6">
-          <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'catalog' }]} />
+          <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.breadcrumb }]} />
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">catalog</h1>
+          <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">{copy.title}</h1>
           <p className="text-base text-[#6B7280]">
             {activeFilterLabel ? `${activeFilterLabel} · ` : ''}
-            {productsCount} products available
+            {copy.availableProducts(productsCount)}
           </p>
         </div>
 
@@ -441,7 +556,7 @@ export default function CatalogPage() {
               onClick={handleResetFilters}
               className="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium text-[#6B7280] transition-colors hover:text-[#111827]"
             >
-              clear all
+              {copy.resetAll}
             </button>
           </div>
         )}
@@ -456,9 +571,9 @@ export default function CatalogPage() {
           >
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="w-4 h-4" />
-              <span>{showFilters ? 'hide filters' : 'show filters'}</span>
+              <span>{showFilters ? copy.hideFilters : copy.showFilters}</span>
             </div>
-            <span className="text-xs text-[#6B7280]">{activeFilterCount} active</span>
+            <span className="text-xs text-[#6B7280]">{copy.active(activeFilterCount)}</span>
           </Button>
         </div>
 
@@ -479,16 +594,16 @@ export default function CatalogPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-[#EAE6EF]">
               <p className="text-sm text-[#6B7280]">
-                found <span className="font-semibold text-[#111827]">{productsCount}</span> products
+                <span className="font-semibold text-[#111827]">{copy.foundProducts(productsCount)}</span>
               </p>
-              <SortSelect value={sortBy} onChange={setSortBy} />
+              <SortSelect value={sortBy} onChange={setSortBy} options={sortOptions} />
             </div>
 
             {isLoading ? (
-              <LoadingSpinner size="md" text="loading products..." />
+              <LoadingSpinner size="md" text={copy.loading} />
             ) : loadError ? (
               <ErrorState
-                title="failed to load catalog"
+                title={copy.loadErrorTitle}
                 description={loadError}
                 onRetry={() => setReloadKey((value) => value + 1)}
               />
@@ -496,12 +611,12 @@ export default function CatalogPage() {
               <>
                 <ProductGrid products={displayedProducts} columns={3} />
                 <div className="flex justify-center pt-8">
-                  <Button variant="ghost">show more</Button>
+                  <Button variant="ghost">{copy.showMore}</Button>
                 </div>
               </>
             ) : (
               <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-                no products in catalog yet.
+                {copy.empty}
               </div>
             )}
           </div>

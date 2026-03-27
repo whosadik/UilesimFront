@@ -1,18 +1,22 @@
-import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "../../shared/auth/AuthContext";
-import { savePendingVerificationEmail } from "../../shared/auth/emailVerificationStorage";
-import { AlertBanner } from "../components/AlertBanner";
-import { Button } from "../components/Button";
+﻿import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { useAuth } from '../../shared/auth/AuthContext';
+import { savePendingVerificationEmail } from '../../shared/auth/emailVerificationStorage';
+import { useI18n } from '../../shared/i18n/LanguageContext';
+import { AlertBanner } from '../components/AlertBanner';
+import { Button } from '../components/Button';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { messages } = useI18n();
+  const loginMessages = messages.pages.auth.login;
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +27,7 @@ export default function LoginPage() {
     setError(null);
 
     if (!email.trim() || !password) {
-      setError("Fill in both fields.");
+      setError(loginMessages.fillBothFields);
       return;
     }
 
@@ -32,36 +36,36 @@ export default function LoginPage() {
     try {
       const { isAdmin, user } = await login(email.trim(), password);
       const state = location.state as { from?: string } | null;
-      const returnPath = typeof state?.from === "string" ? state.from : null;
+      const returnPath = typeof state?.from === 'string' ? state.from : null;
 
       if (user.email && user.email_verified === false) {
-        if (typeof user.email === "string" && user.email.trim()) {
+        if (typeof user.email === 'string' && user.email.trim()) {
           savePendingVerificationEmail(user.email);
         }
 
-        toast.info("Confirm your email before entering the account.");
-        navigate("/verify-email-pending", {
+        toast.info(loginMessages.verifyEmailToast);
+        navigate('/verify-email-pending', {
           replace: true,
-          state: { email: user.email ?? "", from: returnPath ?? "/for-you" },
+          state: { email: user.email ?? '', from: returnPath ?? '/for-you' },
         });
         return;
       }
 
       const targetPath = isAdmin
-        ? returnPath && returnPath.startsWith("/admin")
+        ? returnPath && returnPath.startsWith('/admin')
           ? returnPath
-          : "/admin"
-        : returnPath && !returnPath.startsWith("/admin")
+          : '/admin'
+        : returnPath && !returnPath.startsWith('/admin')
           ? returnPath
-          : "/for-you";
+          : '/for-you';
 
-      toast.success("Welcome back.");
+      toast.success(loginMessages.welcomeToast);
       navigate(targetPath, { replace: true });
     } catch (requestError) {
       if (requestError instanceof Error) {
         setError(requestError.message);
       } else {
-        setError("Invalid email or password.");
+        setError(loginMessages.invalidCredentials);
       }
     } finally {
       setIsLoading(false);
@@ -71,29 +75,29 @@ export default function LoginPage() {
   return (
     <div className="page-centered-with-navbar-offset flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-serif text-gray-900 mb-2">Uilesim</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-serif text-gray-900">Uilesim</h1>
+          <p className="text-gray-600">{loginMessages.title}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error ? <AlertBanner variant="error" message={error} dismissible /> : null}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">
                 Email
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Mail className="w-5 h-5" />
+                  <Mail className="h-5 w-5" />
                 </div>
                 <input
                   type="email"
                   id="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
                   placeholder="name@example.com"
                   disabled={isLoading}
                   autoComplete="email"
@@ -102,74 +106,73 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+              <label htmlFor="password" className="mb-2 block text-sm font-medium text-gray-700">
+                {loginMessages.passwordLabel}
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                  <Lock className="w-5 h-5" />
+                  <Lock className="h-5 w-5" />
                 </div>
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   id="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
-                  placeholder="Enter your password"
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-12 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  placeholder={loginMessages.passwordPlaceholder}
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(event) => setRememberMe(event.target.checked)}
-                  className="w-4 h-4 border-gray-300 rounded text-gray-900 focus:ring-2 focus:ring-gray-900"
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900"
                   disabled={isLoading}
                 />
-                <span className="text-sm text-gray-700">Remember me</span>
+                <span className="text-sm text-gray-700">{loginMessages.rememberMe}</span>
               </label>
 
               <Link
                 to="/forgot-password"
-                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-sm text-gray-600 transition-colors hover:text-gray-900"
               >
-                Forgot password?
+                {loginMessages.forgotPassword}
               </Link>
             </div>
 
             <Button type="submit" variant="primary" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? loginMessages.submitting : loginMessages.submit}
             </Button>
 
-            <div className="pt-4 border-t border-gray-100">
-              <p className="text-sm text-gray-500 text-center">
-                Use the email you registered with and your current password.
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-center text-sm text-gray-500">
+                {loginMessages.helper}
               </p>
             </div>
           </form>
         </div>
 
-        <p className="text-center text-sm text-gray-600 mt-6">
-          No account yet?{" "}
-          <Link to="/register" className="text-gray-900 font-medium hover:underline">
-            Create one
+        <p className="mt-6 text-center text-sm text-gray-600">
+          {loginMessages.noAccount}{' '}
+          <Link to="/register" className="font-medium text-gray-900 hover:underline">
+            {loginMessages.createAccount}
           </Link>
         </p>
       </div>
     </div>
   );
 }
-
