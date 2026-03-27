@@ -87,6 +87,7 @@ export default function NewArrivalsPage() {
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'new-product',
             fallbackImageUrl: FALLBACK_IMAGE_URL,
+            fallbackProductLabel: (id) => `${messages.productCard.productFallback} #${id}`,
           }),
         );
 

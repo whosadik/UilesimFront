@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { ApiError } from '../../shared/api/ApiError';
 import { createRequestId } from '../../shared/api/httpClient';
+import { useI18n } from '../../shared/i18n/LanguageContext';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
 
 export type HomeRecommendationSectionKey = 'for_you' | 'trending';
@@ -27,6 +28,12 @@ type HomeRecommendationsState = {
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
+const homeRecommendationErrors = {
+  ru: 'Не удалось загрузить рекомендации для главной страницы.',
+  kk: 'Басты беттегі ұсыныстарды жүктеу мүмкін болмады.',
+  en: 'Could not load homepage recommendations.',
+} as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -46,7 +53,10 @@ function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function mapRecommendationProduct(item: unknown): HomeRecommendationProduct | null {
+function mapRecommendationProduct(
+  item: unknown,
+  fallbackProductLabel: (id: string) => string,
+): HomeRecommendationProduct | null {
   if (!isRecord(item)) {
     return null;
   }
@@ -67,7 +77,7 @@ function mapRecommendationProduct(item: unknown): HomeRecommendationProduct | nu
       (typeof product.image === 'string' && product.image) ||
       FALLBACK_IMAGE,
     brand: typeof product.brand === 'string' ? product.brand : 'Uilesim',
-    name: typeof product.name === 'string' ? product.name : `Product #${String(product.id)}`,
+    name: typeof product.name === 'string' ? product.name : fallbackProductLabel(String(product.id)),
     price: toNumber(product.price) ?? 0,
     category: typeof product.category === 'string' ? product.category : undefined,
     inStock: product.in_stock === undefined ? true : Boolean(product.in_stock),
@@ -97,13 +107,18 @@ function extractSectionItems(response: HomeRecsResponse, sectionKey: HomeRecomme
   return [];
 }
 
-function toProducts(response: HomeRecsResponse, sectionKey: HomeRecommendationSectionKey): HomeRecommendationProduct[] {
+function toProducts(
+  response: HomeRecsResponse,
+  sectionKey: HomeRecommendationSectionKey,
+  fallbackProductLabel: (id: string) => string,
+): HomeRecommendationProduct[] {
   return extractSectionItems(response, sectionKey)
-    .map(mapRecommendationProduct)
+    .map((item) => mapRecommendationProduct(item, fallbackProductLabel))
     .filter((item): item is HomeRecommendationProduct => item !== null);
 }
 
 export function useHomeRecommendations() {
+  const { language, messages } = useI18n();
   const location = useLocation();
   const requestIdRef = useRef<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -134,9 +149,11 @@ export function useHomeRecommendations() {
           return;
         }
 
+        const fallbackProductLabel = (id: string) => `${messages.productCard.productFallback} #${id}`;
+
         setState({
-          forYouProducts: toProducts(response, 'for_you'),
-          trendingProducts: toProducts(response, 'trending'),
+          forYouProducts: toProducts(response, 'for_you', fallbackProductLabel),
+          trendingProducts: toProducts(response, 'trending', fallbackProductLabel),
           isLoading: false,
           error: null,
           requiresAuth: false,
@@ -161,10 +178,7 @@ export function useHomeRecommendations() {
           forYouProducts: [],
           trendingProducts: [],
           isLoading: false,
-          error:
-            loadError instanceof Error
-              ? loadError.message
-              : 'Failed to load homepage recommendations.',
+          error: loadError instanceof Error ? loadError.message : homeRecommendationErrors[language],
           requiresAuth: false,
         });
       }
@@ -175,7 +189,7 @@ export function useHomeRecommendations() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, retryKey]);
+  }, [language, location.pathname, messages.productCard.productFallback, retryKey]);
 
   const retry = () => {
     setRetryKey((value) => value + 1);

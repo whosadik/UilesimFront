@@ -86,6 +86,18 @@ type CartLocationState = {
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200&q=80';
 
+const localeByLanguage = {
+  ru: 'ru-RU',
+  kk: 'kk-KZ',
+  en: 'en-US',
+} as const;
+
+const tierLabels = {
+  ru: { bronze: 'Бронза', silver: 'Серебро', gold: 'Золото', platinum: 'Платина' },
+  kk: { bronze: 'Қола', silver: 'Күміс', gold: 'Алтын', platinum: 'Платина' },
+  en: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' },
+} as const;
+
 const cartPageCopy = {
   ru: {
     breadcrumb: 'Корзина',
@@ -106,10 +118,10 @@ const cartPageCopy = {
     balanceBefore: 'Баланс до',
     balanceAfter: 'Баланс после',
     redeemPoints: 'Списать баллы',
-    available: (count: number) => `Доступно: ${count.toLocaleString('ru-RU')}`,
+    available: (count: number) => `Доступно: ${count.toLocaleString(localeByLanguage.ru)}`,
     max: 'Макс.',
     willRedeem: (points: number) =>
-      `Спишем: ${points.toLocaleString('ru-RU')} баллов = ${points.toLocaleString('ru-RU')} ₸`,
+      `Спишем: ${points.toLocaleString(localeByLanguage.ru)} баллов = ${points.toLocaleString(localeByLanguage.ru)} ₸`,
     products: 'Товары',
     discount: 'Скидка',
     giftCard: 'Подарочная карта',
@@ -119,6 +131,50 @@ const cartPageCopy = {
     checkout: 'Оформить заказ',
     afterPurchase: (points: number) => `После покупки начислим +${points} баллов`,
     pointsForPurchase: (points: number) => `+${points} баллов`,
+    pointsPurchaseTitle: 'Баллы за эту покупку',
+    pointsPurchaseAfter: 'Начислим после покупки',
+    pointsNewBalance: 'Новый баланс',
+    pointsCurrentTier: 'Текущий уровень',
+    pointsTierHint: 'Уровень считается по сумме покупок за последние 90 дней, а не по балансу баллов.',
+    cartQuantityError: 'Не удалось обновить количество в корзине.',
+    cartRemoveError: 'Не удалось удалить товар из корзины.',
+    cartLoadError: 'Не удалось загрузить корзину. Попробуйте еще раз.',
+    loyaltyLoadError: 'Не удалось загрузить данные лояльности. Попробуйте еще раз.',
+    giftCardApplyErrorDefault: 'Не удалось применить подарочную карту.',
+    giftCardApplyErrorInvalid: 'Неверный код подарочной карты.',
+    giftCardApplyErrorExpired: 'Срок действия подарочной карты истек.',
+    giftCardApplyErrorEmpty: 'У этой подарочной карты уже нет остатка.',
+    giftCardApplyErrorInactive: 'Эта подарочная карта больше недоступна.',
+    giftCardApplyErrorRequired: 'Введите код подарочной карты.',
+    giftCardProfileChecking: 'Подарочная карта добавлена из профиля. Проверяем код для текущей корзины...',
+    giftCardProfilePending: 'Код подарочной карты подставлен. Добавьте товары в корзину, и карта применится автоматически.',
+    giftCardMaskedFallback: 'подарочная карта',
+    giftCardAppliedToOrder: 'Подарочная карта применена к этому заказу.',
+    giftCardChecking: 'Проверяем подарочную карту...',
+    checkoutError: 'Не удалось оформить заказ.',
+    personalOfferTitleFallback: 'Персональный оффер',
+    noPersonalOfferTitle: 'Сейчас персонального оффера нет',
+    activeOfferDiscount: (value: number) => `Активный оффер: ${value}%`,
+    activeOfferPoints: (value: number) => `Активный оффер: x${value} баллов`,
+    offerAppearsLater: 'Когда для вас появится новый оффер, он автоматически отобразится здесь.',
+    offerEstimatedBenefit: (value: number) => `Выгода по расчёту: ${value.toLocaleString(localeByLanguage.ru)} ₸`,
+    offerMinimumBasket: (value: number) => `Оффер применится к корзине от ${value.toLocaleString(localeByLanguage.ru)} ₸.`,
+    offerWholeCart: 'Оффер будет применён ко всей корзине при оформлении.',
+    offerRoadmapScope: (value: string) => `Оффер связан с вашим следующим шагом roadmap: ${value}.`,
+    offerProductScope: (value: string) => `Оффер действует на товар #${value}.`,
+    offerCategoryScope: (value: string) => `Оффер действует на категорию «${value}».`,
+    offerTypeScope: (value: string) => `Оффер действует на товары типа «${value}».`,
+    offerMatchingProducts: 'Оффер будет применён к подходящим товарам.',
+    upsellOfferProductTitle: 'Товар из персонального оффера',
+    upsellOfferProductDescription: 'Добавьте этот товар в корзину, чтобы использовать текущий оффер при оформлении.',
+    upsellWatchTitle: 'Следите за roadmap и персональными офферами',
+    upsellWatchDescription: 'Когда появится следующий рекомендованный товар, он отобразится здесь.',
+    nextRoadmapTitle: 'Следующий шаг roadmap',
+    nextRoadmapDescription: 'Откройте roadmap, чтобы посмотреть следующий шаг вашей рутины.',
+    recommendedForNextStep: (name: string) => `${name} рекомендован для следующего шага.`,
+    open: 'Открыть',
+    roadmapAction: 'Roadmap',
+    productFallback: (id: string) => `Товар #${id}`,
   },
   kk: {
     breadcrumb: 'Себет',
@@ -139,10 +195,10 @@ const cartPageCopy = {
     balanceBefore: 'Алдыңғы баланс',
     balanceAfter: 'Кейінгі баланс',
     redeemPoints: 'Ұпайларды шегеру',
-    available: (count: number) => `Қолжетімді: ${count.toLocaleString('ru-RU')}`,
+    available: (count: number) => `Қолжетімді: ${count.toLocaleString(localeByLanguage.kk)}`,
     max: 'Макс.',
     willRedeem: (points: number) =>
-      `Шегереміз: ${points.toLocaleString('ru-RU')} ұпай = ${points.toLocaleString('ru-RU')} ₸`,
+      `Шегереміз: ${points.toLocaleString(localeByLanguage.kk)} ұпай = ${points.toLocaleString(localeByLanguage.kk)} ₸`,
     products: 'Тауарлар',
     discount: 'Жеңілдік',
     giftCard: 'Сыйлық картасы',
@@ -152,6 +208,50 @@ const cartPageCopy = {
     checkout: 'Тапсырысты рәсімдеу',
     afterPurchase: (points: number) => `Сатып алғаннан кейін +${points} ұпай береміз`,
     pointsForPurchase: (points: number) => `+${points} ұпай`,
+    pointsPurchaseTitle: 'Осы сатып алуға ұпай',
+    pointsPurchaseAfter: 'Сатып алғаннан кейін есептеледі',
+    pointsNewBalance: 'Жаңа баланс',
+    pointsCurrentTier: 'Ағымдағы деңгей',
+    pointsTierHint: 'Деңгей ұпай балансына емес, соңғы 90 күндегі сатып алу сомасына қарай есептеледі.',
+    cartQuantityError: 'Себеттегі санды жаңарту мүмкін болмады.',
+    cartRemoveError: 'Тауарды себеттен өшіру мүмкін болмады.',
+    cartLoadError: 'Себетті жүктеу мүмкін болмады. Қайталап көріңіз.',
+    loyaltyLoadError: 'Адалдық деректерін жүктеу мүмкін болмады. Қайталап көріңіз.',
+    giftCardApplyErrorDefault: 'Сыйлық картасын қолдану мүмкін болмады.',
+    giftCardApplyErrorInvalid: 'Сыйлық картасының коды қате.',
+    giftCardApplyErrorExpired: 'Сыйлық картасының мерзімі өтіп кеткен.',
+    giftCardApplyErrorEmpty: 'Бұл сыйлық картасында қалдық жоқ.',
+    giftCardApplyErrorInactive: 'Бұл сыйлық картасы енді қолжетімсіз.',
+    giftCardApplyErrorRequired: 'Сыйлық картасының кодын енгізіңіз.',
+    giftCardProfileChecking: 'Сыйлық картасы профильден қосылды. Ағымдағы себет үшін кодты тексеріп жатырмыз...',
+    giftCardProfilePending: 'Сыйлық картасының коды қойылды. Тауар қосыңыз, карта автоматты түрде қолданылады.',
+    giftCardMaskedFallback: 'сыйлық картасы',
+    giftCardAppliedToOrder: 'Сыйлық картасы осы тапсырысқа қолданылды.',
+    giftCardChecking: 'Сыйлық картасын тексеріп жатырмыз...',
+    checkoutError: 'Тапсырысты рәсімдеу мүмкін болмады.',
+    personalOfferTitleFallback: 'Жеке оффер',
+    noPersonalOfferTitle: 'Қазір жеке оффер жоқ',
+    activeOfferDiscount: (value: number) => `Белсенді оффер: ${value}%`,
+    activeOfferPoints: (value: number) => `Белсенді оффер: x${value} ұпай`,
+    offerAppearsLater: 'Сізге жаңа оффер пайда болғанда, ол автоматты түрде осында шығады.',
+    offerEstimatedBenefit: (value: number) => `Есептік пайда: ${value.toLocaleString(localeByLanguage.kk)} ₸`,
+    offerMinimumBasket: (value: number) => `Оффер ${value.toLocaleString(localeByLanguage.kk)} ₸ бастап себетке қолданылады.`,
+    offerWholeCart: 'Оффер рәсімдеу кезінде бүкіл себетке қолданылады.',
+    offerRoadmapScope: (value: string) => `Оффер roadmap-тағы келесі қадамыңызбен байланысты: ${value}.`,
+    offerProductScope: (value: string) => `Оффер #${value} тауарына жарамды.`,
+    offerCategoryScope: (value: string) => `Оффер «${value}» санатына жарамды.`,
+    offerTypeScope: (value: string) => `Оффер «${value}» түріндегі тауарларға жарамды.`,
+    offerMatchingProducts: 'Оффер сәйкес тауарларға қолданылады.',
+    upsellOfferProductTitle: 'Жеке офферден тауар',
+    upsellOfferProductDescription: 'Қазіргі офферді рәсімдеуде пайдалану үшін осы тауарды себетке қосыңыз.',
+    upsellWatchTitle: 'Roadmap пен жеке офферлерді бақылаңыз',
+    upsellWatchDescription: 'Келесі ұсынылған тауар пайда болғанда, ол осында көрсетіледі.',
+    nextRoadmapTitle: 'Roadmap келесі қадамы',
+    nextRoadmapDescription: 'Рутинаңыздың келесі қадамын көру үшін roadmap-ты ашыңыз.',
+    recommendedForNextStep: (name: string) => `${name} келесі қадамға ұсынылған.`,
+    open: 'Ашу',
+    roadmapAction: 'Roadmap',
+    productFallback: (id: string) => `Тауар #${id}`,
   },
   en: {
     breadcrumb: 'Cart',
@@ -172,10 +272,10 @@ const cartPageCopy = {
     balanceBefore: 'Balance before',
     balanceAfter: 'Balance after',
     redeemPoints: 'Redeem points',
-    available: (count: number) => `Available: ${count.toLocaleString('ru-RU')}`,
+    available: (count: number) => `Available: ${count.toLocaleString(localeByLanguage.en)}`,
     max: 'Max',
     willRedeem: (points: number) =>
-      `We will redeem: ${points.toLocaleString('ru-RU')} points = ${points.toLocaleString('ru-RU')} ₸`,
+      `We will redeem: ${points.toLocaleString(localeByLanguage.en)} points = ${points.toLocaleString(localeByLanguage.en)} ₸`,
     products: 'Products',
     discount: 'Discount',
     giftCard: 'Gift card',
@@ -185,8 +285,55 @@ const cartPageCopy = {
     checkout: 'Checkout',
     afterPurchase: (points: number) => `After purchase you will earn +${points} points`,
     pointsForPurchase: (points: number) => `+${points} points`,
+    pointsPurchaseTitle: 'Points for this purchase',
+    pointsPurchaseAfter: 'Will be credited after purchase',
+    pointsNewBalance: 'New balance',
+    pointsCurrentTier: 'Current tier',
+    pointsTierHint: 'Tier is based on your purchase total over the last 90 days, not on the current points balance.',
+    cartQuantityError: 'Could not update the quantity in your cart.',
+    cartRemoveError: 'Could not remove the product from your cart.',
+    cartLoadError: 'Could not load the cart. Please try again.',
+    loyaltyLoadError: 'Could not load loyalty data. Please try again.',
+    giftCardApplyErrorDefault: 'Could not apply the gift card.',
+    giftCardApplyErrorInvalid: 'Invalid gift card code.',
+    giftCardApplyErrorExpired: 'This gift card has expired.',
+    giftCardApplyErrorEmpty: 'This gift card has no balance left.',
+    giftCardApplyErrorInactive: 'This gift card is no longer available.',
+    giftCardApplyErrorRequired: 'Enter a gift card code.',
+    giftCardProfileChecking: 'The gift card was added from your profile. Checking the code for the current cart...',
+    giftCardProfilePending: 'The gift card code has been inserted. Add products and the card will be applied automatically.',
+    giftCardMaskedFallback: 'gift card',
+    giftCardAppliedToOrder: 'The gift card was applied to this order.',
+    giftCardChecking: 'Checking gift card...',
+    checkoutError: 'Could not complete checkout.',
+    personalOfferTitleFallback: 'Personal offer',
+    noPersonalOfferTitle: 'There is no personal offer right now',
+    activeOfferDiscount: (value: number) => `Active offer: ${value}%`,
+    activeOfferPoints: (value: number) => `Active offer: x${value} points`,
+    offerAppearsLater: 'When a new offer becomes available for you, it will appear here automatically.',
+    offerEstimatedBenefit: (value: number) => `Estimated benefit: ${value.toLocaleString(localeByLanguage.en)} ₸`,
+    offerMinimumBasket: (value: number) => `The offer will apply to carts from ${value.toLocaleString(localeByLanguage.en)} ₸.`,
+    offerWholeCart: 'The offer will be applied to the whole cart during checkout.',
+    offerRoadmapScope: (value: string) => `The offer is linked to your next roadmap step: ${value}.`,
+    offerProductScope: (value: string) => `The offer applies to product #${value}.`,
+    offerCategoryScope: (value: string) => `The offer applies to the "${value}" category.`,
+    offerTypeScope: (value: string) => `The offer applies to "${value}" products.`,
+    offerMatchingProducts: 'The offer will apply to matching products.',
+    upsellOfferProductTitle: 'Product from your personal offer',
+    upsellOfferProductDescription: 'Add this product to your cart to use the current offer at checkout.',
+    upsellWatchTitle: 'Track roadmap and personal offers',
+    upsellWatchDescription: 'When the next recommended product appears, it will show up here.',
+    nextRoadmapTitle: 'Next roadmap step',
+    nextRoadmapDescription: 'Open the roadmap to see the next step in your routine.',
+    recommendedForNextStep: (name: string) => `${name} is recommended for the next step.`,
+    open: 'Open',
+    roadmapAction: 'Roadmap',
+    productFallback: (id: string) => `Product #${id}`,
   },
 } as const;
+
+type CartPageLanguage = keyof typeof cartPageCopy;
+type CartCopy = (typeof cartPageCopy)[CartPageLanguage];
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -225,36 +372,41 @@ const formatLabel = (value: unknown): string | undefined => {
   return prepared[0].toUpperCase() + prepared.slice(1);
 };
 
-const formatTierName = (value: string): string =>
-  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : 'Бронза';
+const formatTierName = (value: string, language: CartPageLanguage): string => {
+  const normalized = value.toLowerCase() as keyof typeof tierLabels.ru;
+  return tierLabels[language][normalized] ?? tierLabels[language].bronze;
+};
 
-const normalizeGiftCardErrorMessage = (message: string): string => {
+const formatMoney = (value: number, language: CartPageLanguage): string =>
+  `${Math.round(value).toLocaleString(localeByLanguage[language])} ₸`;
+
+const normalizeGiftCardErrorMessage = (message: string, copy: CartCopy): string => {
   const normalized = message.trim();
   const lower = normalized.toLowerCase();
 
   if (!normalized) {
-    return 'Не удалось применить подарочную карту.';
+    return copy.giftCardApplyErrorDefault;
   }
   if (lower.includes('not found') || lower.includes('invalid')) {
-    return 'Неверный код подарочной карты.';
+    return copy.giftCardApplyErrorInvalid;
   }
   if (lower.includes('expired')) {
-    return 'Срок действия подарочной карты истек.';
+    return copy.giftCardApplyErrorExpired;
   }
   if (lower.includes('balance is empty') || lower.includes('empty')) {
-    return 'У этой подарочной карты уже нет остатка.';
+    return copy.giftCardApplyErrorEmpty;
   }
   if (lower.includes('no longer active')) {
-    return 'Эта подарочная карта больше недоступна.';
+    return copy.giftCardApplyErrorInactive;
   }
   if (lower.includes('required')) {
-    return 'Введите код подарочной карты.';
+    return copy.giftCardApplyErrorRequired;
   }
 
   return normalized;
 };
 
-const parseActiveOffer = (value: unknown): ActiveOffer | null => {
+const parseActiveOffer = (value: unknown, fallbackName: string): ActiveOffer | null => {
   if (!isRecord(value) || !isRecord(value.offer)) {
     return null;
   }
@@ -270,9 +422,7 @@ const parseActiveOffer = (value: unknown): ActiveOffer | null => {
 
   return {
     assignmentId: assignmentId !== undefined ? Math.round(assignmentId) : undefined,
-    name:
-      (typeof offerData.name === 'string' && offerData.name.trim()) ||
-      'Персональное предложение',
+    name: (typeof offerData.name === 'string' && offerData.name.trim()) || fallbackName,
     type: typeof offerData.type === 'string' ? offerData.type : undefined,
     value: toNumber(offerData.value),
     scope,
@@ -332,7 +482,11 @@ const pickRoadmapNextStep = (
   );
 };
 
-const buildRoadmapUpsell = (plan: RoadmapPlanApi | null): UpsellSuggestion | null => {
+const buildRoadmapUpsell = (
+  plan: RoadmapPlanApi | null,
+  language: CartPageLanguage,
+  copy: CartCopy,
+): UpsellSuggestion | null => {
   const nextStep = pickRoadmapNextStep(plan);
   if (!nextStep) {
     return null;
@@ -340,17 +494,17 @@ const buildRoadmapUpsell = (plan: RoadmapPlanApi | null): UpsellSuggestion | nul
 
   const title =
     firstString(nextStep.title, formatLabel(nextStep.product_type)) ??
-    'Следующий шаг roadmap';
+    copy.nextRoadmapTitle;
   const description =
     firstString(nextStep.description) ??
-    'Откройте roadmap, чтобы посмотреть следующий шаг вашей рутины.';
+    copy.nextRoadmapDescription;
 
   if (!isRecord(nextStep.recommended_product)) {
     return {
       title,
       description,
       actionHref: '/me/roadmap',
-      actionLabel: 'Roadmap',
+      actionLabel: copy.roadmapAction,
     };
   }
 
@@ -362,20 +516,24 @@ const buildRoadmapUpsell = (plan: RoadmapPlanApi | null): UpsellSuggestion | nul
   const price = toNumber(product.price);
   const productName = firstString(product.name);
   const productDescription = productName && price !== undefined
-    ? `${productName} • ${price.toLocaleString('ru-RU')} ₸`
+    ? `${productName} • ${formatMoney(price, language)}`
     : productName
-      ? `${productName} рекомендован для следующего шага.`
+      ? copy.recommendedForNextStep(productName)
       : description;
 
   return {
     title,
     description: productDescription,
     actionHref: productId ? `/product/${productId}` : '/me/roadmap',
-    actionLabel: productId ? 'Открыть' : 'Roadmap',
+    actionLabel: productId ? copy.open : copy.roadmapAction,
   };
 };
 
-const mapApiCartItem = (item: ApiCartItem, index: number): CartItem => {
+const mapApiCartItem = (
+  item: ApiCartItem,
+  index: number,
+  fallbackProductLabel: (id: string) => string,
+): CartItem => {
   const product =
     item && typeof item.product === 'object' && item.product !== null
       ? (item.product as Record<string, unknown>)
@@ -394,7 +552,7 @@ const mapApiCartItem = (item: ApiCartItem, index: number): CartItem => {
     id,
     name:
       (typeof product.name === 'string' && product.name.trim()) ||
-      `Товар #${id}`,
+      fallbackProductLabel(id),
     brand:
       (typeof product.brand === 'string' && product.brand.trim()) ||
       'Uilesim',
@@ -456,10 +614,14 @@ function LoyaltyCartWidget({
   pointsEarned,
   currentBalance,
   tier,
+  language,
+  copy,
 }: {
   pointsEarned: number;
   currentBalance: number;
   tier: string;
+  language: CartPageLanguage;
+  copy: CartCopy;
 }) {
   const newBalance = currentBalance + pointsEarned;
 
@@ -467,28 +629,28 @@ function LoyaltyCartWidget({
     <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF]">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-        <h3 className="text-sm font-semibold text-[#111827]">Баллы за эту покупку</h3>
+        <h3 className="text-sm font-semibold text-[#111827]">{copy.pointsPurchaseTitle}</h3>
       </div>
 
       {/* Points earned */}
       <div className="flex items-center justify-between p-3 bg-[#FFE1F2] rounded-xl mb-4">
         <div>
-          <p className="text-xs text-[#6B7280] mb-0.5">Начислим после покупки</p>
-          <p className="text-lg font-bold text-[#FF4DB8]">+{pointsEarned} баллов</p>
+          <p className="text-xs text-[#6B7280] mb-0.5">{copy.pointsPurchaseAfter}</p>
+          <p className="text-lg font-bold text-[#FF4DB8]">{copy.pointsForPurchase(pointsEarned)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-[#6B7280] mb-0.5">Новый баланс</p>
+          <p className="text-xs text-[#6B7280] mb-0.5">{copy.pointsNewBalance}</p>
           <p className="text-sm font-semibold text-[#111827]">
-            {currentBalance.toLocaleString('ru-RU')} {'→'} <span className="text-[#FF4DB8]">{newBalance.toLocaleString('ru-RU')}</span>
+            {currentBalance.toLocaleString(localeByLanguage[language])} {'→'} <span className="text-[#FF4DB8]">{newBalance.toLocaleString(localeByLanguage[language])}</span>
           </p>
         </div>
       </div>
 
       <div className="rounded-xl bg-gray-50 p-3">
-        <p className="text-xs text-[#6B7280] mb-0.5">Текущий уровень</p>
-        <p className="text-sm font-semibold text-[#111827]">{formatTierName(tier)}</p>
+        <p className="text-xs text-[#6B7280] mb-0.5">{copy.pointsCurrentTier}</p>
+        <p className="text-sm font-semibold text-[#111827]">{formatTierName(tier, language)}</p>
         <p className="text-xs text-[#6B7280] mt-1">
-          Уровень считается по сумме покупок за последние 90 дней, а не по балансу баллов.
+          {copy.pointsTierHint}
         </p>
       </div>
     </div>
@@ -548,7 +710,7 @@ export default function CartPage() {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error('Не удалось обновить количество в корзине');
+      toast.error(copy.cartQuantityError);
     } finally {
       setPendingCartActionId(null);
     }
@@ -569,7 +731,7 @@ export default function CartPage() {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      toast.error('Не удалось удалить товар из корзины');
+      toast.error(copy.cartRemoveError);
     } finally {
       setPendingCartActionId(null);
     }
@@ -603,7 +765,9 @@ export default function CartPage() {
       try {
         const response = await getCart();
         const items = Array.isArray(response.items) ? response.items : [];
-        const mapped = items.map((item, index) => mapApiCartItem(item, index));
+        const mapped = items.map((item, index) =>
+          mapApiCartItem(item, index, copy.productFallback),
+        );
         if (!cancelled) {
           setCartItems(mapped);
         }
@@ -618,7 +782,7 @@ export default function CartPage() {
         }
 
         setCartItems([]);
-        setCartError('Не удалось загрузить корзину. Попробуйте еще раз.');
+        setCartError(copy.cartLoadError);
       } finally {
         if (!cancelled) {
           setIsCartLoading(false);
@@ -631,7 +795,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [cartRetryKey, location.pathname, navigate]);
+  }, [cartRetryKey, copy.cartLoadError, copy.productFallback, location.pathname, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -674,7 +838,7 @@ export default function CartPage() {
           return;
         }
       } else {
-        setActiveOffer(parseActiveOffer(offerResult.value));
+        setActiveOffer(parseActiveOffer(offerResult.value, copy.personalOfferTitleFallback));
       }
 
       if (roadmapResult.status === 'rejected') {
@@ -689,7 +853,7 @@ export default function CartPage() {
       }
 
       if (loyaltyResult.status === 'rejected' && offerResult.status === 'rejected' && roadmapResult.status === 'rejected') {
-        setMetaError('Не удалось загрузить данные лояльности. Попробуйте еще раз.');
+        setMetaError(copy.loyaltyLoadError);
       }
 
       setIsMetaLoading(false);
@@ -697,7 +861,7 @@ export default function CartPage() {
 
     loadSidebarMeta().catch(() => {
       if (!cancelled) {
-        setMetaError('Не удалось загрузить данные лояльности. Попробуйте еще раз.');
+        setMetaError(copy.loyaltyLoadError);
         setIsMetaLoading(false);
       }
     });
@@ -705,7 +869,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, metaRetryKey, navigate]);
+  }, [copy.loyaltyLoadError, copy.personalOfferTitleFallback, location.pathname, metaRetryKey, navigate]);
 
   useEffect(() => {
     setPointsToUse((value) => Math.min(value, availablePoints, maxRedeemablePoints));
@@ -720,13 +884,13 @@ export default function CartPage() {
     setAppliedGiftCardCode(pendingGiftCardCodeFromProfile);
     setGiftCardMessage(
       cartItems.length > 0
-        ? 'Подарочная карта добавлена из профиля. Проверяем код для текущей корзины...'
-        : 'Код подарочной карты подставлен. Добавьте товары в корзину, и карта применится автоматически.',
+        ? copy.giftCardProfileChecking
+        : copy.giftCardProfilePending,
     );
     setGiftCardMessageTone('info');
 
     navigate(location.pathname, { replace: true, state: null });
-  }, [cartItems.length, isCartLoading, location.pathname, navigate, pendingGiftCardCodeFromProfile]);
+  }, [cartItems.length, copy.giftCardProfileChecking, copy.giftCardProfilePending, isCartLoading, location.pathname, navigate, pendingGiftCardCodeFromProfile]);
 
   const buildCheckoutItems = () =>
     cartItems
@@ -784,7 +948,7 @@ export default function CartPage() {
           giftCard: giftCard
             ? {
                 maskedCode:
-                  typeof giftCard.masked_code === 'string' ? giftCard.masked_code : 'подарочная карта',
+                  typeof giftCard.masked_code === 'string' ? giftCard.masked_code : copy.giftCardMaskedFallback,
                 balanceBefore: Math.max(0, Math.round(toNumber(giftCard.balance_before) ?? 0)),
                 balanceAfter: Math.max(0, Math.round(toNumber(giftCard.balance_after) ?? 0)),
               }
@@ -794,7 +958,7 @@ export default function CartPage() {
           pointsEarned: Math.max(0, Math.round(earned)),
         });
         if (giftCard) {
-          setGiftCardMessage('Подарочная карта применена к этому заказу.');
+          setGiftCardMessage(copy.giftCardAppliedToOrder);
           setGiftCardMessageTone('success');
         } else if (!appliedGiftCardCode && giftCardMessageTone !== 'error') {
           setGiftCardMessage(null);
@@ -816,7 +980,7 @@ export default function CartPage() {
           appliedGiftCardCode &&
           /gift card/i.test(error.message)
         ) {
-          setGiftCardMessage(normalizeGiftCardErrorMessage(error.message));
+          setGiftCardMessage(normalizeGiftCardErrorMessage(error.message, copy));
           setGiftCardMessageTone('error');
           setAppliedGiftCardCode(null);
           return;
@@ -831,17 +995,17 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeOffer?.assignmentId, appliedGiftCardCode, cartItems, discount, giftCardMessageTone, location.pathname, navigate, offerApplicable, pointsToUse, subtotal, total, totalPointsEarned]);
+  }, [activeOffer?.assignmentId, appliedGiftCardCode, cartItems, copy, discount, giftCardMessageTone, location.pathname, navigate, offerApplicable, pointsToUse, subtotal, total, totalPointsEarned]);
 
   const handleApplyGiftCard = () => {
     const trimmedCode = giftCardCodeInput.trim().toUpperCase();
     if (!trimmedCode) {
-      setGiftCardMessage('Введите код подарочной карты.');
+      setGiftCardMessage(copy.giftCardApplyErrorRequired);
       setGiftCardMessageTone('error');
       return;
     }
     setGiftCardCodeInput(trimmedCode);
-    setGiftCardMessage('Проверяем подарочную карту...');
+    setGiftCardMessage(copy.giftCardChecking);
     setGiftCardMessageTone('info');
     setAppliedGiftCardCode(trimmedCode);
   };
@@ -895,60 +1059,64 @@ export default function CartPage() {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Не удалось оформить заказ');
+        toast.error(copy.checkoutError);
       }
     } finally {
       setIsCheckingOut(false);
     }
   };
 
-  const fallbackOfferTitle = 'Персональный оффер';
-  const roadmapUpsell = buildRoadmapUpsell(roadmapPlan);
+  const fallbackOfferTitle = copy.personalOfferTitleFallback;
+  const roadmapUpsell = buildRoadmapUpsell(roadmapPlan, language, copy);
   const offerScopedLabel =
-    formatLabel(activeOffer?.targetProductType) ??
-    formatLabel(activeOffer?.targetCategory);
+    (activeOffer?.targetCategory
+      ? messages.catalog.categories[
+          activeOffer.targetCategory as keyof typeof messages.catalog.categories
+        ] ?? formatLabel(activeOffer.targetCategory)
+      : undefined) ??
+    formatLabel(activeOffer?.targetProductType);
   const offerTitle =
     !activeOffer
-      ? 'Сейчас персонального оффера нет'
+      ? copy.noPersonalOfferTitle
       : activeOffer.type === 'discount' && activeOffer.value !== undefined
-      ? `Активный оффер: ${activeOffer.value}%`
+      ? copy.activeOfferDiscount(activeOffer.value)
       : activeOffer.type === 'points_multiplier' && activeOffer.value !== undefined
-        ? `Активный оффер: x${activeOffer.value} баллов`
+        ? copy.activeOfferPoints(activeOffer.value)
       : activeOffer.name || fallbackOfferTitle;
 
   const offerDescription =
     !activeOffer
-      ? 'Когда для вас появится новый оффер, он автоматически отобразится здесь.'
+      ? copy.offerAppearsLater
       : summaryDiscount > 0 && offerApplicable
-      ? `Выгода по расчёту: ${summaryDiscount.toLocaleString('ru-RU')} ₸`
+      ? copy.offerEstimatedBenefit(summaryDiscount)
       : activeOffer.scope === 'cart' && activeOffer.minBasketAmount !== undefined
-        ? `Оффер применится к корзине от ${activeOffer.minBasketAmount.toLocaleString('ru-RU')} ₸.`
+        ? copy.offerMinimumBasket(activeOffer.minBasketAmount)
         : activeOffer.scope === 'cart'
-          ? 'Оффер будет применён ко всей корзине при оформлении.'
+          ? copy.offerWholeCart
           : activeOffer.scope === 'product_id' && roadmapUpsell
-            ? `Оффер связан с вашим следующим шагом roadmap: ${roadmapUpsell.title}.`
+            ? copy.offerRoadmapScope(roadmapUpsell.title)
             : activeOffer.scope === 'product_id' && activeOffer.targetValue
-              ? `Оффер действует на товар #${activeOffer.targetValue}.`
+              ? copy.offerProductScope(activeOffer.targetValue)
               : activeOffer.scope === 'category' && offerScopedLabel
-                ? `Оффер действует на категорию «${offerScopedLabel}».`
+                ? copy.offerCategoryScope(offerScopedLabel)
                 : activeOffer.scope === 'product_type' && offerScopedLabel
-                  ? `Оффер действует на товары типа «${offerScopedLabel}».`
-                  : 'Оффер будет применён к подходящим товарам.';
+                  ? copy.offerTypeScope(offerScopedLabel)
+                  : copy.offerMatchingProducts;
 
   const upsellSuggestion: UpsellSuggestion =
     roadmapUpsell ??
     (activeOffer?.targetProductId
       ? {
-          title: activeOffer.name || 'Товар из персонального оффера',
-          description: 'Добавьте этот товар в корзину, чтобы использовать текущий оффер при оформлении.',
+          title: activeOffer.name || copy.upsellOfferProductTitle,
+          description: copy.upsellOfferProductDescription,
           actionHref: `/product/${activeOffer.targetProductId}`,
-          actionLabel: 'Открыть',
+          actionLabel: copy.open,
         }
       : {
-          title: 'Следите за roadmap и персональными офферами',
-          description: 'Когда появится следующий рекомендованный товар, он отобразится здесь.',
+          title: copy.upsellWatchTitle,
+          description: copy.upsellWatchDescription,
           actionHref: '/me/roadmap',
-          actionLabel: 'Roadmap',
+          actionLabel: copy.roadmapAction,
         });
 
   return (
@@ -1002,7 +1170,7 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[#6B7280] mb-0.5">{item.brand}</p>
                     <h3 className="text-sm font-semibold text-[#111827] mb-2 line-clamp-1">{item.name}</h3>
-                    <p className="text-base font-bold text-[#111827]">{item.price.toLocaleString('ru-RU')} ₸</p>
+                    <p className="text-base font-bold text-[#111827]">{formatMoney(item.price, language)}</p>
                     <p className="text-xs text-[#FF4DB8] mt-1 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       {copy.pointsForPurchase(item.pointsEarned * item.quantity)}
@@ -1097,7 +1265,7 @@ export default function CartPage() {
                   </div>
                   {previewTotals?.giftCard && (
                     <span className="text-xs font-medium text-[#FF4DB8]">
-                      -{summaryGiftCardApplied.toLocaleString('ru-RU')} ₸
+                      -{formatMoney(summaryGiftCardApplied, language)}
                     </span>
                   )}
                 </div>
@@ -1157,11 +1325,11 @@ export default function CartPage() {
                     </div>
                     <div className="flex justify-between gap-3">
                       <span>{copy.balanceBefore}</span>
-                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceBefore.toLocaleString('ru-RU')} ₸</span>
+                      <span className="font-medium text-[#111827]">{formatMoney(previewTotals.giftCard.balanceBefore, language)}</span>
                     </div>
                     <div className="flex justify-between gap-3">
                       <span>{copy.balanceAfter}</span>
-                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.balanceAfter.toLocaleString('ru-RU')} ₸</span>
+                      <span className="font-medium text-[#111827]">{formatMoney(previewTotals.giftCard.balanceAfter, language)}</span>
                     </div>
                   </div>
                 )}
@@ -1172,6 +1340,8 @@ export default function CartPage() {
                 pointsEarned={summaryPointsEarned}
                 currentBalance={availablePoints}
                 tier={currentTier}
+                language={language}
+                copy={copy}
               />
 
               {/* Use Points */}
@@ -1209,12 +1379,12 @@ export default function CartPage() {
               <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF] space-y-2.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">{copy.products}</span>
-                  <span className="font-semibold text-[#111827]">{summarySubtotal.toLocaleString('ru-RU')} ₸</span>
+                  <span className="font-semibold text-[#111827]">{formatMoney(summarySubtotal, language)}</span>
                 </div>
                 {summaryDiscount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">{copy.discount}</span>
-                    <span className="font-semibold text-[#FF4DB8]">-{summaryDiscount.toLocaleString('ru-RU')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">-{formatMoney(summaryDiscount, language)}</span>
                   </div>
                 )}
                 {summaryGiftCardApplied > 0 && (
@@ -1222,18 +1392,18 @@ export default function CartPage() {
                     <span className="text-[#6B7280]">
                       {copy.giftCard}{previewTotals?.giftCard?.maskedCode ? ` (${previewTotals.giftCard.maskedCode})` : ''}
                     </span>
-                    <span className="font-semibold text-[#FF4DB8]">-{summaryGiftCardApplied.toLocaleString('ru-RU')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">-{formatMoney(summaryGiftCardApplied, language)}</span>
                   </div>
                 )}
                 {summaryPointsRedeemed > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-[#6B7280]">{copy.pointsRedeemed}</span>
-                    <span className="font-semibold text-[#FF4DB8]">-{summaryPointsRedeemed.toLocaleString('ru-RU')} ₸</span>
+                    <span className="font-semibold text-[#FF4DB8]">-{formatMoney(summaryPointsRedeemed, language)}</span>
                   </div>
                 )}
                 <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">
                   <span className="text-base font-semibold text-[#111827]">{copy.total}</span>
-                  <span className="text-2xl font-bold text-[#111827]">{Math.max(0, summaryTotal).toLocaleString('ru-RU')} ₸</span>
+                  <span className="text-2xl font-bold text-[#111827]">{formatMoney(Math.max(0, summaryTotal), language)}</span>
                 </div>
               </div>
 

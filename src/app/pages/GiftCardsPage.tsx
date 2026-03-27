@@ -18,6 +18,12 @@ const GIFT_CARD_OPTIONS = [
   { value: 10000, label: '10 000 ₸' },
 ];
 
+const localeByLanguage = {
+  ru: 'ru-RU',
+  kk: 'kk-KZ',
+  en: 'en-US',
+} as const;
+
 const EMAIL_PATTERN = /\S+@\S+\.\S+/;
 
 const giftCardsPageCopy = {
@@ -280,7 +286,7 @@ export default function GiftCardsPage() {
 
             <div className="rounded-2xl bg-[#111827] p-6 text-white">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/60">{copy.currentChoice}</p>
-              <p className="mb-2 text-4xl font-bold">{selectedValue.toLocaleString('ru-RU')} ₸</p>
+              <p className="mb-2 text-4xl font-bold">{selectedValue.toLocaleString(localeByLanguage[language])} ₸</p>
               <p className="text-sm text-white/70">
                 {copy.choiceDescription}
               </p>
@@ -307,7 +313,7 @@ export default function GiftCardsPage() {
                   <div className="flex justify-between gap-3">
                     <span className="text-[#6B7280]">{copy.balance}</span>
                     <span className="font-semibold text-[#111827]">
-                      {Number(snapshot.remaining_amount).toLocaleString('ru-RU')} ₸
+                      {Number(snapshot.remaining_amount).toLocaleString(localeByLanguage[language])} ₸
                     </span>
                   </div>
                   <div className="flex justify-between gap-3">

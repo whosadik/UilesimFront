@@ -41,9 +41,13 @@ function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function mapApiProduct(item: ApiProduct, index: number): CarouselProduct {
+function mapApiProduct(
+  item: ApiProduct,
+  index: number,
+  fallbackProductPrefix: string,
+): CarouselProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `product-${index}`;
-  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `product #${id}`;
+  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `${fallbackProductPrefix} #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
   const originalPrice = toNumber(item.original_price);
@@ -84,6 +88,7 @@ function toResults(payload: CarouselProduct[] | ProductListResponse): ApiProduct
 
 export function NewArrivalsSection() {
   const { messages } = useI18n();
+  const fallbackProductPrefix = messages.productCard.productFallback;
   const [products, setProducts] = useState<CarouselProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +103,9 @@ export function NewArrivalsSection() {
 
       try {
         const response = await listProducts({ new: true, page: 1, page_size: NEW_ARRIVALS_LIMIT });
-        const mapped = toResults(response).map((item, index) => mapApiProduct(item, index));
+        const mapped = toResults(response).map((item, index) =>
+          mapApiProduct(item, index, fallbackProductPrefix),
+        );
 
         if (!cancelled) {
           setProducts(mapped);
@@ -127,7 +134,7 @@ export function NewArrivalsSection() {
     return () => {
       cancelled = true;
     };
-  }, [messages.home.newArrivals.errorTitle, retryKey]);
+  }, [fallbackProductPrefix, messages.home.newArrivals.errorTitle, retryKey]);
 
   return (
     <section className="py-12">

@@ -1,5 +1,6 @@
 import { AlertCircle, AlertTriangle, Info, CheckCircle, X } from "lucide-react";
 import { useState } from "react";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 
 export type AlertVariant = "info" | "success" | "warning" | "error";
 
@@ -21,6 +22,8 @@ export function AlertBanner({
   dismissible = false,
   action,
 }: AlertBannerProps) {
+  const { language } = useI18n();
+  const closeLabel = language === "kk" ? "Жабу" : language === "en" ? "Close" : "Закрыть";
   const [isVisible, setIsVisible] = useState(true);
 
   if (!isVisible) return null;
@@ -67,26 +70,20 @@ export function AlertBanner({
   return (
     <div className={`flex items-start gap-3 p-4 rounded-lg border ${getStyles()}`}>
       <div className={`flex-shrink-0 ${getIconColor()}`}>{getIcon()}</div>
-
       <div className="flex-1 min-w-0">
         {title && <p className="font-semibold mb-1">{title}</p>}
         <p className={`text-sm ${title ? "" : "leading-5"}`}>{message}</p>
-
         {action && (
-          <button
-            onClick={action.onClick}
-            className="mt-2 text-sm font-medium underline hover:no-underline"
-          >
+          <button onClick={action.onClick} className="mt-2 text-sm font-medium underline hover:no-underline">
             {action.label}
           </button>
         )}
       </div>
-
       {dismissible && (
         <button
           onClick={() => setIsVisible(false)}
           className="flex-shrink-0 p-1 hover:bg-black/5 rounded transition-colors"
-          aria-label="Закрыть"
+          aria-label={closeLabel}
         >
           <X className="w-4 h-4" />
         </button>

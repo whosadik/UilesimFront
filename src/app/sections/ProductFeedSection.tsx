@@ -28,9 +28,13 @@ function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function mapApiProduct(item: ApiProduct, index: number): Product {
+function mapApiProduct(
+  item: ApiProduct,
+  index: number,
+  fallbackProductPrefix: string,
+): Product {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `product-${index}`;
-  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `product #${id}`;
+  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `${fallbackProductPrefix} #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
   const originalPrice = toNumber(item.original_price);
@@ -76,6 +80,7 @@ function toPagedPayload(payload: Product[] | ProductListResponse): ProductListRe
 
 export function ProductFeedSection() {
   const { messages } = useI18n();
+  const fallbackProductPrefix = messages.productCard.productFallback;
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [nextPage, setNextPage] = useState<number | null>(null);
@@ -94,7 +99,9 @@ export function ProductFeedSection() {
       try {
         const response = await listProducts({ page: 1, page_size: PRODUCT_FEED_PAGE_SIZE });
         const payload = toPagedPayload(response);
-        const mapped = payload.results.map((item, index) => mapApiProduct(item as ApiProduct, index));
+        const mapped = payload.results.map((item, index) =>
+          mapApiProduct(item as ApiProduct, index, fallbackProductPrefix),
+        );
 
         if (!cancelled) {
           setProducts(mapped);
@@ -129,7 +136,7 @@ export function ProductFeedSection() {
     return () => {
       cancelled = true;
     };
-  }, [messages.home.productFeed.errorTitle, retryKey]);
+  }, [fallbackProductPrefix, messages.home.productFeed.errorTitle, retryKey]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || nextPage === null) {
@@ -143,7 +150,7 @@ export function ProductFeedSection() {
       const payload = toPagedPayload(response);
       const currentLength = products.length;
       const mapped = payload.results.map((item, index) =>
-        mapApiProduct(item as ApiProduct, currentLength + index),
+        mapApiProduct(item as ApiProduct, currentLength + index, fallbackProductPrefix),
       );
 
       setProducts((current) => [...current, ...mapped]);

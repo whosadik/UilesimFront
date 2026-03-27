@@ -30,7 +30,7 @@ import {
 } from '../../shared/api/roadmap';
 import {
   DEFAULT_ROADMAP_STEP_META,
-  ROADMAP_CATEGORY_LABELS,
+  getRoadmapCategoryLabel,
   getRoadmapStepMeta,
 } from '../../shared/roadmap/presentation';
 import {
@@ -603,10 +603,10 @@ const normalizeRoadmapCategory = (value: unknown): string | undefined => {
   return ROADMAP_CATEGORIES.has(normalized) ? normalized : undefined;
 };
 
-const formatCategoryLabel = (value: unknown): string | undefined => {
+const formatCategoryLabel = (value: unknown, language: 'ru' | 'kk' | 'en'): string | undefined => {
   const normalized = normalizeRoadmapCategory(value);
   if (normalized) {
-    return ROADMAP_CATEGORY_LABELS[normalized] ?? normalized;
+    return getRoadmapCategoryLabel(normalized, language);
   }
 
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -692,6 +692,7 @@ const buildFallbackRoadmapOverview = (copy: ForYouCopy): RoadmapOverview => ({
 const buildPersonalOfferCard = (
   value: Record<string, unknown>,
   copy: ForYouCopy,
+  language: 'ru' | 'kk' | 'en',
 ): PersonalOfferCard | null => {
   const offer = isRecord(value.offer) ? value.offer : null;
   if (!offer) {
@@ -705,7 +706,7 @@ const buildPersonalOfferCard = (
   const offerName = firstString(offer.name);
   const offerValue = toNumber(offer.value);
   const assignmentId = toNumber(value.assignment_id);
-  const categoryLabel = formatCategoryLabel(target.category);
+  const categoryLabel = formatCategoryLabel(target.category, language);
   const productTypeLabel = formatProductTypeLabel(target.product_type);
   const scope = firstString(target.scope);
   const minBasketAmount = toNumber(
@@ -816,7 +817,11 @@ const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapLikeStep | null => {
   return fallbackStep && isRecord(fallbackStep) ? (fallbackStep as RoadmapStepApi) : null;
 };
 
-const buildRoadmapOverview = (plan: RoadmapPlanApi | null, copy: ForYouCopy): RoadmapOverview | null => {
+const buildRoadmapOverview = (
+  plan: RoadmapPlanApi | null,
+  copy: ForYouCopy,
+  language: AppLanguage,
+): RoadmapOverview | null => {
   if (!plan) {
     return null;
   }
@@ -853,7 +858,7 @@ const buildRoadmapOverview = (plan: RoadmapPlanApi | null, copy: ForYouCopy): Ro
   const currentProductType = firstString(nextStep?.product_type);
   const nextStepPresentation = getRoadmapStepPresentationPayload(nextStep?.presentation);
   const fallbackStepMeta = currentProductType
-    ? getRoadmapStepMeta(currentProductType)
+    ? getRoadmapStepMeta(currentProductType, language)
     : DEFAULT_ROADMAP_STEP_META;
   const stepMeta = {
     points: toNumber(nextStepPresentation?.points) ?? fallbackStepMeta.points,
@@ -1099,6 +1104,7 @@ const buildRecommendationWhy = (
   product: Record<string, unknown>,
   section: string,
   copy: ForYouCopy,
+  language: 'ru' | 'kk' | 'en',
 ): string => {
   const whySource = source.why;
   const whyList = Array.isArray(whySource)
@@ -1145,6 +1151,7 @@ const buildRecommendationImprovement = (
   source: Record<string, unknown>,
   product: Record<string, unknown>,
   copy: ForYouCopy,
+  language: 'ru' | 'kk' | 'en',
 ): string => {
   if (typeof source.whatImproves === 'string' && source.whatImproves.trim().length > 0) {
     return source.whatImproves.trim();
@@ -1165,7 +1172,7 @@ const buildRecommendationImprovement = (
     return productTypeLabel;
   }
 
-  const categoryLabel = formatCategoryLabel(product.category);
+  const categoryLabel = formatCategoryLabel(product.category, language);
   return categoryLabel ?? copy.underYourProfile;
 };
 
@@ -1204,6 +1211,7 @@ const normalizeRec = (
   index: number,
   sectionKey: string | undefined,
   copy: ForYouCopy,
+  language: 'ru' | 'kk' | 'en',
 ): RecommendationCard => {
   const source = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
   const product = (
@@ -1219,7 +1227,7 @@ const normalizeRec = (
   const pointsEarned =
     toNumber(product.points_earned ?? source.points_earned ?? source.pointsEarned) ??
     Math.max(0, Math.round(price * 0.1));
-  const whyRecommended = buildRecommendationWhy(source, product, section, copy);
+  const whyRecommended = buildRecommendationWhy(source, product, section, copy, language);
 
   return {
     id,
@@ -1243,7 +1251,7 @@ const normalizeRec = (
     pointsEarned: Math.max(0, Math.round(pointsEarned)),
     recommendationScore: Math.max(0, Math.min(100, Math.round(score))),
     whyRecommended,
-    whatImproves: buildRecommendationImprovement(source, product, copy),
+    whatImproves: buildRecommendationImprovement(source, product, copy, language),
     expectedBenefit: buildRecommendationBenefit(source, product, section, copy),
     section,
   };
@@ -1734,11 +1742,11 @@ export default function ForYouPage() {
   const [onboardingInitialSkinType, setOnboardingInitialSkinType] = useState('');
   const [onboardingInitialGoals, setOnboardingInitialGoals] = useState<string[]>([]);
   const recommendationRequestIdRef = useRef<string | null>(null);
-  const resolvedProfileTaxonomy = resolveProfileTaxonomy(profileTaxonomy);
+  const resolvedProfileTaxonomy = resolveProfileTaxonomy(profileTaxonomy, language);
   const skinTypeOptions = getProfileOptionLabels(resolvedProfileTaxonomy.skin_types);
   const goalOptions = getProfileOptionLabels(resolvedProfileTaxonomy.goals);
 
-  const roadmapOverview = buildRoadmapOverview(roadmapPlan, copy) ?? buildFallbackRoadmapOverview(copy);
+  const roadmapOverview = buildRoadmapOverview(roadmapPlan, copy, language) ?? buildFallbackRoadmapOverview(copy);
   const roadmapHeading = roadmapOverview.totalSteps > 0
     ? `${copy.stepLabel(Math.min(roadmapOverview.currentStepIndex, roadmapOverview.totalSteps))} / ${roadmapOverview.totalSteps}: ${roadmapOverview.nextStepTitle}`
     : roadmapOverview.nextStepTitle;
@@ -1809,6 +1817,7 @@ export default function ForYouPage() {
 
         const activeProfileTaxonomy = resolveProfileTaxonomy(
           profileTaxonomyResult.status === 'fulfilled' ? profileTaxonomyResult.value : null,
+          language,
         );
         setProfileTaxonomy(activeProfileTaxonomy);
 
@@ -1853,7 +1862,7 @@ export default function ForYouPage() {
         const homeResponse = homeResult.status === 'fulfilled' ? homeResult.value : null;
         const normalized = homeResponse
           ? extractHomeResults(homeResponse).map(({ item, sectionKey }, index) =>
-              normalizeRec(item, index, sectionKey, copy),
+              normalizeRec(item, index, sectionKey, copy, language),
             )
           : [];
 
@@ -1889,7 +1898,7 @@ export default function ForYouPage() {
 
         setPersonalOffer(
           effectiveOffer && isRecord(effectiveOffer)
-            ? buildPersonalOfferCard(effectiveOffer, copy)
+            ? buildPersonalOfferCard(effectiveOffer, copy, language)
             : null,
         );
 

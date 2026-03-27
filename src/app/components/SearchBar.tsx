@@ -1,5 +1,6 @@
-import { Search, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 
 interface SearchBarProps {
   value?: string;
@@ -18,13 +19,17 @@ export function SearchBar({
   onChange,
   onSearch,
   onDebouncedSearch,
-  placeholder = 'Поиск...',
-  className = '',
+  placeholder,
+  className = "",
   debounceMs = 350,
   loading = false,
   disabled = false,
 }: SearchBarProps) {
-  const [internalValue, setInternalValue] = useState('');
+  const { language } = useI18n();
+  const resolvedPlaceholder =
+    placeholder ??
+    (language === "kk" ? "Іздеу..." : language === "en" ? "Search..." : "Поиск...");
+  const [internalValue, setInternalValue] = useState("");
   const value = controlledValue !== undefined ? controlledValue : internalValue;
 
   useEffect(() => {
@@ -47,9 +52,9 @@ export function SearchBar({
   };
 
   const handleClear = () => {
-    handleChange('');
-    onSearch?.('');
-    onDebouncedSearch?.('');
+    handleChange("");
+    onSearch?.("");
+    onDebouncedSearch?.("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -65,7 +70,7 @@ export function SearchBar({
         value={value}
         disabled={disabled}
         onChange={(e) => handleChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         className="w-full pl-12 pr-12 py-3 rounded-xl border border-[#EAE6EF] bg-white text-sm text-[#111827] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20 focus:border-[#FF4DB8] transition-all disabled:bg-gray-100 disabled:text-[#6B7280] disabled:cursor-not-allowed"
       />
       {value && !loading && !disabled && (

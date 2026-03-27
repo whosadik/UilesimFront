@@ -81,10 +81,10 @@ export default function PromotionsPage() {
 
       try {
         const offers = await listMyOffers();
-        let mapped = mapOfferPayloadsToPromotions(offers);
+        let mapped = mapOfferPayloadsToPromotions(offers, language);
 
         if (mapped.length === 0) {
-          mapped = mapOfferPayloadsToPromotions(await nextOffer());
+          mapped = mapOfferPayloadsToPromotions(await nextOffer(), language);
         }
 
         if (!cancelled) {
@@ -115,7 +115,7 @@ export default function PromotionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [copy.loadError, reloadKey]);
+  }, [copy.loadError, language, reloadKey]);
 
   const filteredPromotions = useMemo(
     () => promotions.filter((promo) => filter === 'all' || promo.type === filter),

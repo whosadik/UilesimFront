@@ -52,9 +52,13 @@ function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function mapApiProduct(item: ApiProduct, index: number): BrandProduct {
+function mapApiProduct(
+  item: ApiProduct,
+  index: number,
+  fallbackProductPrefix: string,
+): BrandProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `product-${index}`;
-  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `product #${id}`;
+  const name = typeof item.name === 'string' && item.name.trim() ? item.name : `${fallbackProductPrefix} #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
   const originalPrice = toNumber(item.original_price);
@@ -98,6 +102,7 @@ function extractItems(payload: unknown): ApiProduct[] {
 export function BrandSpotlightSection() {
   const navigate = useNavigate();
   const { messages } = useI18n();
+  const fallbackProductPrefix = messages.productCard.productFallback;
   const [brandData, setBrandData] = useState<BrandData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,7 +144,7 @@ export function BrandSpotlightSection() {
           saleProductsCount: brandDetail.sale_products_count,
           products: extractItems(productsResponse)
             .slice(0, 4)
-            .map((item, index) => mapApiProduct(item, index)),
+            .map((item, index) => mapApiProduct(item, index, fallbackProductPrefix)),
         });
       } catch (loadError) {
         if (cancelled) {
@@ -165,7 +170,7 @@ export function BrandSpotlightSection() {
     return () => {
       cancelled = true;
     };
-  }, [messages.home.brandSpotlight.errorTitle, navigate, retryKey]);
+  }, [fallbackProductPrefix, messages.home.brandSpotlight.errorTitle, retryKey]);
 
   if (error) {
     return (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Clock } from "lucide-react";
 import { getTimeRemaining } from "../utils/formatters";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 
 interface CountdownTimerProps {
   expiryDate: Date | string;
@@ -8,15 +9,17 @@ interface CountdownTimerProps {
   variant?: "normal" | "compact";
 }
 
-/**
- * Countdown timer component for offers
- * Shows warning state when < 1 hour remaining (not aggressive red, subtle accent)
- */
 export function CountdownTimer({
   expiryDate,
   onExpire,
   variant = "normal",
 }: CountdownTimerProps) {
+  const { language } = useI18n();
+  const copy = language === "kk"
+    ? { expired: "Аяқталды", expiresIn: "Аяқталуына", min: "мин", hour: "сағ", day: "күн" }
+    : language === "en"
+      ? { expired: "Expired", expiresIn: "Expires in", min: "min", hour: "h", day: "d" }
+      : { expired: "Истекло", expiresIn: "Истекает через", min: "мин", hour: "ч", day: "дн" };
   const [timeLeft, setTimeLeft] = useState(getTimeRemaining(expiryDate));
 
   useEffect(() => {
@@ -28,7 +31,7 @@ export function CountdownTimer({
         onExpire();
         clearInterval(interval);
       }
-    }, 60000); // Update every minute
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [expiryDate, onExpire]);
@@ -37,7 +40,7 @@ export function CountdownTimer({
     return (
       <div className="text-sm text-gray-500 flex items-center gap-1">
         <Clock className="w-4 h-4" />
-        <span>Истекло</span>
+        <span>{copy.expired}</span>
       </div>
     );
   }
@@ -46,46 +49,28 @@ export function CountdownTimer({
 
   if (variant === "compact") {
     return (
-      <div
-        className={`text-sm flex items-center gap-1 ${
-          isWarning ? "text-pink-500" : "text-gray-600"
-        }`}
-      >
+      <div className={`text-sm flex items-center gap-1 ${isWarning ? "text-pink-500" : "text-gray-600"}`}>
         <Clock className="w-4 h-4" />
-        <span>
-          {timeLeft.hours}ч {timeLeft.minutes}м
-        </span>
+        <span>{timeLeft.hours}{copy.hour} {timeLeft.minutes}{copy.min}</span>
       </div>
     );
   }
 
   return (
-    <div
-      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
-        isWarning
-          ? "bg-pink-50 text-pink-500 border border-pink-100"
-          : "bg-gray-50 text-gray-600 border border-gray-200"
-      }`}
-    >
+    <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${isWarning ? "bg-pink-50 text-pink-500 border border-pink-100" : "bg-gray-50 text-gray-600 border border-gray-200"}`}>
       <Clock className="w-4 h-4" />
       <span>
         {isWarning ? (
           <>
-            Истекает через <span className="font-semibold">{timeLeft.minutes} мин</span>
+            {copy.expiresIn} <span className="font-semibold">{timeLeft.minutes} {copy.min}</span>
           </>
         ) : timeLeft.hours < 24 ? (
           <>
-            Истекает через{" "}
-            <span className="font-semibold">
-              {timeLeft.hours} ч {timeLeft.minutes} мин
-            </span>
+            {copy.expiresIn} <span className="font-semibold">{timeLeft.hours} {copy.hour} {timeLeft.minutes} {copy.min}</span>
           </>
         ) : (
           <>
-            Истекает через{" "}
-            <span className="font-semibold">
-              {Math.floor(timeLeft.hours / 24)} дн
-            </span>
+            {copy.expiresIn} <span className="font-semibold">{Math.floor(timeLeft.hours / 24)} {copy.day}</span>
           </>
         )}
       </span>

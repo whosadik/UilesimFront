@@ -26,6 +26,7 @@ import {
   getRoadmapStepMeta,
   getRoadmapStepPresentation,
   mapRoadmapStatusToUiStatus,
+  type RoadmapLanguage,
 } from "../../shared/roadmap/presentation";
 
 type UiRoadmapStep = RoadmapStep & {
@@ -205,7 +206,7 @@ function getStepPresentation(value: unknown): RoadmapStepPresentationApi | null 
   return isRecord(value) ? (value as RoadmapStepPresentationApi) : null;
 }
 
-function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
+function buildUiSteps(plan: RoadmapPlanApi, language: RoadmapLanguage): UiRoadmapStep[] {
   const rawSteps = Array.isArray(plan.steps) ? plan.steps : [];
   const summary = isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : undefined;
   const nextStep = summary && isRecord(summary.next_step) ? summary.next_step : undefined;
@@ -259,7 +260,7 @@ function buildUiSteps(plan: RoadmapPlanApi): UiRoadmapStep[] {
       recommendedProduct?.image_urls,
     );
     const productPrice = toNumber(recommendedProduct?.price);
-    const fallbackPresentation = getRoadmapStepPresentation(productType);
+    const fallbackPresentation = getRoadmapStepPresentation(productType, language);
 
     return {
       id: apiStepId !== undefined ? String(apiStepId) : `step-${index + 1}`,
@@ -314,7 +315,7 @@ export default function RoadmapPage() {
   const [planCategory, setPlanCategory] = useState<string | null>(null);
 
   const applyPlan = (plan: RoadmapPlanApi) => {
-    setSteps(buildUiSteps(plan));
+    setSteps(buildUiSteps(plan, language));
     setSummary(isRecord(plan.summary) ? (plan.summary as RoadmapSummaryApi) : null);
     setPlanCategory(typeof plan.category === "string" && plan.category ? plan.category : null);
   };
@@ -358,7 +359,7 @@ export default function RoadmapPage() {
     return () => {
       cancelled = true;
     };
-  }, [copy.loadError, location.pathname, navigate, retryKey]);
+  }, [copy.loadError, language, location.pathname, navigate, retryKey]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -456,10 +457,10 @@ export default function RoadmapPage() {
   const totalPointsAvailable = useMemo(
     () =>
       steps.reduce((sum, step) => {
-        const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
-        return sum + (step.stepPoints ?? meta.points);
+        const localizedMeta = getRoadmapStepMeta(step.productType, language) ?? DEFAULT_ROADMAP_STEP_META;
+        return sum + (step.stepPoints ?? localizedMeta.points);
       }, 0),
-    [steps],
+    [language, steps],
   );
 
   const earnedPoints = useMemo(
@@ -467,10 +468,10 @@ export default function RoadmapPage() {
       steps
         .filter((step) => step.rawStatus === "completed" || step.rawStatus === "owned")
         .reduce((sum, step) => {
-          const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
-          return sum + (step.stepPoints ?? meta.points);
+          const localizedMeta = getRoadmapStepMeta(step.productType, language) ?? DEFAULT_ROADMAP_STEP_META;
+          return sum + (step.stepPoints ?? localizedMeta.points);
         }, 0),
-    [steps],
+    [language, steps],
   );
 
   const isFullyCompleted = totalSteps > 0 && completedCount >= totalSteps;
@@ -554,7 +555,7 @@ export default function RoadmapPage() {
         ) : steps.length > 0 ? (
           <div className="space-y-4">
             {steps.map((step) => {
-              const meta = getRoadmapStepMeta(step.productType) ?? DEFAULT_ROADMAP_STEP_META;
+              const meta = getRoadmapStepMeta(step.productType, language) ?? DEFAULT_ROADMAP_STEP_META;
               const stepWhy = step.stepWhy ?? meta.why;
               const stepImproves = step.stepImproves ?? meta.improves;
               const stepBenefit = step.stepBenefit ?? meta.benefit;

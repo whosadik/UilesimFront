@@ -272,6 +272,27 @@ const localeByLanguage: Record<AppLanguage, string> = {
   en: 'en-US',
 };
 
+const favoriteExplainMethodLabels = {
+  ru: {
+    total_qty: 'объем',
+    line_count: 'число позиций',
+    last_at: 'последняя покупка',
+    category: 'категория',
+  },
+  kk: {
+    total_qty: 'көлем',
+    line_count: 'позициялар саны',
+    last_at: 'соңғы сатып алу',
+    category: 'санат',
+  },
+  en: {
+    total_qty: 'volume',
+    line_count: 'line count',
+    last_at: 'last purchase',
+    category: 'category',
+  },
+} as const;
+
 type ProfileWizardData = {
   skinType?: string[]; // API ждёт string, берём первый
   goals?: string[];
@@ -471,6 +492,22 @@ function formatCategorySpend(
   return `${Math.round(parsed).toLocaleString(localeByLanguage[language])} ${normalizedCurrency}`;
 }
 
+function formatFavoriteExplainMethod(value: unknown, language: AppLanguage): string {
+  const labels = favoriteExplainMethodLabels[language];
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',')
+      : [];
+
+  const mapped = rawValues
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .map((item) => labels[item as keyof typeof labels] ?? item);
+
+  return mapped.join(', ');
+}
+
 function readTextField(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -617,8 +654,8 @@ export default function ProfilePage() {
     return 'active';
   }, [offer]);
   const resolvedProfileTaxonomy = useMemo(
-    () => resolveProfileTaxonomy(profileTaxonomy),
-    [profileTaxonomy],
+    () => resolveProfileTaxonomy(profileTaxonomy, language),
+    [language, profileTaxonomy],
   );
   const profileWizardOptions = useMemo(
     () => ({
@@ -757,14 +794,21 @@ export default function ProfilePage() {
               explainObj.history_items_considered
                 ? copy.explainPurchases(String(explainObj.history_items_considered))
                 : null,
-              explainObj.picked_by ? copy.explainMethod(String(explainObj.picked_by)) : null,
+              explainObj.picked_by
+                ? copy.explainMethod(formatFavoriteExplainMethod(explainObj.picked_by, language))
+                : null,
             ]
               .filter(Boolean)
               .join(' · ')
           : '';
 
         setFavoriteCategory({
-          category: typeof favObj.favorite_category === 'string' ? favObj.favorite_category : '',
+          category:
+            typeof favObj.favorite_category === 'string'
+              ? messages.catalog.categories[
+                  favObj.favorite_category as keyof typeof messages.catalog.categories
+                ] ?? favObj.favorite_category
+              : '',
           windowDays: Number.isFinite(windowDaysValue) ? Math.max(0, Math.round(windowDaysValue)) : null,
           historyItemsConsidered: Number.isFinite(historyItemsValue)
             ? Math.max(0, Math.round(historyItemsValue))
@@ -856,7 +900,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [copy, isAuthLoading, location.pathname, navigate, retryKey, user]);
+  }, [copy, isAuthLoading, language, location.pathname, messages.catalog.categories, navigate, retryKey, user]);
 
   const handlePersonalDetailChange = (field: keyof PersonalDetailsState, value: string) => {
     setPersonalDetails((prev) => ({

@@ -18,14 +18,6 @@ const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
 const MAX_RECENT_SEARCHES = 5;
 const SEARCH_DEBOUNCE_MS = 2000;
 
-const SUGGESTED_QUERIES = [
-  { label: 'Уход за кожей', value: 'skincare' },
-  { label: 'Макияж', value: 'makeup' },
-  { label: 'Сыворотка', value: 'serum' },
-  { label: 'Помада', value: 'lipstick' },
-  { label: 'SPF', value: 'spf' },
-] as const;
-
 const searchPageCopy = {
   ru: {
     searchPlaceholder: 'Ищите товары или бренды...',
@@ -42,6 +34,13 @@ const searchPageCopy = {
     emptyDescription: (query: string) => `По запросу "${query}" ничего не найдено. Попробуйте другой вариант.`,
     clearSearch: 'Очистить поиск',
     loadError: 'Не удалось загрузить результаты поиска. Попробуйте еще раз.',
+    suggestedQueries: [
+      { label: 'Уход за кожей', value: 'skincare' },
+      { label: 'Макияж', value: 'makeup' },
+      { label: 'Сыворотка', value: 'serum' },
+      { label: 'Помада', value: 'lipstick' },
+      { label: 'SPF', value: 'spf' },
+    ],
   },
   kk: {
     searchPlaceholder: 'Тауарлар мен брендтерді іздеңіз...',
@@ -58,6 +57,13 @@ const searchPageCopy = {
     emptyDescription: (query: string) => `"${query}" сұрауы бойынша ештеңе табылмады. Басқа нұсқаны қолданып көріңіз.`,
     clearSearch: 'Іздеуді тазалау',
     loadError: 'Іздеу нәтижелерін жүктеу мүмкін болмады. Қайталап көріңіз.',
+    suggestedQueries: [
+      { label: 'Тері күтімі', value: 'skincare' },
+      { label: 'Макияж', value: 'makeup' },
+      { label: 'Сарысу', value: 'serum' },
+      { label: 'Ерін далабы', value: 'lipstick' },
+      { label: 'SPF', value: 'spf' },
+    ],
   },
   en: {
     searchPlaceholder: 'Search products or brands...',
@@ -74,6 +80,13 @@ const searchPageCopy = {
     emptyDescription: (query: string) => `Nothing was found for "${query}". Try another query.`,
     clearSearch: 'Clear search',
     loadError: 'Could not load search results. Please try again.',
+    suggestedQueries: [
+      { label: 'Skincare', value: 'skincare' },
+      { label: 'Makeup', value: 'makeup' },
+      { label: 'Serum', value: 'serum' },
+      { label: 'Lipstick', value: 'lipstick' },
+      { label: 'SPF', value: 'spf' },
+    ],
   },
 } as const;
 
@@ -108,7 +121,7 @@ const saveRecentSearches = (value: string[]) => {
 };
 
 export default function SearchPage() {
-  const { language } = useI18n();
+  const { language, messages } = useI18n();
   const copy = searchPageCopy[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const query = (searchParams.get('q') || '').trim();
@@ -133,6 +146,7 @@ export default function SearchPage() {
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'search-product',
             fallbackImageUrl: FALLBACK_IMAGE_URL,
+            fallbackProductLabel: (id) => `${messages.productCard.productFallback} #${id}`,
           }),
         );
 
@@ -297,7 +311,7 @@ export default function SearchPage() {
             <div>
               <h3 className="mb-4 font-semibold text-gray-900">{copy.popularQueries}</h3>
               <div className="flex flex-wrap gap-2">
-                {SUGGESTED_QUERIES.map((suggestion) => (
+                {copy.suggestedQueries.map((suggestion) => (
                   <button key={suggestion.value} type="button" onClick={() => handleSuggestedClick(suggestion.value)}>
                     <Chip className="transition-colors hover:bg-gray-50">
                       <span>{suggestion.label}</span>

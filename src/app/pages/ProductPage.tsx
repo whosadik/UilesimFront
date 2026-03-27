@@ -175,6 +175,7 @@ const mapApiProductToView = (
   payload: Record<string, unknown>,
   fallbackId: string,
   copy: (typeof productPageCopy)[keyof typeof productPageCopy],
+  fallbackProductLabel: (id: string) => string,
 ): ProductViewModel => {
   const rawMeta = toRecord(payload.raw_meta);
   const attrs = toRecord(payload.attrs);
@@ -214,7 +215,7 @@ const mapApiProductToView = (
 
   return {
     id: String(payload.id ?? fallbackId),
-    name: firstString(payload.name) ?? `product #${fallbackId}`,
+    name: firstString(payload.name) ?? fallbackProductLabel(fallbackId),
     brand: firstString(payload.brand) ?? 'Uilesim',
     brandSlug: firstString(payload.brand_slug),
     price,
@@ -337,7 +338,14 @@ export default function ProductPage() {
       } else {
         const payload = toRecord(productResult.value);
         if (payload) {
-          setProduct(mapApiProductToView(payload, id, copy));
+          setProduct(
+            mapApiProductToView(
+              payload,
+              id,
+              copy,
+              (fallbackId) => `${messages.productCard.productFallback} #${fallbackId}`,
+            ),
+          );
           setSelectedImage(0);
         } else {
           setProduct(null);

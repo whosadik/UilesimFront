@@ -17,7 +17,27 @@ export interface ApiFetchOptions extends RequestInit {
 }
 
 const MUTATION_METHODS = new Set<Method | string>(['POST', 'PUT', 'PATCH', 'DELETE']);
+const LANGUAGE_STORAGE_KEY = 'uilesim.language';
+const SUPPORTED_LANGUAGES = new Set(['ru', 'kk', 'en']);
 let csrfBootstrapPromise: Promise<void> | null = null;
+
+function getCurrentLanguage(): string {
+  if (typeof window === 'undefined') {
+    return 'ru';
+  }
+
+  const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  if (stored && SUPPORTED_LANGUAGES.has(stored)) {
+    return stored;
+  }
+
+  const htmlLang = document.documentElement.lang;
+  if (htmlLang && SUPPORTED_LANGUAGES.has(htmlLang)) {
+    return htmlLang;
+  }
+
+  return 'ru';
+}
 
 export function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -80,7 +100,10 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
   const method = (options.method ?? 'GET').toUpperCase() as Method;
   const headers = new Headers(options.headers ?? {});
   const requestId = headers.get('X-Request-ID') ?? createRequestId();
+  const currentLanguage = getCurrentLanguage();
   headers.set('X-Request-ID', requestId);
+  headers.set('X-App-Language', currentLanguage);
+  headers.set('Accept-Language', currentLanguage);
 
   if (MUTATION_METHODS.has(method) && !options.skipCsrf && !options.skipCsrfBootstrap) {
     await ensureCsrf();

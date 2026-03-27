@@ -17,8 +17,9 @@ import {
   type RoadmapSummaryApi,
 } from '../../shared/api/roadmap';
 import {
-  ROADMAP_CATEGORY_LABELS,
+  getRoadmapCategoryLabel,
   getRoadmapStepPresentation,
+  type RoadmapLanguage,
 } from '../../shared/roadmap/presentation';
 
 type TierName = 'bronze' | 'silver' | 'gold' | 'platinum';
@@ -63,6 +64,18 @@ type LocationCheckoutState = {
 const FALLBACK_OFFER_IMAGE =
   'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
+const localeByLanguage = {
+  ru: 'ru-RU',
+  kk: 'kk-KZ',
+  en: 'en-US',
+} as const;
+
+const tierLabels = {
+  ru: { bronze: 'Бронза', silver: 'Серебро', gold: 'Золото', platinum: 'Платина' },
+  kk: { bronze: 'Қола', silver: 'Күміс', gold: 'Алтын', platinum: 'Платина' },
+  en: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' },
+} as const;
+
 const checkoutPageCopy = {
   ru: {
     loading: 'Загружаем данные заказа...',
@@ -101,6 +114,10 @@ const checkoutPageCopy = {
     personalOfferUnavailable: 'Персональный оффер сейчас недоступен.',
     myRecommendations: 'Мои рекомендации',
     continueShopping: 'Продолжить покупки',
+    orderNumber: 'Номер',
+    loadCheckoutDataError: 'Не удалось получить данные заказа.',
+    missingCheckoutFields: 'Ответ API оформления заказа не содержит обязательные поля gross_total/net_total.',
+    productFallback: (id: string) => `Товар #${id}`,
   },
   kk: {
     loading: 'Тапсырыс деректерін жүктеп жатырмыз...',
@@ -139,6 +156,10 @@ const checkoutPageCopy = {
     personalOfferUnavailable: 'Жеке оффер қазір қолжетімсіз.',
     myRecommendations: 'Менің ұсыныстарым',
     continueShopping: 'Сауданы жалғастыру',
+    orderNumber: 'Нөмір',
+    loadCheckoutDataError: 'Тапсырыс деректерін алу мүмкін болмады.',
+    missingCheckoutFields: 'Checkout API жауабында міндетті gross_total/net_total өрістері жоқ.',
+    productFallback: (id: string) => `Тауар #${id}`,
   },
   en: {
     loading: 'Loading order details...',
@@ -177,6 +198,10 @@ const checkoutPageCopy = {
     personalOfferUnavailable: 'Personal offer is currently unavailable.',
     myRecommendations: 'My recommendations',
     continueShopping: 'Continue shopping',
+    orderNumber: 'Order number',
+    loadCheckoutDataError: 'Could not retrieve checkout data.',
+    missingCheckoutFields: 'The checkout API response is missing required gross_total/net_total fields.',
+    productFallback: (id: string) => `Product #${id}`,
   },
 } as const;
 
@@ -335,8 +360,21 @@ const firstString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
-const formatTierName = (value: TierName): string =>
-  value.charAt(0).toUpperCase() + value.slice(1);
+const formatTierName = (
+  value: TierName,
+  language: keyof typeof checkoutPageCopy,
+): string => tierLabels[language][value];
+
+const formatMoney = (value: number, language: keyof typeof checkoutPageCopy): string =>
+  `${Math.round(value).toLocaleString(localeByLanguage[language])} ₸`;
+
+const formatDateTime = (value: string, language: keyof typeof checkoutPageCopy): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString(localeByLanguage[language]);
+};
 
 const normalizeRoadmapCategory = (value: unknown): string | undefined => {
   if (typeof value !== 'string') {
@@ -361,6 +399,7 @@ const getRoadmapStepPresentationPayload = (value: unknown): RoadmapStepPresentat
 
 const parseCheckoutRoadmapStep = (
   payload: unknown,
+  language: RoadmapLanguage,
 ): CheckoutRoadmapNextStep | null => {
   if (!isRecord(payload)) {
     return null;
@@ -388,7 +427,7 @@ const parseCheckoutRoadmapStep = (
       ? payload.product_type
       : 'routine_step';
   const serverPresentation = getRoadmapStepPresentationPayload(payload.presentation);
-  const fallbackPresentation = getRoadmapStepPresentation(productType);
+  const fallbackPresentation = getRoadmapStepPresentation(productType, language);
   const title =
     firstString(serverPresentation?.title, payload.title) ??
     fallbackPresentation.title;
@@ -465,7 +504,9 @@ const pickRoadmapNextStep = (plan: RoadmapPlanApi): RoadmapStepApi | null => {
   return fallbackStep && isRecord(fallbackStep) ? (fallbackStep as RoadmapStepApi) : null;
 };
 
-const buildCheckoutRoadmapStep = async (): Promise<CheckoutRoadmapNextStep | null> => {
+const buildCheckoutRoadmapStep = async (
+  language: RoadmapLanguage,
+): Promise<CheckoutRoadmapNextStep | null> => {
   let plan: RoadmapPlanApi | null = null;
 
   try {
@@ -498,7 +539,7 @@ const buildCheckoutRoadmapStep = async (): Promise<CheckoutRoadmapNextStep | nul
       isRecord(preferredPayload?.recommended_product)
         ? preferredPayload?.recommended_product
         : recommendedProduct,
-  });
+  }, language);
   return parsed;
 };
 
@@ -592,15 +633,13 @@ export default function CheckoutPage() {
         }
 
         if (!checkoutPayload) {
-          fail('Не удалось получить данные заказа.');
+          fail(copy.loadCheckoutDataError);
           return;
         }
 
         const parsed = parseCheckoutResult(checkoutPayload);
         if (!parsed) {
-          fail(
-            'Ответ API оформления заказа не содержит обязательные поля gross_total/net_total.',
-          );
+          fail(copy.missingCheckoutFields);
           return;
         }
 
@@ -616,9 +655,9 @@ export default function CheckoutPage() {
           }
         }
 
-        let nextRoadmapStep = parseCheckoutRoadmapStep(checkoutPayload.next_roadmap_step);
+        let nextRoadmapStep = parseCheckoutRoadmapStep(checkoutPayload.next_roadmap_step, language);
         if (!nextRoadmapStep) {
-          nextRoadmapStep = await buildCheckoutRoadmapStep().catch((error) => {
+          nextRoadmapStep = await buildCheckoutRoadmapStep(language).catch((error) => {
             if (isAuthError(error)) {
               throw error;
             }
@@ -664,7 +703,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [copy.loadErrorFallback, location.pathname, location.state, navigate, retryKey]);
+  }, [copy.loadCheckoutDataError, copy.loadErrorFallback, copy.missingCheckoutFields, language, location.pathname, location.state, navigate, retryKey]);
 
   const previousBalance = useMemo(() => {
     if (!result || result.pointsBalance === undefined) {
@@ -742,7 +781,7 @@ export default function CheckoutPage() {
             {copy.orderPlaced}
           </h1>
           <p className="text-[#6B7280]">
-            Номер: <span className="font-semibold text-[#111827]">{result.transactionId}</span>
+            {copy.orderNumber}: <span className="font-semibold text-[#111827]">{result.transactionId}</span>
           </p>
         </div>
 
@@ -765,16 +804,16 @@ export default function CheckoutPage() {
 
           <div className="space-y-2.5 pb-3 border-b border-[#EAE6EF]">
             <div className="flex justify-between text-sm">
-                <span className="text-[#6B7280]">{copy.products}</span>
+              <span className="text-[#6B7280]">{copy.products}</span>
               <span className="font-semibold text-[#111827]">
-                {result.grossAmount.toLocaleString('ru')} тг
+                {formatMoney(result.grossAmount, language)}
               </span>
             </div>
             {result.discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{copy.discount}</span>
                 <span className="font-semibold text-[#FF4DB8]">
-                  -{result.discount.toLocaleString('ru')} тг
+                  -{formatMoney(result.discount, language)}
                 </span>
               </div>
             )}
@@ -784,7 +823,7 @@ export default function CheckoutPage() {
                   {copy.giftCard}{result.giftCard?.masked_code ? ` (${result.giftCard.masked_code})` : ''}
                 </span>
                 <span className="font-semibold text-[#FF4DB8]">
-                  -{result.giftCardApplied.toLocaleString('ru-RU')} ₸
+                  -{formatMoney(result.giftCardApplied, language)}
                 </span>
               </div>
             )}
@@ -792,7 +831,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-[#6B7280]">{copy.pointsRedeemed}</span>
                 <span className="font-semibold text-[#FF4DB8]">
-                  -{result.pointsUsed.toLocaleString('ru')} тг
+                  -{formatMoney(result.pointsUsed, language)}
                 </span>
               </div>
             )}
@@ -801,7 +840,7 @@ export default function CheckoutPage() {
           <div className="flex justify-between items-baseline pt-1">
             <span className="font-semibold text-[#111827]">{copy.totalPaid}</span>
             <span className="text-2xl font-bold text-[#111827]">
-              {result.netAmount.toLocaleString('ru')} тг
+              {formatMoney(result.netAmount, language)}
             </span>
           </div>
         </div>
@@ -828,11 +867,11 @@ export default function CheckoutPage() {
                 <div className="flex items-center gap-1.5 justify-end">
                   {previousBalance !== undefined && (
                     <span className="text-sm text-[#6B7280] line-through">
-                      {previousBalance.toLocaleString('ru')}
+                      {previousBalance.toLocaleString(localeByLanguage[language])}
                     </span>
                   )}
                   <span className="text-base font-bold text-[#111827]">
-                    {result.pointsBalance.toLocaleString('ru')}
+                    {result.pointsBalance.toLocaleString(localeByLanguage[language])}
                   </span>
                   <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
                 </div>
@@ -843,7 +882,7 @@ export default function CheckoutPage() {
           {result.tier && (
             <div className="rounded-xl bg-gray-50 p-3">
               <p className="text-xs text-[#6B7280] mb-0.5">{copy.currentTier}</p>
-              <p className="text-sm font-semibold text-[#111827]">{formatTierName(result.tier)}</p>
+              <p className="text-sm font-semibold text-[#111827]">{formatTierName(result.tier, language)}</p>
               <p className="text-xs text-[#6B7280] mt-1">
                 {copy.tierHint}
               </p>
@@ -874,7 +913,7 @@ export default function CheckoutPage() {
                   <p className="text-xs text-white/60 mb-0.5">
                     {copy.roadmap}
                     {roadmapNextStep?.category
-                      ? ` · ${ROADMAP_CATEGORY_LABELS[roadmapNextStep.category] ?? roadmapNextStep.category}`
+                      ? ` · ${getRoadmapCategoryLabel(roadmapNextStep.category, language)}`
                       : ''}
                   </p>
                   <p className="text-sm font-semibold text-white mb-0.5">
@@ -921,7 +960,7 @@ export default function CheckoutPage() {
                       {roadmapNextStep.productBrand ?? ''}
                       {roadmapNextStep.productBrand && roadmapNextStep.productPrice !== undefined ? ' · ' : ''}
                       {roadmapNextStep.productPrice !== undefined
-                        ? `${roadmapNextStep.productPrice.toLocaleString('ru')} тг`
+                        ? formatMoney(roadmapNextStep.productPrice, language)
                         : ''}
                     </p>
                   )}
@@ -946,14 +985,14 @@ export default function CheckoutPage() {
                     {copy.personalOffer}
                   </span>
                   <p className="text-sm font-semibold text-[#111827] line-clamp-1">
-                    {nextOfferHint.offerName ?? `Товар #${nextOfferHint.productId}`}
+                    {nextOfferHint.offerName ?? copy.productFallback(nextOfferHint.productId)}
                   </p>
                   <p className="text-xs text-[#6B7280]">
                     {copy.productId(nextOfferHint.productId)}
                   </p>
                   {nextOfferHint.expiresAt && (
                     <p className="text-xs text-[#6B7280]">
-                      {copy.expiresUntil(new Date(nextOfferHint.expiresAt).toLocaleString('ru'))}
+                      {copy.expiresUntil(formatDateTime(nextOfferHint.expiresAt, language))}
                     </p>
                   )}
                 </div>

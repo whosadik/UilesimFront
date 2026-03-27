@@ -7,6 +7,7 @@ import {
 } from "./ui/dialog";
 import { Button } from "./Button";
 import { AlertTriangle } from "lucide-react";
+import { useI18n } from "../../shared/i18n/LanguageContext";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -20,21 +21,24 @@ interface ConfirmModalProps {
   isLoading?: boolean;
 }
 
-/**
- * Confirmation modal for destructive actions
- * Examples: "Удалить из корзины?", "Списать баллы?"
- */
 export function ConfirmModal({
   open,
   onOpenChange,
   title,
   description,
-  confirmLabel = "Подтвердить",
-  cancelLabel = "Отмена",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   variant = "default",
   isLoading = false,
 }: ConfirmModalProps) {
+  const { language } = useI18n();
+  const copy = language === "kk"
+    ? { confirm: "Растау", cancel: "Бас тарту", loading: "Жүктелуде..." }
+    : language === "en"
+      ? { confirm: "Confirm", cancel: "Cancel", loading: "Loading..." }
+      : { confirm: "Подтвердить", cancel: "Отмена", loading: "Загрузка..." };
+
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
@@ -50,29 +54,15 @@ export function ConfirmModal({
             </div>
           )}
           <DialogTitle className="text-center">{title}</DialogTitle>
-          <DialogDescription className="text-center">
-            {description}
-          </DialogDescription>
+          <DialogDescription className="text-center">{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col-reverse sm:flex-row gap-3 mt-6">
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => onOpenChange(false)}
-            className="flex-1"
-            disabled={isLoading}
-          >
-            {cancelLabel}
+          <Button variant="secondary" size="md" onClick={() => onOpenChange(false)} className="flex-1" disabled={isLoading}>
+            {cancelLabel ?? copy.cancel}
           </Button>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={handleConfirm}
-            className="flex-1"
-            disabled={isLoading}
-          >
-            {isLoading ? "Загрузка..." : confirmLabel}
+          <Button variant="primary" size="md" onClick={handleConfirm} className="flex-1" disabled={isLoading}>
+            {isLoading ? copy.loading : confirmLabel ?? copy.confirm}
           </Button>
         </div>
       </DialogContent>

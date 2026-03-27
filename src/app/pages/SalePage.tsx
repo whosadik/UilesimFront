@@ -33,6 +33,7 @@ export default function SalePage() {
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'sale-product',
             fallbackImageUrl: FALLBACK_IMAGE_URL,
+            fallbackProductLabel: (id) => `${messages.productCard.productFallback} #${id}`,
           }),
         );
 

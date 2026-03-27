@@ -14,7 +14,7 @@ type PromoCardItem = OfferPromotionCard & {
 };
 
 export function PromotionsSection() {
-  const { messages } = useI18n();
+  const { language, messages } = useI18n();
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,7 +49,7 @@ export function PromotionsSection() {
           return;
         }
 
-        const dynamicPromos = mapOfferPayloadsToPromotions(payload.banners);
+        const dynamicPromos = mapOfferPayloadsToPromotions(payload.banners, language);
         if (dynamicPromos.length === 0) {
           setPromos([]);
           return;
@@ -92,7 +92,7 @@ export function PromotionsSection() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, messages.home.promotions.errorTitle, navigate, retryKey]);
+  }, [language, location.pathname, messages.home.promotions.errorTitle, navigate, retryKey]);
 
   return (
     <section className="py-12 bg-gradient-to-b from-white to-pink-50/30">

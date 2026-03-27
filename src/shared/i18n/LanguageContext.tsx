@@ -43,12 +43,25 @@ function getInitialLanguage(): AppLanguage {
 }
 
 export function LanguageProvider({ children }: PropsWithChildren) {
-  const [language, setLanguage] = useState<AppLanguage>(() => getInitialLanguage());
+  const [language, setCurrentLanguage] = useState<AppLanguage>(() => getInitialLanguage());
 
   useEffect(() => {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     document.documentElement.lang = language;
   }, [language]);
+
+  const setLanguage = (nextLanguage: AppLanguage) => {
+    if (nextLanguage === language) {
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
+      document.documentElement.lang = nextLanguage;
+    }
+
+    setCurrentLanguage(nextLanguage);
+  };
 
   const value = useMemo<LanguageContextValue>(
     () => ({

@@ -5,6 +5,7 @@ export type ApiProductRecord = Record<string, unknown>;
 type MapApiProductOptions = {
   fallbackIdPrefix: string;
   fallbackImageUrl: string;
+  fallbackProductLabel?: (id: string) => string;
   defaultCategory?: string;
   newProductWindowDays?: number;
 };
@@ -143,7 +144,7 @@ export function mapApiProductToGrid(
 
   return {
     id,
-    name: firstString(item.name) || `Товар #${id}`,
+    name: firstString(item.name) || options.fallbackProductLabel?.(id) || `Product #${id}`,
     brand: firstString(item.brand) || "Uilesim",
     price: Math.max(0, Math.round(price)),
     originalPrice,

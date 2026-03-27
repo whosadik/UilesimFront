@@ -105,6 +105,7 @@ export default function BrandPage() {
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'brand-product',
             fallbackImageUrl: FALLBACK_IMAGE,
+            fallbackProductLabel: (id) => `${messages.productCard.productFallback} #${id}`,
           }),
         );
 

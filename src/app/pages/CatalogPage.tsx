@@ -395,6 +395,7 @@ export default function CatalogPage() {
           mapApiProductToGrid(item, index, {
             fallbackIdPrefix: 'catalog-product',
             fallbackImageUrl: FALLBACK_IMAGE_URL,
+            fallbackProductLabel: (id) => `${messages.productCard.productFallback} #${id}`,
           }),
         );
 
