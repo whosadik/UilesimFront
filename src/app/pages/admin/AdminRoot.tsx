@@ -81,8 +81,8 @@ export default function AdminRoot() {
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
           {!sidebarCollapsed && (
             <Link to="/" className="flex items-center gap-2">
-              <img src={logoImage} alt="Uilesim" className="w-7 h-7 object-contain border border-transparent hover:border-[#FF4DB8] rounded-full" />
-              <span className="font-semibold text-gray-900 text-sm">Uilesim</span>
+              <img src={logoImage} alt="Uylesim" className="w-7 h-7 object-contain border border-transparent hover:border-[#FF4DB8] rounded-full" />
+              <span className="font-semibold text-gray-900 text-sm">Uylesim</span>
               <span className="ml-1 text-[10px] bg-gray-900 text-white px-1.5 py-0.5 rounded font-medium tracking-wide">
                 STAFF
               </span>
@@ -90,7 +90,7 @@ export default function AdminRoot() {
           )}
           {sidebarCollapsed && (
             <div className="w-full flex justify-center">
-              <img src={logoImage} alt="Uilesim" className="w-7 h-7 object-contain border border-transparent hover:border-[#FF4DB8] rounded-full" />
+              <img src={logoImage} alt="Uylesim" className="w-7 h-7 object-contain border border-transparent hover:border-[#FF4DB8] rounded-full" />
             </div>
           )}
           <button

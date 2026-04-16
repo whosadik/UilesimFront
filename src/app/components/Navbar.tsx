@@ -194,11 +194,11 @@ export function Navbar({
           <Link to="/" className="flex items-center gap-3 group flex-shrink-0">
             <img
               src={logoImage}
-              alt="Uilesim"
+              alt="Uylesim"
               className="w-9 h-9 lg:w-10 lg:h-10 object-contain transition-transform group-hover:scale-105 br-2 border-transparent group-hover:border-[#FF4DB8] rounded-full"
             />
             <span className="text-[#111827] font-semibold text-base lg:text-lg tracking-tight">
-              Uilesim
+              Uylesim
             </span>
           </Link>
 
