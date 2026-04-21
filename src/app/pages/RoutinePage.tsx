@@ -1,22 +1,26 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Clock, Sparkles, CheckCircle, AlertCircle } from "lucide-react";
+import { Clock, Sparkles, CheckCircle, AlertCircle, History } from "lucide-react";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { AlertBanner } from "../components/AlertBanner";
 import { Badge } from "../components/Badge";
 import { ErrorState } from "../components/ErrorState";
+import { ProfileGate } from "../components/ProfileGate";
 import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
 import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
   generateRoutine,
+  getSavedRoutine,
+  saveRoutine,
   validateRoutine,
   type RoutineGenerateResponseApi,
   type RoutineProductApi,
   type RoutineStepApi,
   type RoutineValidateResponseApi,
+  type SaveRoutinePayload,
   type ValidateRoutinePayload,
 } from "../../shared/api/routines";
 
@@ -47,6 +51,8 @@ interface RoutineValidationAlternative {
 interface RoutineValidationSuggestion {
   key: string;
   step: string;
+  apiStep: string;
+  currentProductId?: string;
   currentProductName?: string;
   alternatives: RoutineValidationAlternative[];
 }
@@ -70,6 +76,7 @@ const routinePageCopy = {
       "Рутина сформирована на основе вашего профиля и доступных продуктов.",
       "Обновляйте рутину при изменении профиля или покупках новых средств.",
     ],
+    history: "История",
     stepFallback: "Шаг ухода",
     productFallback: (id: string) => `Товар #${id}`,
     valid: "Рутина валидна",
@@ -79,6 +86,9 @@ const routinePageCopy = {
     softerAlternatives: "Для этого шага найдены более мягкие альтернативы.",
     alternatives: "Альтернативы",
     open: "Открыть",
+    apply: "Использовать",
+    applied: "Продукт заменён в рутине.",
+    saveError: "Не удалось сохранить изменения.",
     noAlternatives: "Пока нет подходящих альтернатив в каталоге.",
     generating: "Создаём вашу персональную рутину...",
     loadErrorTitle: "Не удалось загрузить рутину",
@@ -116,6 +126,7 @@ const routinePageCopy = {
       "Рутина сіздің профиліңіз бен қолжетімді өнімдер негізінде құрылды.",
       "Профиль өзгергенде немесе жаңа өнімдер сатып алғанда рутинаны жаңартыңыз.",
     ],
+    history: "Тарих",
     stepFallback: "Күтім қадамы",
     productFallback: (id: string) => `Тауар #${id}`,
     valid: "Рутина жарамды",
@@ -125,6 +136,9 @@ const routinePageCopy = {
     softerAlternatives: "Бұл қадам үшін жұмсағырақ баламалар табылды.",
     alternatives: "Баламалар",
     open: "Ашу",
+    apply: "Қолдану",
+    applied: "Өнім рутинада ауыстырылды.",
+    saveError: "Өзгерістерді сақтау мүмкін болмады.",
     noAlternatives: "Каталогта әзірге қолайлы баламалар жоқ.",
     generating: "Жеке рутинаны құрып жатырмыз...",
     loadErrorTitle: "Рутинаны жүктеу мүмкін болмады",
@@ -162,6 +176,7 @@ const routinePageCopy = {
       "The routine is built from your profile and available products.",
       "Refresh the routine when your profile changes or when you buy new products.",
     ],
+    history: "History",
     stepFallback: "Care step",
     productFallback: (id: string) => `Product #${id}`,
     valid: "Routine is valid",
@@ -171,6 +186,9 @@ const routinePageCopy = {
     softerAlternatives: "Softer alternatives were found for this step.",
     alternatives: "Alternatives",
     open: "Open",
+    apply: "Use",
+    applied: "Product replaced in the routine.",
+    saveError: "Could not save changes.",
     noAlternatives: "There are no suitable alternatives in the catalog yet.",
     generating: "Creating your personal routine...",
     loadErrorTitle: "Could not load routine",
@@ -388,6 +406,8 @@ function mapValidationResult(response: RoutineValidateResponseApi, copy: Routine
           return {
             key: `${String(item.step ?? "step")}-${currentProduct?.id ?? "current"}`,
             step: stepLabel,
+            apiStep: typeof item.step === "string" ? item.step : "",
+            currentProductId: currentProduct?.id,
             currentProductName: currentProduct?.name,
             alternatives,
           };
@@ -402,18 +422,59 @@ function mapValidationResult(response: RoutineValidateResponseApi, copy: Routine
   };
 }
 
-export default function RoutinePage() {
+function RoutinePageContent() {
   const { language } = useI18n();
   const copy = routinePageCopy[language];
   const navigate = useNavigate();
   const location = useLocation();
 
+  const copyRef = useRef(copy);
   const [routine, setRoutine] = useState<Routine | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<RoutineValidationResult | null>(null);
   const [selectedTime, setSelectedTime] = useState<"morning" | "evening">("morning");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await getSavedRoutine();
+        if (cancelled) return;
+        if (response.routine) {
+          setRoutine(mapGeneratedRoutine(response.routine, copyRef.current));
+        }
+      } catch (loadError) {
+        if (cancelled) return;
+        if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+          navigate("/login", { replace: true, state: { from: location.pathname } });
+          return;
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toSavePayload = (value: Routine): SaveRoutinePayload => ({
+    am: value.morning.map((step) => ({
+      step: step.api_step || "routine_step",
+      product_id: toOptionalNumber(step.product_id) ?? null,
+    })),
+    pm: value.evening.map((step) => ({
+      step: step.api_step || "routine_step",
+      product_id: toOptionalNumber(step.product_id) ?? null,
+    })),
+    notes: value.notes,
+  });
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -475,6 +536,60 @@ export default function RoutinePage() {
     }
   };
 
+  const handleApplyAlternative = async (
+    suggestion: RoutineValidationSuggestion,
+    alternative: RoutineValidationAlternative,
+  ) => {
+    if (!routine) return;
+
+    const previous = routine;
+    const replaceStep = (steps: RoutineStep[]): RoutineStep[] =>
+      steps.map((step) => {
+        const matchesStep = step.api_step === suggestion.apiStep;
+        const matchesProduct = suggestion.currentProductId
+          ? step.product_id === suggestion.currentProductId
+          : true;
+        if (!matchesStep || !matchesProduct) return step;
+        return {
+          ...step,
+          product_id: alternative.id,
+          product_name: alternative.name,
+          product_image: alternative.image,
+        };
+      });
+
+    const updated: Routine = {
+      morning: replaceStep(routine.morning),
+      evening: replaceStep(routine.evening),
+      notes: routine.notes,
+    };
+
+    setRoutine(updated);
+    setValidationResult((prev) =>
+      prev
+        ? {
+            ...prev,
+            suggestions: prev.suggestions.filter((item) => item.key !== suggestion.key),
+          }
+        : prev,
+    );
+
+    try {
+      const response = await saveRoutine(toSavePayload(updated));
+      if (response.routine) {
+        setRoutine(mapGeneratedRoutine(response.routine, copy));
+      }
+      toast.success(copy.applied);
+    } catch (saveError) {
+      setRoutine(previous);
+      if (saveError instanceof ApiError && (saveError.status === 401 || saveError.status === 403)) {
+        navigate("/login", { replace: true, state: { from: location.pathname } });
+        return;
+      }
+      toast.error(copy.saveError);
+    }
+  };
+
   const currentSteps = routine ? routine[selectedTime] : [];
   const tips = routine && routine.notes.length > 0 ? routine.notes : copy.defaultTips;
   const totalTime = currentSteps.reduce((sum, step) => {
@@ -496,6 +611,14 @@ export default function RoutinePage() {
               <p className="text-gray-600">{copy.subtitle}</p>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/me/routine/history")}
+                disabled={isGenerating || isValidating}
+              >
+                <History className="w-4 h-4 mr-2" />
+                {copy.history}
+              </Button>
               <Button
                 variant="secondary"
                 onClick={handleValidate}
@@ -590,13 +713,22 @@ export default function RoutinePage() {
                                 <p className="text-xs text-gray-500">{product.brand}</p>
                               )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              className="px-4 py-2 text-xs"
-                              onClick={() => navigate(`/product/${product.id}`)}
-                            >
-                              {copy.open}
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                className="px-3 py-2 text-xs"
+                                onClick={() => navigate(`/product/${product.id}`)}
+                              >
+                                {copy.open}
+                              </Button>
+                              <Button
+                                variant="primary"
+                                className="px-3 py-2 text-xs"
+                                onClick={() => handleApplyAlternative(suggestion, product)}
+                              >
+                                {copy.apply}
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -612,7 +744,11 @@ export default function RoutinePage() {
           </div>
         )}
 
-        {isGenerating && !routine ? (
+        {isLoading && !routine ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : isGenerating && !routine ? (
           <div className="flex flex-col items-center justify-center py-20">
             <LoadingSpinner size="lg" />
             <p className="text-gray-600 mt-4">{copy.generating}</p>
@@ -731,6 +867,14 @@ export default function RoutinePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RoutinePage() {
+  return (
+    <ProfileGate>
+      <RoutinePageContent />
+    </ProfileGate>
   );
 }
 

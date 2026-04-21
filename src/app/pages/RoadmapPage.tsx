@@ -7,6 +7,7 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Button } from "../components/Button";
 import { AlertBanner } from "../components/AlertBanner";
 import { ErrorState } from "../components/ErrorState";
+import { ProfileGate } from "../components/ProfileGate";
 import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
 import { useI18n } from "../../shared/i18n/LanguageContext";
@@ -299,7 +300,7 @@ function buildUiSteps(plan: RoadmapPlanApi, language: RoadmapLanguage): UiRoadma
   });
 }
 
-export default function RoadmapPage() {
+function RoadmapPageContent() {
   const { language } = useI18n();
   const copy = roadmapPageCopy[language];
   const navigate = useNavigate();
@@ -658,6 +659,14 @@ export default function RoadmapPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RoadmapPage() {
+  return (
+    <ProfileGate>
+      <RoadmapPageContent />
+    </ProfileGate>
   );
 }
 

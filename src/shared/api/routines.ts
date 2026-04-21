@@ -86,3 +86,50 @@ export function validateRoutine(payload: ValidateRoutinePayload): Promise<Routin
     body: JSON.stringify(payload),
   });
 }
+
+export type SavedRoutineResponseApi = {
+  routine: RoutineGenerateResponseApi | null;
+  updated_at: string | null;
+};
+
+export function getSavedRoutine(): Promise<SavedRoutineResponseApi> {
+  return apiFetch<SavedRoutineResponseApi>("/api/routine/saved", { method: "GET" });
+}
+
+export type SaveRoutineItemPayload = {
+  step: string;
+  product_id?: number | null;
+};
+
+export type SaveRoutinePayload = {
+  am: SaveRoutineItemPayload[];
+  pm: SaveRoutineItemPayload[];
+  notes?: string[];
+};
+
+export function saveRoutine(payload: SaveRoutinePayload): Promise<SavedRoutineResponseApi> {
+  return apiFetch<SavedRoutineResponseApi>("/api/routine/saved", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSavedRoutine(): Promise<void> {
+  return apiFetch<void>("/api/routine/saved", { method: "DELETE" });
+}
+
+export type RoutineHistoryItemApi = {
+  id: number;
+  created_at: string;
+  missing_steps: string[];
+  profile_skin_type: string;
+  routine: RoutineGenerateResponseApi | null;
+};
+
+export type RoutineHistoryResponseApi = {
+  items: RoutineHistoryItemApi[];
+};
+
+export function getRoutineHistory(): Promise<RoutineHistoryResponseApi> {
+  return apiFetch<RoutineHistoryResponseApi>("/api/routine/history", { method: "GET" });
+}

@@ -27,6 +27,7 @@ import TransactionsPage from "./pages/TransactionsPage";
 import OwnedProductsPage from "./pages/OwnedProductsPage";
 import RoadmapPage from "./pages/RoadmapPage";
 import RoutinePage from "./pages/RoutinePage";
+import RoutineHistoryPage from "./pages/RoutineHistoryPage";
 import ServerErrorPage from "./pages/ServerErrorPage";
 import RateLimitPage from "./pages/RateLimitPage";
 import SessionExpiredPage from "./pages/SessionExpiredPage";
@@ -77,6 +78,7 @@ export const router = createBrowserRouter([
       { path: "me/owned", Component: OwnedProductsPage },
       { path: "me/roadmap", Component: RoadmapPage },
       { path: "me/routine", Component: RoutinePage },
+      { path: "me/routine/history", Component: RoutineHistoryPage },
       { path: "help", Component: HelpPage },
       { path: "delivery-returns", Component: DeliveryReturnsPage },
       { path: "terms", Component: TermsPage },
