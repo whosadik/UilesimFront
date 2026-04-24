@@ -1,11 +1,16 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { PromoBannerCard } from '../components/PromoBannerCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
-import { listMyOffers, nextOffer } from '../../shared/api/offers';
+import {
+  listMyOffers,
+  listPromotionBanners,
+  nextOffer,
+  type PromotionBanner,
+} from '../../shared/api/offers';
 import { ApiError } from '../../shared/api/ApiError';
 import {
   mapOfferPayloadsToPromotions,
@@ -27,6 +32,8 @@ const promotionsPageCopy = {
     signIn: 'Войти',
     loading: 'Загружаем акции...',
     errorTitle: 'Не удалось загрузить акции',
+    campaignsTitle: 'Текущие кампании',
+    details: 'Подробнее',
   },
   kk: {
     filters: { all: 'Барлығы', discount: 'Жеңілдіктер', points: '2x ұпай', gift: 'Сыйлықтар', personal: 'Жеке' },
@@ -40,6 +47,8 @@ const promotionsPageCopy = {
     signIn: 'Кіру',
     loading: 'Акцияларды жүктеп жатырмыз...',
     errorTitle: 'Акцияларды жүктеу мүмкін болмады',
+    campaignsTitle: 'Ағымдағы науқандар',
+    details: 'Толығырақ',
   },
   en: {
     filters: { all: 'All', discount: 'Discounts', points: '2x points', gift: 'Gifts', personal: 'Personal' },
@@ -53,6 +62,8 @@ const promotionsPageCopy = {
     signIn: 'Sign in',
     loading: 'Loading promotions...',
     errorTitle: 'Could not load promotions',
+    campaignsTitle: 'Current campaigns',
+    details: 'Learn more',
   },
 } as const;
 
@@ -66,10 +77,29 @@ export default function PromotionsPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<PromotionFilter>('all');
   const [promotions, setPromotions] = useState<PromotionCard[]>([]);
+  const [campaignBanners, setCampaignBanners] = useState<PromotionBanner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    listPromotionBanners()
+      .then((res) => {
+        if (!cancelled) {
+          setCampaignBanners(res.banners ?? []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCampaignBanners([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +168,40 @@ export default function PromotionsPage() {
           <h1 className="text-3xl lg:text-4xl font-bold text-[#111827] mb-3">{copy.title}</h1>
           <p className="text-base text-[#6B7280]">{copy.subtitle}</p>
         </div>
+
+        {campaignBanners.length > 0 && (
+          <div className="mb-10">
+            <h2 className="text-lg font-semibold text-[#111827] mb-4">{copy.campaignsTitle}</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {campaignBanners.map((banner) => (
+                <Link
+                  key={banner.id}
+                  to={`/promotions/${banner.id}`}
+                  className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#FFE1F2] to-pink-50 border border-[#FF4DB8]/20 hover:shadow-xl transition-all aspect-[16/9] block"
+                >
+                  {banner.banner_url && (
+                    <img
+                      src={banner.banner_url}
+                      alt={banner.name}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+                    <div className="text-base font-semibold leading-tight">{banner.name}</div>
+                    {banner.promo_text && (
+                      <div className="text-sm text-white/90 mt-1 line-clamp-2">{banner.promo_text}</div>
+                    )}
+                    <span className="inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-white text-[#111827] text-xs font-medium">
+                      {copy.details} →
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {requiresAuth ? (
           <EmptyState

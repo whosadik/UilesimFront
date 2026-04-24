@@ -7,13 +7,14 @@ export type Campaign = {
   priority?: number;
   weekly_limit?: string | number | null;
   weekly_spent?: string | number | null;
-  week_start_date?: string | null;
+  start_date?: string | null;
   end_date?: string | null;
   allowed_categories?: string[];
   allowed_steps?: string[];
   tiers?: string[];
   promo_text?: string;
   banner_url?: string;
+  offers_count?: number;
   [k: string]: unknown;
 };
 
@@ -93,6 +94,18 @@ export function publishCampaign(id: number | string) {
     `/api/admin/campaigns/${id}/publish`,
     {
       method: 'POST',
+    },
+  );
+}
+
+export function uploadCampaignBanner(id: number | string, file: File) {
+  const body = new FormData();
+  body.append('file', file);
+  return apiFetch<{ ok?: boolean; campaign?: Campaign; [k: string]: unknown }>(
+    `/api/admin/campaigns/${id}/banner`,
+    {
+      method: 'POST',
+      body,
     },
   );
 }

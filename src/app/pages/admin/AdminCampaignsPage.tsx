@@ -24,6 +24,7 @@ interface Campaign {
   budget: number;
   spend: number;
   category: string;
+  offersCount: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -88,14 +89,15 @@ export default function AdminCampaignsPage() {
             id: String(item.id),
             name: String(item.name ?? `Campaign #${item.id}`),
             status: item.is_active ? 'active' : 'paused',
-            start: item.week_start_date ?? '—',
-            end: '—',
+            start: item.start_date ?? '—',
+            end: item.end_date ?? '—',
             budget: Number.isFinite(budget) ? budget : 0,
             spend: Number.isFinite(spend) ? spend : 0,
             category:
               Array.isArray(item.allowed_categories) && item.allowed_categories.length > 0
                 ? String(item.allowed_categories[0])
                 : 'Все категории',
+            offersCount: Number(item.offers_count ?? 0),
           } as Campaign;
         });
 
@@ -127,9 +129,9 @@ export default function AdminCampaignsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="font-semibold text-gray-900 text-xl">Campaigns</h1>
+          <h1 className="font-semibold text-gray-900 text-xl">Кампании</h1>
           <p className="text-sm text-gray-500 mt-0.5">{filtered.length} кампаний</p>
         </div>
         <Link
@@ -139,6 +141,11 @@ export default function AdminCampaignsPage() {
           <Plus className="w-4 h-4" />
           Создать кампанию
         </Link>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-900 leading-relaxed">
+        Кампания — это <b>бюджет + фильтры таргетинга</b>. Сами скидки задаются в виде <b>офферов</b> внутри
+        кампании. Кампания без офферов не даст пользователю никакой скидки.
       </div>
 
       {/* Filters */}
@@ -154,7 +161,7 @@ export default function AdminCampaignsPage() {
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
-            {s === 'all' ? 'Все' : s}
+            {s === 'all' ? 'Все' : s === 'active' ? 'Активные' : 'На паузе'}
           </button>
         ))}
       </div>
@@ -167,7 +174,8 @@ export default function AdminCampaignsPage() {
               <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Название</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Статус</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Сроки</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Бюджет</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Офферы</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Недельный бюджет</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 w-48">Расход</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -186,6 +194,15 @@ export default function AdminCampaignsPage() {
                 </td>
                 <td className="px-4 py-4 text-xs text-gray-600">
                   {c.start} → {c.end}
+                </td>
+                <td className="px-4 py-4">
+                  {c.offersCount > 0 ? (
+                    <span className="text-xs font-medium text-gray-900">{c.offersCount}</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                      0 (нет скидок)
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-4">
                   <p className="text-gray-900 font-medium">{formatMoney(c.budget)}</p>

@@ -46,6 +46,63 @@ export function getNextOffer() {
   return apiFetch<any>('/api/me/next-offer');
 }
 
+export type PromotionBanner = {
+  id: number;
+  name: string;
+  banner_url: string;
+  promo_text: string;
+  start_date: string | null;
+  end_date: string | null;
+  allowed_categories: string[];
+};
+
+export type PromotionBannersResponse = {
+  ok: boolean;
+  count: number;
+  banners: PromotionBanner[];
+};
+
+export function listPromotionBanners(): Promise<PromotionBannersResponse> {
+  return apiFetch<PromotionBannersResponse>('/api/promotions/banners', {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}
+
+export type PromotionCampaignOffer = {
+  id: number;
+  name: string;
+  offer_type: string;
+  value: string;
+  target_scope: string;
+  allowed_categories: string[];
+  allowed_product_types: string[];
+};
+
+export type PromotionCampaignDetail = {
+  id: number;
+  name: string;
+  banner_url: string;
+  promo_text: string;
+  start_date: string | null;
+  end_date: string | null;
+  allowed_categories: string[];
+  allowed_steps: string[];
+};
+
+export type PromotionDetailResponse = {
+  ok: boolean;
+  campaign: PromotionCampaignDetail;
+  offers: PromotionCampaignOffer[];
+};
+
+export function getPromotionBanner(id: number | string): Promise<PromotionDetailResponse> {
+  return apiFetch<PromotionDetailResponse>(`/api/promotions/banners/${id}`, {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}
+
 // POST /api/offers/click :contentReference[oaicite:29]{index=29}
 export function clickOffer(assignmentId: number, context: Record<string, unknown> = {}) {
   return apiFetch<any>('/api/offers/click', {
