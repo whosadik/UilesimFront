@@ -95,7 +95,11 @@ export function PromotionsSection() {
   }, [language, location.pathname, messages.home.promotions.errorTitle, navigate, retryKey]);
 
   return (
-    <section className="py-12 bg-gradient-to-b from-white to-pink-50/30">
+    <section className="relative py-12 lg:py-16">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-gradient-to-b from-[#FFF8F5] via-white/60 to-transparent"
+        aria-hidden
+      />
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
         <CarouselHeader title={messages.home.promotions.title} />
 
@@ -150,7 +154,7 @@ export function PromotionsSection() {
             </div>
 
             <div className="lg:hidden relative -mt-4 h-4">
-              <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-pink-50/30 via-pink-50/20 to-transparent pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white/80 via-white/40 to-transparent pointer-events-none" />
             </div>
           </>
         )}

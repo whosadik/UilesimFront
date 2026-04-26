@@ -142,6 +142,7 @@ export function NewArrivalsSection() {
         <CarouselHeader
           title={messages.home.newArrivals.title}
           subtitle={messages.home.newArrivals.subtitle}
+          eyebrow="JUST IN"
         />
 
         {error ? (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Button } from '../components/Button';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { ProductCard, ProductCardSkeleton } from '../components/ProductCard';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -215,63 +215,126 @@ export function BrandSpotlightSection() {
   const saleProductsCount = brandData?.saleProductsCount ?? 0;
   const products = brandData?.products ?? [];
 
+  const heroProduct = products[0];
+  const heroImage = heroProduct?.image;
+
   return (
-    <section className="py-12">
+    <section className="py-12 lg:py-16">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-8">
-          {messages.home.brandSpotlight.title}
-        </h2>
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FF4DB8]">
+              {messages.home.brandSpotlight.title}
+            </p>
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-[#111827] lg:text-[40px]">
+              {brandName}
+            </h2>
+          </div>
+          <button
+            onClick={() => {
+              if (brandData?.slug) navigate(`/brands/${brandData.slug}`);
+            }}
+            className="group hidden items-center gap-1 text-sm font-medium text-[#111827] transition-colors hover:text-[#FF4DB8] sm:inline-flex"
+          >
+            {messages.home.brandSpotlight.viewBrand}
+            <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </button>
+        </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
-          <div className="relative rounded-3xl p-6 md:p-8 lg:p-10 bg-gradient-to-br from-[#FFE1F2] via-pink-50 to-rose-50 border border-[#FFE1F2] overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-pink-200/40 to-rose-200/40 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-rose-200/40 to-pink-200/40 rounded-full blur-2xl" />
+        <div className="grid gap-6 md:gap-8 lg:grid-cols-[1.05fr_1fr]">
+          <div className="relative overflow-hidden rounded-3xl border border-[#EAE6EF] bg-[#FBF7FA] p-6 sm:p-8 lg:p-10">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-gradient-to-br from-[#FFD6EC] via-[#FFE9F4] to-transparent blur-3xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-gradient-to-tr from-[#F1E4FB] via-[#FFE1F2]/60 to-transparent blur-3xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-multiply"
+              style={{
+                backgroundImage:
+                  'radial-gradient(rgba(17,24,39,0.5) 1px, transparent 1px)',
+                backgroundSize: '14px 14px',
+              }}
+            />
 
-            <div className="relative z-10">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-[#FF4DB8] to-[#FF2AA8] flex items-center justify-center mb-4 md:mb-6 shadow-lg">
-                <span className="text-white font-bold text-2xl md:text-3xl">
-                  {brandName[0]?.toUpperCase() ?? 'B'}
+            <div className="relative z-10 grid grid-cols-1 gap-6 sm:grid-cols-[auto_1fr] sm:gap-8">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-[28px] bg-gradient-to-br from-[#FF4DB8]/40 via-[#FFB8DC]/30 to-transparent blur-xl" aria-hidden />
+                <div className="relative h-32 w-32 overflow-hidden rounded-3xl bg-gradient-to-br from-[#111827] via-[#3b2a52] to-[#FF4DB8] shadow-[0_24px_60px_-24px_rgba(255,77,184,0.55)] sm:h-36 sm:w-36">
+                  {heroImage ? (
+                    <img
+                      src={heroImage}
+                      alt={brandName}
+                      className="h-full w-full object-cover opacity-90 mix-blend-luminosity"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-display text-5xl font-semibold text-white drop-shadow-sm sm:text-6xl">
+                      {brandName[0]?.toUpperCase() ?? 'B'}
+                    </span>
+                  </div>
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"
+                    aria-hidden
+                  />
+                </div>
+                <span className="absolute -bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#FF4DB8] shadow-sm">
+                  <Sparkles className="h-3 w-3" />
+                  {messages.home.brandSpotlight.featuredProducts}
                 </span>
               </div>
 
-              <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#111827] mb-2 md:mb-3">
-                {brandName}
-              </h3>
-              <p className="text-[#6B7280] text-sm leading-relaxed mb-6 md:mb-8 max-w-md">
-                {brandData?.description ?? messages.home.brandSpotlight.descriptionFallback}
-              </p>
+              <div className="flex flex-col">
+                <p className="text-sm leading-relaxed text-[#374151]">
+                  {brandData?.description ?? messages.home.brandSpotlight.descriptionFallback}
+                </p>
 
-              <Button
-                variant="primary"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  if (brandData?.slug) {
-                    navigate(`/brands/${brandData.slug}`);
-                  }
-                }}
-              >
-                {messages.home.brandSpotlight.viewBrand}
-              </Button>
+                <div className="mt-6 grid grid-cols-3 gap-4 rounded-2xl border border-white/70 bg-white/60 p-4 backdrop-blur">
+                  <div>
+                    <div className="font-display text-2xl font-semibold text-[#111827]">
+                      {productCount}
+                    </div>
+                    <div className="mt-0.5 text-[11px] uppercase tracking-[0.12em] text-[#6B7280]">
+                      {messages.home.brandSpotlight.products}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-display text-2xl font-semibold text-[#FF4DB8]">
+                      {newProductsCount}
+                    </div>
+                    <div className="mt-0.5 text-[11px] uppercase tracking-[0.12em] text-[#6B7280]">
+                      {messages.home.brandSpotlight.new}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="font-display text-2xl font-semibold text-[#111827]">
+                      {saleProductsCount}
+                    </div>
+                    <div className="mt-0.5 text-[11px] uppercase tracking-[0.12em] text-[#6B7280]">
+                      {messages.home.brandSpotlight.onSale}
+                    </div>
+                  </div>
+                </div>
 
-              <div className="mt-6 md:mt-8 pt-6 border-t border-pink-200/50 flex gap-6 md:gap-8">
-                <div>
-                  <div className="text-xl md:text-2xl font-bold text-[#111827]">{productCount}</div>
-                  <div className="text-xs text-[#6B7280]">{messages.home.brandSpotlight.products}</div>
-                </div>
-                <div>
-                  <div className="text-xl md:text-2xl font-bold text-[#111827]">{newProductsCount}</div>
-                  <div className="text-xs text-[#6B7280]">{messages.home.brandSpotlight.new}</div>
-                </div>
-                <div>
-                  <div className="text-xl md:text-2xl font-bold text-[#111827]">{saleProductsCount}</div>
-                  <div className="text-xs text-[#6B7280]">{messages.home.brandSpotlight.onSale}</div>
-                </div>
+                <button
+                  onClick={() => {
+                    if (brandData?.slug) navigate(`/brands/${brandData.slug}`);
+                  }}
+                  className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#111827] px-5 py-3 text-sm font-medium text-white transition-all hover:bg-[#0B1220] hover:shadow-[0_18px_40px_-18px_rgba(255,77,184,0.55)] active:scale-[0.98] sm:w-auto"
+                >
+                  {messages.home.brandSpotlight.viewBrand}
+                  <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </button>
               </div>
             </div>
           </div>
 
           <div>
-            <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+            <h4 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#111827]/60">
               {messages.home.brandSpotlight.featuredProducts}
             </h4>
             <div className="grid grid-cols-2 gap-4">

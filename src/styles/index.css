@@ -49,3 +49,136 @@ html {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ---------- Animations ---------- */
+@keyframes uilesim-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes uilesim-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes uilesim-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes uilesim-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes uilesim-pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+.animate-fade-up {
+  animation: uilesim-fade-up 0.6s ease-out both;
+}
+
+.animate-float {
+  animation: uilesim-float 6s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: uilesim-pulse-soft 4s ease-in-out infinite;
+}
+
+.animate-marquee {
+  animation: uilesim-marquee 32s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-float,
+  .animate-pulse-soft,
+  .animate-marquee {
+    animation: none !important;
+  }
+}
+
+/* Decorative shimmer for skeleton elements */
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: uilesim-shimmer 2.2s infinite;
+}
+
+/* Section reveal — IntersectionObserver-friendly */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Button click ripple */
+@keyframes uilesim-ripple-out {
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.uilesim-ripple {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: uilesim-ripple-out 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uilesim-ripple {
+    display: none;
+  }
+}
