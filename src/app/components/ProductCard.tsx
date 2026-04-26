@@ -280,14 +280,19 @@ export function ProductCard({
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
 
-            <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-              {isNew ? <Badge className="px-2 py-0.5 text-[10px]">NEW</Badge> : null}
-              {discountValue !== undefined && discountValue > 0 ? (
-                <Badge className="px-2 py-0.5 text-[10px]">-{discountValue}%</Badge>
+            <div className="absolute top-2 left-2 flex flex-col gap-1">
+              {isNew ? (
+                <Badge className="border-none bg-[#111827] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+                  NEW
+                </Badge>
+              ) : discountValue !== undefined && discountValue > 0 ? (
+                <Badge className="border-none bg-[#111827] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+                  −{discountValue}%
+                </Badge>
               ) : null}
               {pointsMultiplier !== undefined && pointsMultiplier > 0 ? (
-                <Badge className="border-none bg-[#FF4DB8] px-2 py-0.5 text-[10px] text-white">
-                  {pointsMultiplier}x {messages.productCard.points}
+                <Badge className="border-none bg-[#FFE1F2] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#B4185B]">
+                  {pointsMultiplier}× {messages.productCard.points}
                 </Badge>
               ) : null}
             </div>
@@ -295,10 +300,11 @@ export function ProductCard({
             <button
               onClick={handleWishlistToggle}
               disabled={isWishlistPending}
-              className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:opacity-60"
+              aria-label="Toggle wishlist"
+              className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:opacity-60"
             >
               <Heart
-                className={`h-3.5 w-3.5 ${
+                className={`h-4 w-4 ${
                   favorite ? 'fill-[#FF4DB8] text-[#FF4DB8]' : 'text-[#6B7280]'
                 }`}
               />
@@ -348,22 +354,23 @@ export function ProductCard({
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
 
-          <div className="absolute top-3 left-3 flex flex-col gap-2">
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {isNew ? (
-              <Badge className="border-none bg-[#FF4DB8] px-2.5 py-1 text-xs text-white">NEW</Badge>
-            ) : null}
-            {discountValue !== undefined && discountValue > 0 ? (
-              <Badge className="border-none bg-[#FF4DB8] px-2.5 py-1 text-xs text-white">
-                -{discountValue}%
+              <Badge className="border-none bg-[#111827] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+                NEW
+              </Badge>
+            ) : discountValue !== undefined && discountValue > 0 ? (
+              <Badge className="border-none bg-[#111827] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+                −{discountValue}%
               </Badge>
             ) : null}
             {pointsMultiplier !== undefined && pointsMultiplier > 0 ? (
-              <Badge className="border-none bg-[#FF4DB8] px-2.5 py-1 text-xs text-white">
-                {pointsMultiplier}x {messages.productCard.points}
+              <Badge className="border-none bg-[#FFE1F2] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#B4185B]">
+                {pointsMultiplier}× {messages.productCard.points}
               </Badge>
             ) : null}
             {inStock === false ? (
-              <Badge className="border-none bg-gray-500 px-2.5 py-1 text-xs text-white">
+              <Badge className="border-none bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#6B7280] backdrop-blur">
                 {messages.productCard.unavailable}
               </Badge>
             ) : null}
@@ -372,7 +379,8 @@ export function ProductCard({
           <button
             onClick={handleWishlistToggle}
             disabled={isWishlistPending}
-            className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:opacity-60"
+            aria-label="Toggle wishlist"
+            className="absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:opacity-60"
           >
             <Heart
               className={`h-4 w-4 transition-colors ${

@@ -33,6 +33,7 @@ export function ForYouSection({
         <CarouselHeader
           title={messages.home.forYou.title}
           subtitle={messages.home.forYou.subtitle}
+          eyebrow="PERSONAL"
         />
 
         {error ? (
