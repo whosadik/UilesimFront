@@ -5,6 +5,8 @@ import { useI18n } from '../../shared/i18n/LanguageContext';
 interface CarouselHeaderProps {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
+  live?: boolean;
   showViewAll?: boolean;
   onViewAll?: () => void;
   showArrows?: boolean;
@@ -15,6 +17,8 @@ interface CarouselHeaderProps {
 export function CarouselHeader({
   title,
   subtitle,
+  eyebrow,
+  live = false,
   showViewAll = true,
   onViewAll,
   showArrows = false,
@@ -24,20 +28,37 @@ export function CarouselHeader({
   const { messages } = useI18n();
 
   return (
-    <div className="mb-6 flex items-center justify-between">
+    <div className="mb-6 flex items-end justify-between gap-4">
       <div>
-        <h2 className="mb-1 text-2xl font-bold text-gray-900 lg:text-3xl">{title}</h2>
-        {subtitle ? <p className="text-sm text-gray-600">{subtitle}</p> : null}
+        {eyebrow || live ? (
+          <div className="mb-2 flex items-center gap-2">
+            {live ? (
+              <span className="relative inline-flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FF4DB8] opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#FF4DB8]" />
+              </span>
+            ) : null}
+            {eyebrow ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FF4DB8]">
+                {eyebrow}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        <h2 className="font-display mb-1 text-3xl font-semibold tracking-tight text-[#111827] lg:text-[36px]">
+          {title}
+        </h2>
+        {subtitle ? <p className="text-sm text-[#6B7280]">{subtitle}</p> : null}
       </div>
 
       <div className="flex items-center gap-3">
         {showViewAll ? (
           <button
             onClick={onViewAll}
-            className="flex items-center gap-1 text-sm font-medium text-[#FF4DB8] transition-colors hover:text-[#FF2AA8]"
+            className="group flex items-center gap-1 text-sm font-medium text-[#111827] transition-colors hover:text-[#FF4DB8]"
           >
             {messages.common.viewAll}
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
           </button>
         ) : null}
 

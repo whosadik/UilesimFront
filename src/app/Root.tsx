@@ -40,7 +40,24 @@ export default function Root() {
   }, [isAuthLoading, location.pathname, navigate, user]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="relative min-h-screen bg-[#FBF8FB]">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.6]"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 12% -10%, rgba(255,77,184,0.10), transparent 40%), radial-gradient(circle at 88% 10%, rgba(168,114,255,0.08), transparent 40%), radial-gradient(circle at 50% 100%, rgba(255,213,232,0.18), transparent 50%)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.05]"
+        style={{
+          backgroundImage:
+            'radial-gradient(rgba(17,24,39,0.7) 1px, transparent 1px)',
+          backgroundSize: '22px 22px',
+        }}
+      />
       <Navbar wishlistCount={wishlistCount} cartCount={cartCount} />
       <main>
         <Outlet />

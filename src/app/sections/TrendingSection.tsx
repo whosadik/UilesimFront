@@ -33,6 +33,8 @@ export function TrendingSection({
         <CarouselHeader
           title={messages.home.trending.title}
           subtitle={messages.home.trending.subtitle}
+          eyebrow="LIVE NOW"
+          live
         />
 
         {error ? (
