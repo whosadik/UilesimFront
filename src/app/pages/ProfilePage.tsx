@@ -361,10 +361,11 @@ function formatLocalizedDate(language: AppLanguage, iso?: string | null) {
   return d.toLocaleDateString(localeByLanguage[language], { day: 'numeric', month: 'long' });
 }
 
-function mapTier(raw: unknown): 'bronze' | 'silver' | 'gold' | 'platinum' {
-  const t = String(raw ?? '').toLowerCase();
-  if (t === 'bronze' || t === 'silver' || t === 'gold' || t === 'platinum') return t;
-  return 'bronze';
+function mapTier(raw: unknown): 'bronze' | 'silver' | 'gold' {
+  const t = String(raw ?? '').trim().toLowerCase();
+  if (!t) return 'bronze';
+  if (t === 'bronze' || t === 'silver' || t === 'gold') return t;
+  return 'gold';
 }
 
 // API поддерживает budget как enum (low/medium/high) :contentReference[oaicite:17]{index=17}

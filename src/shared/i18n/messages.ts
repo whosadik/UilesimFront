@@ -264,7 +264,6 @@ const ru = {
       bronze: 'Bronze',
       silver: 'Silver',
       gold: 'Gold',
-      platinum: 'Platinum',
     },
   },
   common: {
@@ -766,7 +765,6 @@ const kk: TranslationMessages = {
       bronze: 'Bronze',
       silver: 'Silver',
       gold: 'Gold',
-      platinum: 'Platinum',
     },
   },
   common: {
@@ -1259,7 +1257,6 @@ const en: TranslationMessages = {
       bronze: 'Bronze',
       silver: 'Silver',
       gold: 'Gold',
-      platinum: 'Platinum',
     },
   },
   common: {

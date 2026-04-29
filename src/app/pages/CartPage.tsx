@@ -93,9 +93,9 @@ const localeByLanguage = {
 } as const;
 
 const tierLabels = {
-  ru: { bronze: 'Бронза', silver: 'Серебро', gold: 'Золото', platinum: 'Платина' },
-  kk: { bronze: 'Қола', silver: 'Күміс', gold: 'Алтын', platinum: 'Платина' },
-  en: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' },
+  ru: { bronze: 'Бронза', silver: 'Серебро', gold: 'Золото' },
+  kk: { bronze: 'Қола', silver: 'Күміс', gold: 'Алтын' },
+  en: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' },
 } as const;
 
 const cartPageCopy = {
@@ -373,8 +373,18 @@ const formatLabel = (value: unknown): string | undefined => {
 };
 
 const formatTierName = (value: string, language: CartPageLanguage): string => {
-  const normalized = value.toLowerCase() as keyof typeof tierLabels.ru;
-  return tierLabels[language][normalized] ?? tierLabels[language].bronze;
+  const normalizedValue = value.trim().toLowerCase();
+  if (!normalizedValue) {
+    return tierLabels[language].bronze;
+  }
+  if (
+    normalizedValue === 'bronze' ||
+    normalizedValue === 'silver' ||
+    normalizedValue === 'gold'
+  ) {
+    return tierLabels[language][normalizedValue];
+  }
+  return tierLabels[language].gold;
 };
 
 const formatMoney = (value: number, language: CartPageLanguage): string =>

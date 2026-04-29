@@ -107,7 +107,6 @@ const forYouPageCopy = {
     bronze: 'Bronze',
     silver: 'Silver',
     gold: 'Gold',
-    platinum: 'Platinum',
     personalRecommendation: 'Персональная рекомендация',
     suitableForSkin: (value: string) => `Подходит для ${value.toLowerCase()} кожи`,
     complementsPurchases: 'Дополняет прошлые покупки',
@@ -243,7 +242,6 @@ const forYouPageCopy = {
     bronze: 'Bronze',
     silver: 'Silver',
     gold: 'Gold',
-    platinum: 'Platinum',
     personalRecommendation: 'Жеке ұсыныс',
     suitableForSkin: (value: string) => `${value.toLowerCase()} терісіне сай`,
     complementsPurchases: 'Алдыңғы сатып алуларды толықтырады',
@@ -379,7 +377,6 @@ const forYouPageCopy = {
     bronze: 'Bronze',
     silver: 'Silver',
     gold: 'Gold',
-    platinum: 'Platinum',
     personalRecommendation: 'Personal recommendation',
     suitableForSkin: (value: string) => `Suitable for ${value.toLowerCase()} skin`,
     complementsPurchases: 'Complements your previous purchases',
@@ -1032,7 +1029,7 @@ const mapUiGoalsToApi = (value: string[]): string[] => {
 };
 
 const formatTierLabel = (value: string, copy: ForYouCopy): string => {
-  const normalized = value.toLowerCase();
+  const normalized = value.trim().toLowerCase();
   if (normalized === 'bronze') {
     return copy.bronze;
   }
@@ -1042,10 +1039,7 @@ const formatTierLabel = (value: string, copy: ForYouCopy): string => {
   if (normalized === 'gold') {
     return copy.gold;
   }
-  if (normalized === 'platinum') {
-    return copy.platinum;
-  }
-  return value || copy.gold;
+  return copy.gold;
 };
 
 type HomeResultItem = { item: unknown; sectionKey?: string };
@@ -1266,7 +1260,6 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
     { name: copy.bronze, key: 'bronze', min: 0, max: 500, color: '#CD7F32' },
     { name: copy.silver, key: 'silver', min: 500, max: 1000, color: '#9CA3AF' },
     { name: copy.gold, key: 'gold', min: 1000, max: 1500, color: '#F59E0B' },
-    { name: copy.platinum, key: 'platinum', min: 1500, max: 2500, color: '#6366F1' },
   ];
   const currentTier = tiers.find(t => t.key === tier) || tiers[2];
   const nextTier = tiers[tiers.indexOf(currentTier) + 1];

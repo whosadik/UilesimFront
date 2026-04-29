@@ -8,38 +8,35 @@ import { ApiError } from '../../shared/api/ApiError';
 import { getLoyalty, type Loyalty } from '../../shared/api/me';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 
-type NormalizedTier = 'bronze' | 'silver' | 'gold' | 'platinum';
+type NormalizedTier = 'bronze' | 'silver' | 'gold';
 
-const TIER_ORDER: NormalizedTier[] = ['bronze', 'silver', 'gold', 'platinum'];
+const TIER_ORDER: NormalizedTier[] = ['bronze', 'silver', 'gold'];
 
 const TIER_THRESHOLDS: Record<NormalizedTier, number> = {
   bronze: 0,
   silver: 1500,
   gold: 5000,
-  platinum: 15000,
 };
 
 const TIER_GRADIENT: Record<NormalizedTier, string> = {
   bronze: 'from-[#F7E2CB] via-[#FFEBD6] to-[#FFF4E5]',
   silver: 'from-[#E5E7EB] via-[#F1F2F5] to-[#FAFAFB]',
   gold: 'from-[#FFE7A3] via-[#FFF3C7] to-[#FFF9DF]',
-  platinum: 'from-[#F5D6FF] via-[#FFE1F2] to-[#FFF1F8]',
 };
 
 const TIER_ACCENT: Record<NormalizedTier, string> = {
   bronze: 'text-amber-700',
   silver: 'text-slate-600',
   gold: 'text-yellow-700',
-  platinum: 'text-fuchsia-700',
 };
 
 function normalizeTier(raw: string | null | undefined): NormalizedTier {
   if (!raw) return 'bronze';
-  const lowered = raw.toLowerCase();
+  const lowered = raw.trim().toLowerCase();
   if (TIER_ORDER.includes(lowered as NormalizedTier)) {
     return lowered as NormalizedTier;
   }
-  return 'bronze';
+  return 'gold';
 }
 
 function nextTier(tier: NormalizedTier): NormalizedTier | null {

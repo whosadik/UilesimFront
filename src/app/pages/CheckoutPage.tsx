@@ -22,7 +22,7 @@ import {
   type RoadmapLanguage,
 } from '../../shared/roadmap/presentation';
 
-type TierName = 'bronze' | 'silver' | 'gold' | 'platinum';
+type TierName = 'bronze' | 'silver' | 'gold';
 
 type CheckoutResult = {
   transactionId: string;
@@ -71,9 +71,9 @@ const localeByLanguage = {
 } as const;
 
 const tierLabels = {
-  ru: { bronze: 'Бронза', silver: 'Серебро', gold: 'Золото', platinum: 'Платина' },
-  kk: { bronze: 'Қола', silver: 'Күміс', gold: 'Алтын', platinum: 'Платина' },
-  en: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' },
+  ru: { bronze: 'Бронза', silver: 'Серебро', gold: 'Золото' },
+  kk: { bronze: 'Қола', silver: 'Күміс', gold: 'Алтын' },
+  en: { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' },
 } as const;
 
 const checkoutPageCopy = {
@@ -228,17 +228,12 @@ const normalizeTier = (value: unknown): TierName | undefined => {
     return undefined;
   }
 
-  const normalized = value.toLowerCase();
-  if (
-    normalized === 'bronze' ||
-    normalized === 'silver' ||
-    normalized === 'gold' ||
-    normalized === 'platinum'
-  ) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'bronze' || normalized === 'silver' || normalized === 'gold') {
     return normalized;
   }
 
-  return undefined;
+  return normalized ? 'gold' : undefined;
 };
 
 const formatTransactionId = (value: unknown): string | undefined => {

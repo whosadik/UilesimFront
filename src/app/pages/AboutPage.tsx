@@ -29,7 +29,7 @@ const aboutPageCopy = {
     technologyFirst: "Наша система ProfileWizard анализирует 7 ключевых параметров: тип кожи, основные проблемы, цели ухода, бюджет, предпочтения по брендам и текстурам, а также образ жизни. На основе этих данных мы создаём персональные рекомендации и адаптивные предложения.",
     technologySecond: "Система постоянно учится на основе ваших покупок, оценок и взаимодействий, делая рекомендации всё более точными со временем.",
     loyaltyTitle: "Программа лояльности",
-    loyaltyIntro: "Мы ценим каждого клиента и разработали уникальную многоуровневую программу лояльности с 4 статусами: Bronze, Silver, Gold и Platinum. Каждый уровень открывает дополнительные привилегии и эксклюзивные предложения.",
+    loyaltyIntro: "Мы ценим каждого клиента и разработали уникальную многоуровневую программу лояльности с 3 статусами: Bronze, Silver и Gold. Каждый уровень открывает дополнительные привилегии и эксклюзивные предложения.",
     loyaltyItems: [
       { title: "Накопительные баллы", description: "5% от суммы каждой покупки возвращается баллами" },
       { title: "Персональные офферы", description: "Эксклюзивные предложения на основе ваших предпочтений" },
@@ -66,7 +66,7 @@ const aboutPageCopy = {
     technologyFirst: "Біздің ProfileWizard жүйесі 7 негізгі параметрді талдайды: тері түрі, басты мәселелер, күтім мақсаттары, бюджет, брендтер мен текстуралар бойынша қалау, сондай-ақ өмір салты. Осы деректер негізінде біз жеке ұсыныстар мен бейімделетін офферлер құрамыз.",
     technologySecond: "Жүйе сатып алуларыңыз, бағалауларыңыз және әрекеттеріңіз негізінде үнемі үйреніп, уақыт өте ұсыныстарды дәлірек етеді.",
     loyaltyTitle: "Лоялдылық бағдарламасы",
-    loyaltyIntro: "Біз әр клиентті бағалаймыз және Bronze, Silver, Gold және Platinum атты 4 мәртебеден тұратын көпдеңгейлі лоялдылық бағдарламасын жасадық. Әр деңгей жаңа артықшылықтар мен эксклюзивті ұсыныстар ашады.",
+    loyaltyIntro: "Біз әр клиентті бағалаймыз және Bronze, Silver және Gold атты 3 мәртебеден тұратын көпдеңгейлі лоялдылық бағдарламасын жасадық. Әр деңгей жаңа артықшылықтар мен эксклюзивті ұсыныстар ашады.",
     loyaltyItems: [
       { title: "Жиналатын ұпайлар", description: "Әр сатып алудың 5%-ы ұпаймен қайтарылады" },
       { title: "Жеке офферлер", description: "Қалауыңызға негізделген эксклюзивті ұсыныстар" },
@@ -103,7 +103,7 @@ const aboutPageCopy = {
     technologyFirst: "Our ProfileWizard system analyzes 7 key parameters: skin type, main concerns, care goals, budget, brand and texture preferences, and lifestyle. Based on this data, we create personal recommendations and adaptive offers.",
     technologySecond: "The system keeps learning from your purchases, ratings, and interactions, making recommendations more accurate over time.",
     loyaltyTitle: "Loyalty program",
-    loyaltyIntro: "We value every customer and designed a multi-level loyalty program with 4 statuses: Bronze, Silver, Gold, and Platinum. Each level unlocks extra benefits and exclusive offers.",
+    loyaltyIntro: "We value every customer and designed a multi-level loyalty program with 3 statuses: Bronze, Silver, and Gold. Each level unlocks extra benefits and exclusive offers.",
     loyaltyItems: [
       { title: "Reward points", description: "5% of every purchase comes back as points" },
       { title: "Personal offers", description: "Exclusive offers based on your preferences" },

@@ -87,7 +87,7 @@
 - `Breadcrumbs` - хлебные крошки
 - `Chip` - фильтры-чипсы
 - `Badge` - бейджи (NEW, скидки)
-- `LoyaltyBadge` - бейдж уровня loyalty (Bronze/Silver/Gold/Platinum)
+- `LoyaltyBadge` - бейдж уровня loyalty (Bronze/Silver/Gold)
 
 #### Layout компоненты
 - `ProductGrid` - сетка товаров
@@ -153,7 +153,7 @@
 - **Recommendations**: умные рекомендации с recommendation score
 
 ### Loyalty программа
-- 4 уровня: Bronze, Silver, Gold, Platinum
+- 3 уровня: Bronze, Silver, Gold
 - Начисление баллов за покупки
 - Отображение баллов на ProductCard
 - История транзакций

@@ -4,7 +4,7 @@ import { Button } from './Button';
 import { LoyaltyBadge } from './LoyaltyBadge';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 
-type LoyaltyTier = 'bronze' | 'silver' | 'gold' | 'platinum';
+type LoyaltyTier = 'bronze' | 'silver' | 'gold';
 
 interface ProfileSummaryCardProps {
   profile: {
@@ -60,8 +60,9 @@ function toNumber(value: unknown): number | undefined {
 
 function normalizeTier(rawTier: unknown): LoyaltyTier {
   const value = String(rawTier ?? '').trim().toLowerCase();
-  if (value === 'silver' || value === 'gold' || value === 'platinum') return value;
-  return 'bronze';
+  if (!value || value === 'bronze') return 'bronze';
+  if (value === 'silver' || value === 'gold') return value;
+  return 'gold';
 }
 
 export function ProfileSummaryCard({ profile, loyalty, onUpdateProfile }: ProfileSummaryCardProps) {
