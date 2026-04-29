@@ -1,4 +1,7 @@
-import { getRoadmapStepPresentation, type RoadmapLanguage } from '../roadmap/presentation';
+import {
+  formatCatalogCategoryLabel,
+  formatCatalogProductTypeLabel,
+} from '../catalog/presentation';
 
 export type OfferLanguage = 'ru' | 'kk' | 'en';
 export type OfferPromotionType = 'discount' | 'points' | 'gift' | 'personal';
@@ -80,27 +83,6 @@ const offerCopy = {
   },
 } as const;
 
-const categoryLabels = {
-  ru: {
-    skincare: 'уход за кожей',
-    haircare: 'уход за волосами',
-    makeup: 'макияж',
-    fragrance: 'ароматы',
-  },
-  kk: {
-    skincare: 'тері күтімі',
-    haircare: 'шаш күтімі',
-    makeup: 'макияж',
-    fragrance: 'хош иіс',
-  },
-  en: {
-    skincare: 'skincare',
-    haircare: 'haircare',
-    makeup: 'makeup',
-    fragrance: 'fragrance',
-  },
-} as const;
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -137,15 +119,6 @@ const firstString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
-const formatLabel = (value: unknown): string | undefined => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return undefined;
-  }
-
-  const prepared = value.trim().replace(/_/g, ' ');
-  return prepared[0].toUpperCase() + prepared.slice(1);
-};
-
 const toPromotionType = (offerType: unknown): OfferPromotionType => {
   if (offerType === 'discount') return 'discount';
   if (offerType === 'points_multiplier') return 'points';
@@ -157,20 +130,11 @@ const formatValue = (value: number): string =>
   Number.isInteger(value) ? String(value) : value.toFixed(1);
 
 const formatCategoryLabel = (value: unknown, language: OfferLanguage): string | undefined => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return undefined;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return categoryLabels[language][normalized as keyof typeof categoryLabels.ru] ?? formatLabel(normalized);
+  return formatCatalogCategoryLabel(value, language);
 };
 
 const formatProductTypeLabel = (value: unknown, language: OfferLanguage): string | undefined => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return undefined;
-  }
-
-  return getRoadmapStepPresentation(value.trim(), language as RoadmapLanguage).title;
+  return formatCatalogProductTypeLabel(value, language);
 };
 
 const buildTitle = (

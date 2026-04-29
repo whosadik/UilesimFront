@@ -11,6 +11,7 @@ import { ErrorState } from '../components/ErrorState';
 import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { useI18n } from '../../shared/i18n/LanguageContext';
+import { formatCatalogProductTypeLabel } from '../../shared/catalog/presentation';
 import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
@@ -170,6 +171,7 @@ const buildFilters = (
   categoryLabels: Record<string, string>,
   fallbackCategoryOptions: Array<{ id: string; label: string; count: number }>,
   copy: (typeof catalogPageCopy)[keyof typeof catalogPageCopy],
+  language: 'ru' | 'kk' | 'en',
 ) => {
   const categoryCounts = new Map<string, number>();
   const productTypeCounts = new Map<string, number>();
@@ -228,7 +230,7 @@ const buildFilters = (
   const productTypeOptions = Array.from(productTypeCounts.entries())
     .map(([id, count]) => ({
       id,
-      label: formatFilterLabel(id) ?? id,
+      label: formatCatalogProductTypeLabel(id, language) ?? formatFilterLabel(id) ?? id,
       count,
     }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
@@ -317,8 +319,8 @@ export default function CatalogPage() {
     [messages.filterBar.sort],
   );
   const filters = useMemo(
-    () => buildFilters(products, categoryLabels, fallbackCategoryOptions, copy),
-    [categoryLabels, copy, fallbackCategoryOptions, products],
+    () => buildFilters(products, categoryLabels, fallbackCategoryOptions, copy, language),
+    [categoryLabels, copy, fallbackCategoryOptions, language, products],
   );
   const requestParams = useMemo(() => parseRequestParams(location.search), [location.search]);
   const selectedFilters = useMemo(() => buildSelectedFilters(requestParams), [requestParams]);
@@ -344,7 +346,8 @@ export default function CatalogPage() {
   );
   const activeFilterLabel = useMemo(() => {
     return (
-      formatFilterLabel(requestParams.product_type) ||
+      formatCatalogProductTypeLabel(requestParams.product_type, language) ||
+      (requestParams.category ? categoryLabels[requestParams.category] : null) ||
       formatFilterLabel(requestParams.category) ||
       formatFilterLabel(requestParams.brand) ||
       (requestParams.in_stock === 'true' ? copy.availability.inStock : null) ||
@@ -352,14 +355,23 @@ export default function CatalogPage() {
       (requestParams.new ? copy.availability.new : null) ||
       (requestParams.search ? `${copy.searchPrefix}: ${requestParams.search}` : null)
     );
-  }, [copy.availability.inStock, copy.availability.new, copy.availability.sale, copy.searchPrefix, requestParams]);
+  }, [categoryLabels, copy.availability.inStock, copy.availability.new, copy.availability.sale, copy.searchPrefix, language, requestParams]);
   const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
     const chips: ActiveFilterChip[] = [];
     if (requestParams.category) {
-      chips.push({ key: 'category', label: formatFilterLabel(requestParams.category) ?? requestParams.category });
+      chips.push({
+        key: 'category',
+        label: categoryLabels[requestParams.category] ?? formatFilterLabel(requestParams.category) ?? requestParams.category,
+      });
     }
     if (requestParams.product_type) {
-      chips.push({ key: 'product_type', label: formatFilterLabel(requestParams.product_type) ?? requestParams.product_type });
+      chips.push({
+        key: 'product_type',
+        label:
+          formatCatalogProductTypeLabel(requestParams.product_type, language) ??
+          formatFilterLabel(requestParams.product_type) ??
+          requestParams.product_type,
+      });
     }
     if (requestParams.brand) {
       chips.push({ key: 'brand', label: requestParams.brand });
@@ -376,7 +388,7 @@ export default function CatalogPage() {
       chips.push({ key: 'price', label: `${priceRange[0]} - ${priceRange[1]} ₸` });
     }
     return chips;
-  }, [copy.searchPrefix, filterChipLabels, priceBounds, priceRange, requestParams]);
+  }, [categoryLabels, copy.searchPrefix, filterChipLabels, language, priceBounds, priceRange, requestParams]);
 
   useEffect(() => {
     setPriceRange(priceBounds);

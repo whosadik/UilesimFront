@@ -12,6 +12,10 @@ import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
 import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
+  formatCatalogProductTypeLabel,
+  formatCatalogTokenList,
+} from "../../shared/catalog/presentation";
+import {
   generateRoutine,
   getSavedRoutine,
   saveRoutine,
@@ -248,9 +252,19 @@ function getRoutineProductImage(
   return firstNonEmptyString(product.image_url, ...images);
 }
 
-function formatStepName(step: string, labels: Record<string, string>, fallback: string): string {
+function formatStepName(
+  step: string,
+  labels: Record<string, string>,
+  fallback: string,
+  language: keyof typeof routinePageCopy,
+): string {
   if (labels[step]) {
     return labels[step];
+  }
+
+  const catalogLabel = formatCatalogProductTypeLabel(step, language);
+  if (catalogLabel) {
+    return catalogLabel;
   }
 
   const prepared = step.replace(/_/g, " ").trim();
@@ -273,6 +287,7 @@ function toOptionalNumber(value?: string): number | undefined {
 function mapRoutineSteps(
   items: RoutineStepApi[] | undefined,
   copy: (typeof routinePageCopy)[keyof typeof routinePageCopy],
+  language: keyof typeof routinePageCopy,
 ): RoutineStep[] {
   const source = Array.isArray(items) ? items : [];
 
@@ -300,7 +315,7 @@ function mapRoutineSteps(
       api_step: stepKey,
       action:
         firstNonEmptyString(item.display_step) ??
-        formatStepName(stepKey, copy.stepLabels, copy.stepFallback),
+        formatStepName(stepKey, copy.stepLabels, copy.stepFallback, language),
       product_id: productId,
       product_name: productName,
       product_image: productId ? getRoutineProductImage(item.product) ?? FALLBACK_IMAGE : undefined,
@@ -315,19 +330,24 @@ function mapRoutineSteps(
 function mapGeneratedRoutine(
   response: RoutineGenerateResponseApi,
   copy: (typeof routinePageCopy)[keyof typeof routinePageCopy],
+  language: keyof typeof routinePageCopy,
 ): Routine {
   const notes = Array.isArray(response.notes)
     ? response.notes.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
 
   return {
-    morning: mapRoutineSteps(response.am, copy),
-    evening: mapRoutineSteps(response.pm, copy),
+    morning: mapRoutineSteps(response.am, copy, language),
+    evening: mapRoutineSteps(response.pm, copy, language),
     notes,
   };
 }
 
-function mapValidationConflictMessage(conflict: unknown, copy: RoutinePageCopy): string | null {
+function mapValidationConflictMessage(
+  conflict: unknown,
+  copy: RoutinePageCopy,
+  language: keyof typeof routinePageCopy,
+): string | null {
   if (typeof conflict === "string" && conflict.trim().length > 0) {
     return conflict.trim();
   }
@@ -337,16 +357,14 @@ function mapValidationConflictMessage(conflict: unknown, copy: RoutinePageCopy):
   }
 
   if (conflict.type === "active_conflict" && Array.isArray(conflict.pair)) {
-    const pair = conflict.pair.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    const pair = formatCatalogTokenList(conflict.pair, language);
     if (pair.length >= 2) {
       return copy.activeConflictMessage(pair);
     }
   }
 
   if (conflict.type === "too_many_strong_actives" && Array.isArray(conflict.actives)) {
-    const actives = conflict.actives.filter(
-      (item): item is string => typeof item === "string" && item.trim().length > 0,
-    );
+    const actives = formatCatalogTokenList(conflict.actives, language);
     if (actives.length > 0) {
       return copy.tooManyStrongActives(actives);
     }
@@ -377,10 +395,14 @@ function mapValidationAlternativeProduct(product: unknown, copy: RoutinePageCopy
   };
 }
 
-function mapValidationResult(response: RoutineValidateResponseApi, copy: RoutinePageCopy): RoutineValidationResult {
+function mapValidationResult(
+  response: RoutineValidateResponseApi,
+  copy: RoutinePageCopy,
+  language: keyof typeof routinePageCopy,
+): RoutineValidationResult {
   const conflicts = Array.isArray(response.conflicts)
     ? response.conflicts
-        .map((conflict) => mapValidationConflictMessage(conflict, copy))
+        .map((conflict) => mapValidationConflictMessage(conflict, copy, language))
         .filter((item): item is string => Boolean(item))
     : [];
 
@@ -394,7 +416,7 @@ function mapValidationResult(response: RoutineValidateResponseApi, copy: Routine
           const stepLabel =
             firstNonEmptyString(item.display_step) ??
             (typeof item.step === "string" && item.step
-              ? formatStepName(item.step, copy.stepLabels, copy.stepFallback)
+              ? formatStepName(item.step, copy.stepLabels, copy.stepFallback, language)
               : copy.stepFallback);
           const alternatives = Array.isArray(item.alternative_products)
             ? item.alternative_products
@@ -429,6 +451,9 @@ function RoutinePageContent() {
   const location = useLocation();
 
   const copyRef = useRef(copy);
+  const languageRef = useRef(language);
+  copyRef.current = copy;
+  languageRef.current = language;
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -445,7 +470,7 @@ function RoutinePageContent() {
         const response = await getSavedRoutine();
         if (cancelled) return;
         if (response.routine) {
-          setRoutine(mapGeneratedRoutine(response.routine, copyRef.current));
+          setRoutine(mapGeneratedRoutine(response.routine, copyRef.current, languageRef.current));
         }
       } catch (loadError) {
         if (cancelled) return;
@@ -483,7 +508,7 @@ function RoutinePageContent() {
 
     try {
       const response = await generateRoutine({ use_owned: true });
-      const mapped = mapGeneratedRoutine(response, copy);
+      const mapped = mapGeneratedRoutine(response, copy, language);
       setRoutine(mapped);
       toast.success(copy.generated);
     } catch (generateError) {
@@ -522,7 +547,7 @@ function RoutinePageContent() {
 
     try {
       const response = await validateRoutine(payload);
-      setValidationResult(mapValidationResult(response, copy));
+      setValidationResult(mapValidationResult(response, copy, language));
       toast.success(copy.validated);
     } catch (validateError) {
       if (validateError instanceof ApiError && (validateError.status === 401 || validateError.status === 403)) {
@@ -577,7 +602,7 @@ function RoutinePageContent() {
     try {
       const response = await saveRoutine(toSavePayload(updated));
       if (response.routine) {
-        setRoutine(mapGeneratedRoutine(response.routine, copy));
+        setRoutine(mapGeneratedRoutine(response.routine, copy, language));
       }
       toast.success(copy.applied);
     } catch (saveError) {

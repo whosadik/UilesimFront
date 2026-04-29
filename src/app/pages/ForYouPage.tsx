@@ -30,9 +30,17 @@ import {
 } from '../../shared/api/roadmap';
 import {
   DEFAULT_ROADMAP_STEP_META,
-  getRoadmapCategoryLabel,
   getRoadmapStepMeta,
 } from '../../shared/roadmap/presentation';
+import {
+  formatCatalogCategoryLabel,
+  formatCatalogFreeTextLabel,
+  formatCatalogProductTypeLabel,
+  formatCatalogStrengthLabel,
+  formatCatalogTokenLabel,
+  formatCatalogTokenList,
+  localizeRecommendationReason,
+} from '../../shared/catalog/presentation';
 import {
   getProfileOptionLabels,
   mapProfileLabelsToApiValues,
@@ -589,38 +597,12 @@ const firstString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
-const ROADMAP_CATEGORIES = new Set(['skincare', 'haircare', 'makeup', 'fragrance']);
-
-const normalizeRoadmapCategory = (value: unknown): string | undefined => {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return ROADMAP_CATEGORIES.has(normalized) ? normalized : undefined;
-};
-
 const formatCategoryLabel = (value: unknown, language: 'ru' | 'kk' | 'en'): string | undefined => {
-  const normalized = normalizeRoadmapCategory(value);
-  if (normalized) {
-    return getRoadmapCategoryLabel(normalized, language);
-  }
-
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return undefined;
-  }
-
-  const prepared = value.trim().replace(/_/g, ' ');
-  return prepared[0].toUpperCase() + prepared.slice(1);
+  return formatCatalogCategoryLabel(value, language);
 };
 
-const formatProductTypeLabel = (value: unknown): string | undefined => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return undefined;
-  }
-
-  const prepared = value.trim().replace(/_/g, ' ');
-  return prepared[0].toUpperCase() + prepared.slice(1);
+const formatProductTypeLabel = (value: unknown, language: 'ru' | 'kk' | 'en'): string | undefined => {
+  return formatCatalogProductTypeLabel(value, language);
 };
 
 const formatOfferValueLabel = (value: number): string => {
@@ -704,7 +686,7 @@ const buildPersonalOfferCard = (
   const offerValue = toNumber(offer.value);
   const assignmentId = toNumber(value.assignment_id);
   const categoryLabel = formatCategoryLabel(target.category, language);
-  const productTypeLabel = formatProductTypeLabel(target.product_type);
+  const productTypeLabel = formatProductTypeLabel(target.product_type, language);
   const scope = firstString(target.scope);
   const minBasketAmount = toNumber(
     value.base_amount ??
@@ -878,7 +860,7 @@ const buildRoadmapOverview = (
     return {
       key: stepId !== undefined ? `roadmap-step-${stepId}` : `roadmap-step-${stepIndex}`,
       title:
-        firstString(stepPresentation?.title, step.title, formatProductTypeLabel(step.product_type), copy.stepLabel(stepIndex)) ??
+        firstString(stepPresentation?.title, step.title, formatProductTypeLabel(step.product_type, language), copy.stepLabel(stepIndex)) ??
         copy.stepLabel(stepIndex),
       state: isCurrent ? 'current' : isCompletedRoadmapStatus(step.status) ? 'completed' : 'pending',
       stepIndex,
@@ -888,7 +870,7 @@ const buildRoadmapOverview = (
   return {
     nextStepId,
     nextStepTitle:
-      firstString(nextStepPresentation?.title, nextStep?.title, formatProductTypeLabel(nextStep?.product_type)) ??
+      firstString(nextStepPresentation?.title, nextStep?.title, formatProductTypeLabel(nextStep?.product_type, language)) ??
       copy.roadmapStepTitle,
     nextStepDescription:
       firstString(nextStepPresentation?.description, nextStep?.description) ??
@@ -1073,12 +1055,7 @@ const extractHomeResults = (response: HomeRecsResponse): HomeResultItem[] => {
 };
 
 const formatFreeTextLabel = (value: unknown): string | undefined => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return undefined;
-  }
-
-  const prepared = value.trim().replace(/_/g, ' ');
-  return prepared[0].toUpperCase() + prepared.slice(1);
+  return formatCatalogFreeTextLabel(value);
 };
 
 const resolveRecommendationSection = (source: Record<string, unknown>, sectionKey?: string): string => {
@@ -1106,22 +1083,28 @@ const buildRecommendationWhy = (
     : [];
 
   if (typeof whySource === 'string' && whySource.trim().length > 0) {
-    return whySource.trim();
+    return localizeRecommendationReason(whySource, language) ?? whySource.trim();
   }
   if (whyList.length > 0) {
-    return whyList.slice(0, 2).join(' · ');
+    return whyList
+      .slice(0, 2)
+      .map((reason) => localizeRecommendationReason(reason, language) ?? reason.trim())
+      .join(' · ');
   }
-  if (typeof source.whyRecommended === 'string' && source.whyRecommended.trim().length > 0) {
-    return source.whyRecommended.trim();
+  const whyRecommendedRaw = source.whyRecommended ?? source.why_recommended;
+  if (typeof whyRecommendedRaw === 'string' && whyRecommendedRaw.trim().length > 0) {
+    return localizeRecommendationReason(whyRecommendedRaw, language) ?? whyRecommendedRaw.trim();
   }
 
   const supportedSkinType = toStringArray(product.supported_skin_types)[0];
   const supportedSkinTypeLabel =
     typeof supportedSkinType === 'string'
-      ? SKIN_TYPE_API_TO_UI[supportedSkinType] ?? formatFreeTextLabel(supportedSkinType)
+      ? formatCatalogTokenLabel(supportedSkinType, language) ??
+        SKIN_TYPE_API_TO_UI[supportedSkinType] ??
+        formatFreeTextLabel(supportedSkinType)
       : undefined;
-  const productTypeLabel = formatProductTypeLabel(product.product_type);
-  const categoryLabel = formatCategoryLabel(product.category);
+  const productTypeLabel = formatProductTypeLabel(product.product_type, language);
+  const categoryLabel = formatCategoryLabel(product.category, language);
 
   if (supportedSkinTypeLabel) {
     return copy.suitableForSkin(supportedSkinTypeLabel);
@@ -1147,21 +1130,23 @@ const buildRecommendationImprovement = (
   copy: ForYouCopy,
   language: 'ru' | 'kk' | 'en',
 ): string => {
-  if (typeof source.whatImproves === 'string' && source.whatImproves.trim().length > 0) {
-    return source.whatImproves.trim();
+  const whatImprovesRaw = source.whatImproves ?? source.what_improves;
+  if (typeof whatImprovesRaw === 'string' && whatImprovesRaw.trim().length > 0) {
+    const raw = whatImprovesRaw.trim();
+    return formatCatalogTokenLabel(raw, language) ?? localizeRecommendationReason(raw, language) ?? raw;
   }
 
-  const firstConcern = formatFreeTextLabel(toStringArray(product.concerns)[0]);
+  const firstConcern = formatCatalogTokenLabel(toStringArray(product.concerns)[0], language);
   if (firstConcern) {
     return firstConcern;
   }
 
-  const firstActive = formatFreeTextLabel(toStringArray(product.actives)[0]);
+  const firstActive = formatCatalogTokenLabel(toStringArray(product.actives)[0], language);
   if (firstActive) {
     return firstActive;
   }
 
-  const productTypeLabel = formatProductTypeLabel(product.product_type);
+  const productTypeLabel = formatProductTypeLabel(product.product_type, language);
   if (productTypeLabel) {
     return productTypeLabel;
   }
@@ -1175,17 +1160,23 @@ const buildRecommendationBenefit = (
   product: Record<string, unknown>,
   section: string,
   copy: ForYouCopy,
+  language: 'ru' | 'kk' | 'en',
 ): string => {
-  if (typeof source.expectedBenefit === 'string' && source.expectedBenefit.trim().length > 0) {
-    return source.expectedBenefit.trim();
+  const expectedBenefitRaw = source.expectedBenefit ?? source.expected_benefit;
+  if (typeof expectedBenefitRaw === 'string' && expectedBenefitRaw.trim().length > 0) {
+    const raw = expectedBenefitRaw.trim();
+    const strength = formatCatalogStrengthLabel(raw, language);
+    return strength
+      ? copy.intensity(strength)
+      : formatCatalogTokenLabel(raw, language) ?? localizeRecommendationReason(raw, language) ?? raw;
   }
 
-  const strengthLabel = formatFreeTextLabel(product.strength);
+  const strengthLabel = formatCatalogStrengthLabel(product.strength, language);
   if (strengthLabel) {
     return copy.intensity(strengthLabel);
   }
 
-  const actives = toStringArray(product.actives).slice(0, 2);
+  const actives = formatCatalogTokenList(toStringArray(product.actives).slice(0, 2), language);
   if (actives.length > 0) {
     return copy.actives(actives.join(', '));
   }
@@ -1246,7 +1237,7 @@ const normalizeRec = (
     recommendationScore: Math.max(0, Math.min(100, Math.round(score))),
     whyRecommended,
     whatImproves: buildRecommendationImprovement(source, product, copy, language),
-    expectedBenefit: buildRecommendationBenefit(source, product, section, copy),
+    expectedBenefit: buildRecommendationBenefit(source, product, section, copy, language),
     section,
   };
 };

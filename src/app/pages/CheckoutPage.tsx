@@ -17,10 +17,10 @@ import {
   type RoadmapSummaryApi,
 } from '../../shared/api/roadmap';
 import {
-  getRoadmapCategoryLabel,
   getRoadmapStepPresentation,
   type RoadmapLanguage,
 } from '../../shared/roadmap/presentation';
+import { formatCatalogCategoryLabel } from '../../shared/catalog/presentation';
 
 type TierName = 'bronze' | 'silver' | 'gold';
 
@@ -908,7 +908,7 @@ export default function CheckoutPage() {
                   <p className="text-xs text-white/60 mb-0.5">
                     {copy.roadmap}
                     {roadmapNextStep?.category
-                      ? ` · ${getRoadmapCategoryLabel(roadmapNextStep.category, language)}`
+                      ? ` · ${formatCatalogCategoryLabel(roadmapNextStep.category, language) ?? roadmapNextStep.category}`
                       : ''}
                   </p>
                   <p className="text-sm font-semibold text-white mb-0.5">

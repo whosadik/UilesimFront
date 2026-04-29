@@ -27,6 +27,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { getAdminOverview } from '../../../shared/api/adminMetrics';
+import { formatCatalogCategoryLabel } from '../../../shared/catalog/presentation';
 import { ErrorState } from '../../components/ErrorState';
 
 type Period = '7d' | '30d' | '90d';
@@ -256,11 +257,19 @@ const adaptOverview = (response: unknown): OverviewData => {
     cr: toNumber(row.cr ?? row.redemption_rate_exposed),
   }));
 
-  const topCategories = asRecordArray(payload.top_categories).map((row, index) => ({
-    name: String(row.name ?? row.category ?? `Category ${index + 1}`),
-    revenue: toNumber(row.revenue),
-    growth: toNumber(row.growth ?? row.delta),
-  }));
+  const topCategories = asRecordArray(payload.top_categories).map((row, index) => {
+    const rawName = row.name ?? row.category;
+    const name =
+      typeof rawName === 'string' && rawName.trim()
+        ? formatCatalogCategoryLabel(rawName, 'ru') ?? rawName
+        : `Категория ${index + 1}`;
+
+    return {
+      name,
+      revenue: toNumber(row.revenue),
+      growth: toNumber(row.growth ?? row.delta),
+    };
+  });
 
   const alerts = asRecordArray(payload.alerts).map((row, index) => {
     const action = asRecord(row.action);
@@ -364,6 +373,19 @@ const priorityColors: Record<'high' | 'medium' | 'low', string> = {
   high: 'bg-red-50 text-red-700 border-red-200',
   medium: 'bg-amber-50 text-amber-700 border-amber-200',
   low: 'bg-gray-100 text-gray-600 border-gray-200',
+};
+
+const priorityLabels: Record<'high' | 'medium' | 'low', string> = {
+  high: 'Высокий',
+  medium: 'Средний',
+  low: 'Низкий',
+};
+
+const offerTypeLabels: Record<string, string> = {
+  campaign: 'Кампания',
+  discount: 'Скидка',
+  points_multiplier: 'Множитель баллов',
+  gift: 'Подарок',
 };
 
 const alertStyles: Record<AlertLevel, { bg: string; border: string; icon: React.ReactNode }> = {
@@ -743,7 +765,7 @@ export default function AdminOverviewPage() {
                   <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }} />
                   <Line type="monotone" dataKey="ctr" stroke="#111827" strokeWidth={2} dot={false} name="CTR %" />
                   <Line type="monotone" dataKey="cr" stroke="#FF4DB8" strokeWidth={2} dot={false} name="CR %" />
-                  <Line type="monotone" dataKey="users" stroke="#0ea5e9" strokeWidth={2} dot={false} name="Users" />
+                  <Line type="monotone" dataKey="users" stroke="#0ea5e9" strokeWidth={2} dot={false} name="Пользователи" />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -768,7 +790,7 @@ export default function AdminOverviewPage() {
                       <span
                         className={`flex-shrink-0 mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${priorityColors[action.priority]}`}
                       >
-                        {action.priority === 'high' ? 'HIGH' : action.priority === 'medium' ? 'MED' : 'LOW'}
+                        {priorityLabels[action.priority]}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900">{action.title}</p>
@@ -785,7 +807,7 @@ export default function AdminOverviewPage() {
 
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-900">Top Offers</h2>
+                <h2 className="font-semibold text-gray-900">Лучшие офферы</h2>
                 <button className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
                   Все <ArrowUpRight className="w-3 h-3" />
                 </button>
@@ -804,7 +826,9 @@ export default function AdminOverviewPage() {
                       <tr key={offer.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-3 font-medium text-gray-900">{offer.name}</td>
                         <td className="px-3 py-3">
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">{offer.type}</span>
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
+                            {offerTypeLabels[offer.type] ?? offer.type}
+                          </span>
                         </td>
                         <td className="px-5 py-3 text-right text-gray-700">{formatPercent(offer.cr)}</td>
                       </tr>

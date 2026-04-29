@@ -12,6 +12,10 @@ import { listProducts } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
 import { extractProducts, mapApiProductToGrid } from '../utils/productGridMapping';
 import { useI18n } from '../../shared/i18n/LanguageContext';
+import {
+  formatCatalogCategoryLabel,
+  formatCatalogProductTypeLabel,
+} from '../../shared/catalog/presentation';
 
 const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 const RECENT_SEARCHES_STORAGE_KEY = 'recentSearches';
@@ -120,6 +124,19 @@ const saveRecentSearches = (value: string[]) => {
   window.localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(value));
 };
 
+function formatSearchQueryLabel(
+  value: string,
+  copy: (typeof searchPageCopy)[keyof typeof searchPageCopy],
+  language: keyof typeof searchPageCopy,
+): string {
+  return (
+    copy.suggestedQueries.find((item) => item.value === value)?.label ??
+    formatCatalogCategoryLabel(value, language) ??
+    formatCatalogProductTypeLabel(value, language) ??
+    value
+  );
+}
+
 export default function SearchPage() {
   const { language, messages } = useI18n();
   const copy = searchPageCopy[language];
@@ -212,6 +229,7 @@ export default function SearchPage() {
 
   const filteredProducts = useMemo(() => products, [products]);
   const popularProducts = useMemo(() => products.slice(0, 8), [products]);
+  const displayQuery = query ? formatSearchQueryLabel(query, copy, language) : '';
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -300,7 +318,7 @@ export default function SearchPage() {
                     <button key={`${search}-${index}`} type="button" onClick={() => handleSuggestedClick(search)}>
                       <Chip className="gap-2 transition-colors hover:bg-gray-50">
                         <TrendingUp className="h-4 w-4" />
-                        <span>{search}</span>
+                        <span>{formatSearchQueryLabel(search, copy, language)}</span>
                       </Chip>
                     </button>
                   ))}
@@ -341,7 +359,7 @@ export default function SearchPage() {
                   : copy.nothingFound}
               </h2>
               <p className="text-gray-600">
-                {copy.resultsFor} <span className="font-medium">"{query}"</span>
+                {copy.resultsFor} <span className="font-medium">"{displayQuery}"</span>
               </p>
             </div>
 
@@ -357,7 +375,7 @@ export default function SearchPage() {
               <EmptyState
                 icon={<Search className="h-12 w-12" />}
                 title={copy.nothingFound}
-                description={copy.emptyDescription(query)}
+                description={copy.emptyDescription(displayQuery)}
                 action={{
                   label: copy.clearSearch,
                   onClick: clearSearch,

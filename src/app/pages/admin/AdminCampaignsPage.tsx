@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { listCampaigns } from '../../../shared/api/adminCampaigns';
+import { formatCatalogCategoryLabel } from '../../../shared/catalog/presentation';
 
 /**
  * DEV NOTES:
@@ -32,6 +33,11 @@ const statusColors: Record<string, string> = {
   draft: 'bg-blue-50 text-blue-700 border-blue-200',
   paused: 'bg-amber-50 text-amber-700 border-amber-200',
   ended: 'bg-gray-100 text-gray-500 border-gray-200',
+};
+
+const statusLabels: Record<Campaign['status'], string> = {
+  active: 'Активна',
+  paused: 'На паузе',
 };
 
 function formatMoney(v: number) {
@@ -95,7 +101,7 @@ export default function AdminCampaignsPage() {
             spend: Number.isFinite(spend) ? spend : 0,
             category:
               Array.isArray(item.allowed_categories) && item.allowed_categories.length > 0
-                ? String(item.allowed_categories[0])
+                ? formatCatalogCategoryLabel(item.allowed_categories[0], 'ru') ?? String(item.allowed_categories[0])
                 : 'Все категории',
             offersCount: Number(item.offers_count ?? 0),
           } as Campaign;
@@ -189,7 +195,7 @@ export default function AdminCampaignsPage() {
                 </td>
                 <td className="px-4 py-4">
                   <span className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${statusColors[c.status]}`}>
-                    {c.status}
+                    {statusLabels[c.status]}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-xs text-gray-600">

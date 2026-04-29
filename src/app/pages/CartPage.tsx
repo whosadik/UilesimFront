@@ -20,6 +20,11 @@ import {
   type RoadmapStepSnapshotApi,
 } from '../../shared/api/roadmap';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
+import {
+  formatCatalogCategoryLabel,
+  formatCatalogFreeTextLabel,
+  formatCatalogProductTypeLabel,
+} from '../../shared/catalog/presentation';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 
 /**
@@ -364,12 +369,7 @@ const firstString = (...values: unknown[]): string | undefined => {
 };
 
 const formatLabel = (value: unknown): string | undefined => {
-  if (typeof value !== 'string' || !value.trim()) {
-    return undefined;
-  }
-
-  const prepared = value.trim().replace(/_/g, ' ');
-  return prepared[0].toUpperCase() + prepared.slice(1);
+  return formatCatalogFreeTextLabel(value);
 };
 
 const formatTierName = (value: string, language: CartPageLanguage): string => {
@@ -503,7 +503,7 @@ const buildRoadmapUpsell = (
   }
 
   const title =
-    firstString(nextStep.title, formatLabel(nextStep.product_type)) ??
+    firstString(nextStep.title, formatCatalogProductTypeLabel(nextStep.product_type, language)) ??
     copy.nextRoadmapTitle;
   const description =
     firstString(nextStep.description) ??
@@ -1080,10 +1080,13 @@ export default function CartPage() {
   const roadmapUpsell = buildRoadmapUpsell(roadmapPlan, language, copy);
   const offerScopedLabel =
     (activeOffer?.targetCategory
-      ? messages.catalog.categories[
+      ? formatCatalogCategoryLabel(activeOffer.targetCategory, language) ??
+        messages.catalog.categories[
           activeOffer.targetCategory as keyof typeof messages.catalog.categories
-        ] ?? formatLabel(activeOffer.targetCategory)
+        ] ??
+        formatLabel(activeOffer.targetCategory)
       : undefined) ??
+    formatCatalogProductTypeLabel(activeOffer?.targetProductType, language) ??
     formatLabel(activeOffer?.targetProductType);
   const offerTitle =
     !activeOffer

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { ApiError } from '../../shared/api/ApiError';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
+import { localizeRecommendationReason } from '../../shared/catalog/presentation';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 import { Badge } from './Badge';
 
@@ -91,7 +92,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { messages } = useI18n();
+  const { language, messages } = useI18n();
   const { addToCart, getCartQuantity, isInWishlist, setCartQuantity, toggleWishlist } = useCommerce();
   const [quantity, setQuantity] = useState(1);
   const [isWishlistPending, setIsWishlistPending] = useState(false);
@@ -113,12 +114,16 @@ export function ProductCard({
   const productImage = pickImage(product);
   const inStock = product.inStock ?? product.in_stock ?? true;
   const isNew = product.isNew ?? product.is_new ?? false;
-  const whyRecommended =
+  const rawWhyRecommended =
     typeof product.whyRecommended === 'string' && product.whyRecommended.trim()
       ? product.whyRecommended
       : typeof product.why_recommended === 'string' && product.why_recommended.trim()
         ? product.why_recommended
         : undefined;
+  const whyRecommended =
+    rawWhyRecommended !== undefined
+      ? localizeRecommendationReason(rawWhyRecommended, language) ?? rawWhyRecommended
+      : undefined;
 
   const price = Math.max(0, Math.round(toNumber(product.price) ?? 0));
   const originalPriceRaw = toNumber(product.originalPrice ?? product.original_price);

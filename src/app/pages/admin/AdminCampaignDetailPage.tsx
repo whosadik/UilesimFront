@@ -6,6 +6,10 @@ import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { type Campaign, createCampaign, getCampaign, patchCampaign, publishCampaign, uploadCampaignBanner } from '../../../shared/api/adminCampaigns';
 import {
+  formatCatalogCategoryLabel,
+  formatCatalogProductTypeLabel,
+} from '../../../shared/catalog/presentation';
+import {
   type Offer,
   type OfferType,
   type TargetScope,
@@ -16,23 +20,23 @@ import {
 } from '../../../shared/api/adminOffers';
 
 const CATEGORY_OPTIONS = [
-  { value: 'skincare', label: 'Skincare' },
-  { value: 'makeup', label: 'Makeup' },
-  { value: 'haircare', label: 'Haircare' },
-  { value: 'fragrance', label: 'Fragrance' },
+  { value: 'skincare', label: formatCatalogCategoryLabel('skincare', 'ru') ?? 'skincare' },
+  { value: 'makeup', label: formatCatalogCategoryLabel('makeup', 'ru') ?? 'makeup' },
+  { value: 'haircare', label: formatCatalogCategoryLabel('haircare', 'ru') ?? 'haircare' },
+  { value: 'fragrance', label: formatCatalogCategoryLabel('fragrance', 'ru') ?? 'fragrance' },
 ];
 
 const STEP_OPTIONS = [
-  { value: 'cleanser', label: 'Cleanser' },
-  { value: 'serum', label: 'Serum' },
-  { value: 'moisturizer', label: 'Moisturizer' },
-  { value: 'spf', label: 'SPF' },
-  { value: 'conditioner', label: 'Conditioner' },
-  { value: 'hair_mask', label: 'Hair mask' },
-  { value: 'lipstick', label: 'Lipstick' },
-  { value: 'mascara', label: 'Mascara' },
-  { value: 'edt', label: 'EDT' },
-  { value: 'body_mist', label: 'Body mist' },
+  { value: 'cleanser', label: formatCatalogProductTypeLabel('cleanser', 'ru') ?? 'cleanser' },
+  { value: 'serum', label: formatCatalogProductTypeLabel('serum', 'ru') ?? 'serum' },
+  { value: 'moisturizer', label: formatCatalogProductTypeLabel('moisturizer', 'ru') ?? 'moisturizer' },
+  { value: 'spf', label: formatCatalogProductTypeLabel('spf', 'ru') ?? 'spf' },
+  { value: 'conditioner', label: formatCatalogProductTypeLabel('conditioner', 'ru') ?? 'conditioner' },
+  { value: 'hair_mask', label: formatCatalogProductTypeLabel('hair_mask', 'ru') ?? 'hair_mask' },
+  { value: 'lipstick', label: formatCatalogProductTypeLabel('lipstick', 'ru') ?? 'lipstick' },
+  { value: 'mascara', label: formatCatalogProductTypeLabel('mascara', 'ru') ?? 'mascara' },
+  { value: 'edt', label: formatCatalogProductTypeLabel('edt', 'ru') ?? 'edt' },
+  { value: 'body_mist', label: formatCatalogProductTypeLabel('body_mist', 'ru') ?? 'body_mist' },
 ];
 
 const OFFER_TYPE_LABEL: Record<OfferType, string> = {
@@ -730,7 +734,7 @@ export default function AdminCampaignDetailPage() {
                               : 'bg-gray-100 text-gray-500 border-gray-200'
                           }`}
                         >
-                          {offer.is_active ? 'active' : 'inactive'}
+                          {offer.is_active ? 'Активен' : 'Неактивен'}
                         </span>
                       </td>
                       <td className="py-2.5 text-right">
@@ -857,8 +861,8 @@ function OfferEditorModal({
               className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white"
             >
               <option value="cart">На всю корзину</option>
-              <option value="category">На категорию (например, skincare)</option>
-              <option value="product_type">На тип товара (например, spf)</option>
+              <option value="category">На категорию</option>
+              <option value="product_type">На тип товара</option>
               <option value="product_id">На конкретный товар (подбирается системой)</option>
             </select>
             <Hint>

@@ -10,6 +10,10 @@ import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
 import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
+  formatCatalogCategoryLabel,
+  formatCatalogProductTypeLabel,
+} from "../../shared/catalog/presentation";
+import {
   activateOwnedProduct,
   deactivateOwnedProduct,
   listOwnedProducts,
@@ -194,6 +198,7 @@ function mapOwnedProduct(
   item: OwnedProductRecord,
   index: number,
   copy: (typeof ownedProductsPageCopy)[keyof typeof ownedProductsPageCopy],
+  language: keyof typeof ownedProductsPageCopy,
 ): OwnedProduct {
   const id = item.id !== undefined && item.id !== null ? String(item.id) : `owned-${index}`;
   const product = isRecord(item.product) ? item.product : null;
@@ -203,6 +208,10 @@ function mapOwnedProduct(
     (typeof product?.product_type === "string" && product.product_type) ||
     "";
   const categoryKey = rawCategory.toLowerCase();
+  const categoryLabel =
+    copy.categories[categoryKey as keyof typeof copy.categories] ??
+    formatCatalogProductTypeLabel(rawCategory, language) ??
+    formatCatalogCategoryLabel(rawCategory, language);
 
   return {
     id,
@@ -217,7 +226,7 @@ function mapOwnedProduct(
       (typeof product?.image === "string" && product.image) ||
       FALLBACK_IMAGE,
     brand: (typeof product?.brand === "string" && product.brand.trim()) || copy.brandFallback,
-    category: copy.categories[categoryKey as keyof typeof copy.categories] ?? rawCategory ?? copy.categoryFallback,
+    category: categoryLabel ?? copy.categoryFallback,
     purchase_date:
       (typeof item.last_acquired_at === "string" && item.last_acquired_at) ||
       (typeof item.acquired_at === "string" && item.acquired_at) ||
@@ -256,7 +265,7 @@ export default function OwnedProductsPage() {
 
       try {
         const response = await listOwnedProducts();
-        const mapped = response.map((item, index) => mapOwnedProduct(item, index, copy));
+        const mapped = response.map((item, index) => mapOwnedProduct(item, index, copy, language));
 
         if (!cancelled) {
           setOwnedProducts(mapped);
@@ -285,7 +294,7 @@ export default function OwnedProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [copy, location.pathname, navigate, retryKey]);
+  }, [copy, language, location.pathname, navigate, retryKey]);
 
   const handleToggleActive = async (productId: string, currentActive: boolean) => {
     setPendingToggleId(productId);

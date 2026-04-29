@@ -7,6 +7,10 @@ import { Button } from '../components/Button';
 import { getPromotionBanner, type PromotionDetailResponse } from '../../shared/api/offers';
 import { ApiError } from '../../shared/api/ApiError';
 import { useI18n } from '../../shared/i18n/LanguageContext';
+import {
+  formatCatalogCategoryLabel,
+  formatCatalogProductTypeLabel,
+} from '../../shared/catalog/presentation';
 
 const copyByLanguage = {
   ru: {
@@ -137,6 +141,12 @@ export default function PromotionDetailPage() {
     return value;
   };
 
+  const formatCategory = (value: string) =>
+    formatCatalogCategoryLabel(value, language) ?? value;
+
+  const formatStep = (value: string) =>
+    formatCatalogProductTypeLabel(value, language) ?? value;
+
   return (
     <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
@@ -208,7 +218,7 @@ export default function PromotionDetailPage() {
                           key={cat}
                           className="inline-flex px-2.5 py-0.5 rounded-full text-xs bg-pink-50 text-pink-700 border border-pink-200"
                         >
-                          {cat}
+                          {formatCategory(cat)}
                         </span>
                       ))}
                     </div>
@@ -223,7 +233,7 @@ export default function PromotionDetailPage() {
                           key={step}
                           className="inline-flex px-2.5 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
                         >
-                          {step}
+                          {formatStep(step)}
                         </span>
                       ))}
                     </div>
@@ -259,7 +269,7 @@ export default function PromotionDetailPage() {
                         <div className="mt-2 flex flex-wrap gap-1">
                           {offer.allowed_categories.map((c) => (
                             <span key={c} className="text-[10px] text-[#6B7280] uppercase tracking-wide">
-                              #{c}
+                              #{formatCategory(c)}
                             </span>
                           ))}
                         </div>

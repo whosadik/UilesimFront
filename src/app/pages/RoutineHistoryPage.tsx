@@ -10,6 +10,10 @@ import { toast } from "sonner";
 import { ApiError } from "../../shared/api/ApiError";
 import { useI18n } from "../../shared/i18n/LanguageContext";
 import {
+  formatCatalogProductTypeLabel,
+  formatCatalogTokenLabel,
+} from "../../shared/catalog/presentation";
+import {
   getRoutineHistory,
   type RoutineHistoryItemApi,
   type RoutineStepApi,
@@ -77,17 +81,22 @@ function formatProductName(step: RoutineStepApi, fallback: string): string {
   return fallback;
 }
 
-function formatStepLabel(step: RoutineStepApi): string {
+function formatStepLabel(step: RoutineStepApi, language: keyof typeof copyByLang): string {
   if (typeof step.display_step === "string" && step.display_step.trim().length > 0) {
     return step.display_step;
   }
   if (typeof step.step === "string") {
+    const catalogLabel = formatCatalogProductTypeLabel(step.step, language);
+    if (catalogLabel) {
+      return catalogLabel;
+    }
+
     const normalized = step.step.replace(/_/g, " ").trim();
     if (normalized.length > 0) {
       return normalized[0].toUpperCase() + normalized.slice(1);
     }
   }
-  return "Step";
+  return language === "ru" ? "Шаг" : language === "kk" ? "Қадам" : "Step";
 }
 
 function formatDate(value: string, locale: string): string {
@@ -180,6 +189,9 @@ export default function RoutineHistoryPage() {
             {items.map((item) => {
               const am = item.routine?.am ?? [];
               const pm = item.routine?.pm ?? [];
+              const missingSteps = (item.missing_steps ?? [])
+                .map((step) => formatCatalogProductTypeLabel(step, language) ?? step)
+                .filter(Boolean);
               return (
                 <div
                   key={item.id}
@@ -192,14 +204,14 @@ export default function RoutineHistoryPage() {
                       </p>
                       {item.profile_skin_type && (
                         <p className="text-xs text-gray-500 mt-1">
-                          {copy.skinType(item.profile_skin_type)}
+                          {copy.skinType(formatCatalogTokenLabel(item.profile_skin_type, language) ?? item.profile_skin_type)}
                         </p>
                       )}
                     </div>
-                    {item.missing_steps && item.missing_steps.length > 0 && (
+                    {missingSteps.length > 0 && (
                       <Badge className="bg-yellow-50 border-yellow-200 text-yellow-800">
                         <AlertCircle className="w-3.5 h-3.5 mr-1" />
-                        {copy.missing}: {item.missing_steps.join(", ")}
+                        {copy.missing}: {missingSteps.join(", ")}
                       </Badge>
                     )}
                   </div>
@@ -212,7 +224,7 @@ export default function RoutineHistoryPage() {
                       <ul className="space-y-1">
                         {am.map((step, index) => (
                           <li key={`am-${index}`} className="text-sm text-gray-700 flex gap-2">
-                            <span className="text-gray-500">{formatStepLabel(step)}:</span>
+                            <span className="text-gray-500">{formatStepLabel(step, language)}:</span>
                             <span>{formatProductName(step, copy.noProduct)}</span>
                           </li>
                         ))}
@@ -225,7 +237,7 @@ export default function RoutineHistoryPage() {
                       <ul className="space-y-1">
                         {pm.map((step, index) => (
                           <li key={`pm-${index}`} className="text-sm text-gray-700 flex gap-2">
-                            <span className="text-gray-500">{formatStepLabel(step)}:</span>
+                            <span className="text-gray-500">{formatStepLabel(step, language)}:</span>
                             <span>{formatProductName(step, copy.noProduct)}</span>
                           </li>
                         ))}

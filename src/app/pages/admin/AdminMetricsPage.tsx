@@ -17,6 +17,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { downloadAdminMetricsCsv, getAdminMetrics } from '../../../shared/api/adminMetrics';
+import { formatCatalogCategoryLabel } from '../../../shared/catalog/presentation';
 import { ErrorState } from '../../components/ErrorState';
 
 type Summary = {
@@ -506,10 +507,10 @@ export default function AdminMetricsPage() {
             className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
           >
             <option value="">Категория</option>
-            <option value="skincare">Skincare</option>
-            <option value="makeup">Makeup</option>
-            <option value="haircare">Haircare</option>
-            <option value="fragrance">Fragrance</option>
+            <option value="skincare">{formatCatalogCategoryLabel('skincare', 'ru')}</option>
+            <option value="makeup">{formatCatalogCategoryLabel('makeup', 'ru')}</option>
+            <option value="haircare">{formatCatalogCategoryLabel('haircare', 'ru')}</option>
+            <option value="fragrance">{formatCatalogCategoryLabel('fragrance', 'ru')}</option>
           </select>
           <select
             value={offerType}
@@ -517,9 +518,9 @@ export default function AdminMetricsPage() {
             className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
           >
             <option value="">Тип оффера</option>
-            <option value="discount">Discount</option>
-            <option value="points_multiplier">Points multiplier</option>
-            <option value="gift">Gift</option>
+            <option value="discount">Скидка</option>
+            <option value="points_multiplier">Множитель баллов</option>
+            <option value="gift">Подарок</option>
           </select>
           <select
             value={channel}
@@ -527,9 +528,9 @@ export default function AdminMetricsPage() {
             className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
           >
             <option value="">Канал</option>
-            <option value="offline">Offline</option>
-            <option value="online">Online</option>
-            <option value="import_synthetic">Synthetic import</option>
+            <option value="offline">Офлайн</option>
+            <option value="online">Онлайн</option>
+            <option value="import_synthetic">Синтетический импорт</option>
           </select>
         </div>
         <p className="text-xs text-gray-500">

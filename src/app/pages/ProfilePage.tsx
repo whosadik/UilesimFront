@@ -16,6 +16,10 @@ import { ApiError } from '../../shared/api/ApiError';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 import type { AppLanguage } from '../../shared/i18n/messages';
 import {
+  formatCatalogCategoryLabel,
+  formatCatalogProductTypeLabel,
+} from '../../shared/catalog/presentation';
+import {
   getFavoriteCategory,
   getLoyalty,
   getProfile,
@@ -457,13 +461,24 @@ function calcCompletion(profile: Record<string, unknown>) {
 function mapOfferDescription(
   target: Record<string, unknown> | undefined,
   copy: (typeof profilePageCopy)[AppLanguage],
+  language: AppLanguage,
 ) {
   const scope = String(target?.scope ?? '');
   if (!scope) return undefined;
 
   if (scope === 'cart') return copy.offerAllCart;
-  if (scope === 'category') return copy.offerCategory(String(target?.category ?? target?.value ?? '')).trim();
-  if (scope === 'product_type') return copy.offerProductType(String(target?.product_type ?? target?.value ?? '')).trim();
+  if (scope === 'category') {
+    const label =
+      formatCatalogCategoryLabel(target?.category ?? target?.value, language) ??
+      String(target?.category ?? target?.value ?? '');
+    return copy.offerCategory(label).trim();
+  }
+  if (scope === 'product_type') {
+    const label =
+      formatCatalogProductTypeLabel(target?.product_type ?? target?.value, language) ??
+      String(target?.product_type ?? target?.value ?? '');
+    return copy.offerProductType(label).trim();
+  }
   if (scope === 'product_id') return copy.offerProduct(String(target?.value ?? '')).trim();
 
   return copy.offerCondition(scope);
@@ -806,7 +821,8 @@ export default function ProfilePage() {
         setFavoriteCategory({
           category:
             typeof favObj.favorite_category === 'string'
-              ? messages.catalog.categories[
+              ? formatCatalogCategoryLabel(favObj.favorite_category, language) ??
+                messages.catalog.categories[
                   favObj.favorite_category as keyof typeof messages.catalog.categories
                 ] ?? favObj.favorite_category
               : '',
@@ -856,7 +872,10 @@ export default function ProfilePage() {
               brand: typeof prod.brand === 'string' ? prod.brand : '',
               name: typeof prod.name === 'string' ? prod.name : '',
               price: Number.isFinite(price) ? price : 0,
-              category: typeof prod.category === 'string' ? prod.category : undefined,
+              category:
+                typeof prod.category === 'string'
+                  ? formatCatalogCategoryLabel(prod.category, language) ?? prod.category
+                  : undefined,
               recommendationScore: typeof it?.score === 'number' ? it.score : undefined,
             } satisfies RecommendationCard;
           })
@@ -1270,7 +1289,7 @@ export default function ProfilePage() {
           <OfferCard
             status={offerStatus}
             title={offer?.offerName}
-            description={mapOfferDescription(offer?.target, copy)}
+            description={mapOfferDescription(offer?.target, copy, language)}
             expiresAt={formatLocalizedDate(language, offer?.expiresAt)}
             discountType={offer?.offerType === 'points_multiplier' ? 'points' : offer?.offerType === 'gift' ? 'gift' : 'percentage'}
             discountValue={offer?.value}
