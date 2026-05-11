@@ -43,9 +43,6 @@ export default function HomePage() {
           onEvent={createSectionEventHandler('for_you')}
         />
       </Reveal>
-      <Reveal delay={80}>
-        <EditorialBannerSection />
-      </Reveal>
       <Reveal>
         <PromotionsSection />
       </Reveal>

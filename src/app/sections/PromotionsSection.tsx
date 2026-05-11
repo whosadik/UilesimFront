@@ -5,12 +5,36 @@ import { PromoBannerCard } from '../components/PromoBannerCard';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { ApiError } from '../../shared/api/ApiError';
-import { clickOffer, listHomePromotions } from '../../shared/api/offers';
+import {
+  clickOffer,
+  listHomePromotions,
+  listPromotionBanners,
+  type PromotionBanner,
+} from '../../shared/api/offers';
 import { mapOfferPayloadsToPromotions, type OfferPromotionCard } from '../../shared/offers/presentation';
 import { useI18n } from '../../shared/i18n/LanguageContext';
+import type { AppLanguage } from '../../shared/i18n/messages';
 
 type PromoCardItem = OfferPromotionCard & {
   onClick?: () => void;
+};
+
+const campaignCardCopy: Record<AppLanguage, { badge: string; details: string; fallbackDescription: string }> = {
+  ru: {
+    badge: 'Акция',
+    details: 'Подробнее',
+    fallbackDescription: 'Кампания действует сейчас.',
+  },
+  kk: {
+    badge: 'Акция',
+    details: 'Толығырақ',
+    fallbackDescription: 'Науқан қазір белсенді.',
+  },
+  en: {
+    badge: 'Campaign',
+    details: 'Learn more',
+    fallbackDescription: 'This campaign is active now.',
+  },
 };
 
 export function PromotionsSection() {
@@ -43,31 +67,74 @@ export function PromotionsSection() {
       setRequiresAuth(false);
 
       try {
-        const payload = await listHomePromotions();
+        const [homeResult, campaignResult] = await Promise.allSettled([
+          listHomePromotions(),
+          listPromotionBanners(),
+        ]);
 
         if (cancelled) {
           return;
         }
 
-        const dynamicPromos = mapOfferPayloadsToPromotions(payload.banners, language);
-        if (dynamicPromos.length === 0) {
-          setPromos([]);
+        const nextPromos: PromoCardItem[] = [];
+        let personalRequiresAuth = false;
+        let firstLoadError: unknown = null;
+
+        if (homeResult.status === 'fulfilled') {
+          const dynamicPromos = mapOfferPayloadsToPromotions(homeResult.value.banners, language);
+          nextPromos.push(
+            ...dynamicPromos.map((promo) => ({
+              ...promo,
+              onClick: () => {
+                if (promo.assignmentId === undefined) {
+                  return;
+                }
+
+                void handleOfferClick(promo.assignmentId);
+                navigate(`/promotions/offers/${promo.assignmentId}`);
+              },
+            })),
+          );
+        } else if (homeResult.reason instanceof ApiError && (homeResult.reason.status === 401 || homeResult.reason.status === 403)) {
+          personalRequiresAuth = true;
+        } else {
+          firstLoadError = homeResult.reason;
+        }
+
+        if (campaignResult.status === 'fulfilled') {
+          const copy = campaignCardCopy[language];
+          const campaignPromos: PromoCardItem[] = (campaignResult.value.banners ?? [])
+            .filter((banner): banner is PromotionBanner => Boolean(banner?.id))
+            .map((banner) => ({
+              id: `campaign-${banner.id}`,
+              title: banner.name,
+              description: banner.promo_text || copy.fallbackDescription,
+              badge: copy.badge,
+              type: 'personal',
+              buttonText: copy.details,
+              imageUrl: banner.banner_url,
+              onClick: () => navigate(`/promotions/${banner.id}`),
+            }));
+
+          nextPromos.push(...campaignPromos);
+        } else if (!firstLoadError) {
+          firstLoadError = campaignResult.reason;
+        }
+
+        if (nextPromos.length > 0) {
+          setPromos(nextPromos);
           return;
         }
 
-        setPromos(
-          dynamicPromos.map((promo) => ({
-            ...promo,
-            onClick: () => {
-              if (promo.assignmentId === undefined) {
-                return;
-              }
+        setPromos([]);
+        if (personalRequiresAuth && !firstLoadError) {
+          setRequiresAuth(true);
+          return;
+        }
 
-              void handleOfferClick(promo.assignmentId);
-              navigate(`/promotions/offers/${promo.assignmentId}`);
-            },
-          })),
-        );
+        if (firstLoadError) {
+          setError(firstLoadError instanceof Error ? firstLoadError.message : messages.home.promotions.errorTitle);
+        }
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -102,7 +169,7 @@ export function PromotionsSection() {
         aria-hidden
       />
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title={messages.home.promotions.title} />
+        <CarouselHeader title={messages.home.promotions.title} onViewAll={() => navigate('/promotions')} />
 
         {error ? (
           <ErrorState
