@@ -16,7 +16,7 @@ import {
   type ProfileTaxonomy,
   updateProfile,
 } from '../../shared/api/me';
-import { nextOffer } from '../../shared/api/offers';
+import { clickOffer, nextOffer } from '../../shared/api/offers';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
 import { useCommerce } from '../../shared/commerce/CommerceContext';
 import {
@@ -198,6 +198,7 @@ const forYouPageCopy = {
     partialDataError: 'Часть персональных данных недоступна. Некоторые разделы рекомендаций могут быть временно пустыми.',
     loadOfferError: 'Не удалось загрузить персональный оффер. Остальные данные отображаются.',
     offerAccent: 'ОФФЕР',
+    offerDetails: 'Подробнее',
   },
   kk: {
     points: 'ұпай',
@@ -333,6 +334,7 @@ const forYouPageCopy = {
     partialDataError: 'Жеке деректердің бір бөлігі қолжетімсіз. Кей бөлімдер уақытша бос болуы мүмкін.',
     loadOfferError: 'Жеке офферді жүктеу мүмкін болмады. Қалған деректер көрсетіліп тұр.',
     offerAccent: 'ОФФЕР',
+    offerDetails: 'Толығырақ',
   },
   en: {
     points: 'points',
@@ -468,6 +470,7 @@ const forYouPageCopy = {
     partialDataError: 'Some personal data is unavailable. Some recommendation sections may be temporarily empty.',
     loadOfferError: 'Could not load the personal offer. Other data is still shown.',
     offerAccent: 'OFFER',
+    offerDetails: 'Learn more',
   },
 } as const;
 
@@ -2369,6 +2372,18 @@ export default function ForYouPage() {
                     {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}{copy.minutesShort}
                   </span>
                 </div>
+              ) : null}
+              {personalOffer?.assignmentId ? (
+                <Link
+                  to={`/promotions/offers/${personalOffer.assignmentId}`}
+                  onClick={() => {
+                    void clickOffer(personalOffer.assignmentId as number, { source: 'for_you_sidebar' }).catch(() => undefined);
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#111827] transition-colors hover:text-[#FF4DB8]"
+                >
+                  {copy.offerDetails}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               ) : null}
             </div>
 

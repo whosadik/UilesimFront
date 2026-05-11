@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import {
+  clickOffer,
   listMyOffers,
   listPromotionBanners,
   nextOffer,
@@ -157,6 +158,15 @@ export default function PromotionsPage() {
       ? copy.emptyAccount
       : copy.emptyFiltered;
 
+  const handlePersonalOfferClick = (promo: PromotionCard) => {
+    if (promo.assignmentId === undefined) {
+      return;
+    }
+
+    void clickOffer(promo.assignmentId, { source: 'promotions_page' }).catch(() => undefined);
+    navigate(`/promotions/offers/${promo.assignmentId}`);
+  };
+
   return (
     <div className="page-with-navbar-offset min-h-screen">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
@@ -241,7 +251,11 @@ export default function PromotionsPage() {
             ) : filteredPromotions.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-6">
                 {filteredPromotions.map((promo) => (
-                  <PromoBannerCard key={promo.id} {...promo} />
+                  <PromoBannerCard
+                    key={promo.id}
+                    {...promo}
+                    onClick={() => handlePersonalOfferClick(promo)}
+                  />
                 ))}
               </div>
             ) : (

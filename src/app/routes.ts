@@ -8,6 +8,7 @@ import BrandPage from "./pages/BrandPage";
 import NewArrivalsPage from "./pages/NewArrivalsPage";
 import PromotionsPage from "./pages/PromotionsPage";
 import PromotionDetailPage from "./pages/PromotionDetailPage";
+import PersonalOfferDetailPage from "./pages/PersonalOfferDetailPage";
 import ForYouPage from "./pages/ForYouPage";
 import StoresPage from "./pages/StoresPage";
 import GiftCardsPage from "./pages/GiftCardsPage";
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           { path: "brands/:brand", Component: BrandPage },
           { path: "new", Component: NewArrivalsPage },
           { path: "promotions", Component: PromotionsPage },
+          { path: "promotions/offers/:assignmentId", Component: PersonalOfferDetailPage },
           { path: "promotions/:id", Component: PromotionDetailPage },
           { path: "for-you", Component: ForYouPage },
           { path: "stores", Component: StoresPage },

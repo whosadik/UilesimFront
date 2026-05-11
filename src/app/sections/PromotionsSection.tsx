@@ -64,6 +64,7 @@ export function PromotionsSection() {
               }
 
               void handleOfferClick(promo.assignmentId);
+              navigate(`/promotions/offers/${promo.assignmentId}`);
             },
           })),
         );

@@ -41,6 +41,18 @@ export function listMyOffers(): Promise<Record<string, unknown>[]> {
   });
 }
 
+export type PersonalOfferDetailResponse = {
+  ok: boolean;
+  assignment: Record<string, unknown>;
+};
+
+export function getMyOffer(assignmentId: number | string): Promise<PersonalOfferDetailResponse> {
+  return apiFetch<PersonalOfferDetailResponse>(`/api/me/offers/${assignmentId}`, {
+    method: 'GET',
+    skipCsrf: true,
+  });
+}
+
 // GET /api/me/next-offer :contentReference[oaicite:28]{index=28}
 export function getNextOffer() {
   return apiFetch<any>('/api/me/next-offer');
