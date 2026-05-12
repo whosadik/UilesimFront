@@ -210,7 +210,7 @@ export default function AdminRoot() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto" data-route-scroll-container>
           <Outlet />
         </main>
       </div>
