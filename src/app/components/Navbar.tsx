@@ -14,6 +14,7 @@ import {
   Map,
   Clock,
   Shield,
+  Gift,
 } from 'lucide-react';
 
 import { IconButton } from './IconButton';
@@ -68,8 +69,6 @@ export function Navbar({
     { label: messages.navbar.mainMenu.new, href: '/new' },
     { label: messages.navbar.mainMenu.promotions, href: '/promotions' },
     { label: messages.navbar.mainMenu.forYou, href: '/for-you' },
-    { label: messages.navbar.mainMenu.stores, href: '/stores' },
-    { label: messages.navbar.mainMenu.giftCards, href: '/gift-cards' },
   ];
 
   const defaultProfileMenu: MobileMenuItem[] = [
@@ -89,6 +88,11 @@ export function Navbar({
       label: messages.navbar.profileMenu.transactions,
       href: '/me/transactions',
       icon: <Receipt className="w-4 h-4" />,
+    },
+    {
+      label: messages.navbar.mainMenu.giftCards,
+      href: '/gift-cards',
+      icon: <Gift className="w-4 h-4" />,
     },
   ];
 
@@ -159,8 +163,8 @@ export function Navbar({
               <Link to="/delivery-returns" className="hover:text-[#FF4DB8] transition-colors">
                 {messages.navbar.topLinks.deliveryReturns}
               </Link>
-              <Link to="/help" className="hover:text-[#FF4DB8] transition-colors">
-                {messages.navbar.topLinks.contacts}
+              <Link to="/stores" className="hover:text-[#FF4DB8] transition-colors">
+                {messages.navbar.mainMenu.stores}
               </Link>
               <Link to="/about" className="hover:text-[#FF4DB8] transition-colors">
                 {messages.navbar.topLinks.about}
