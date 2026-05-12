@@ -156,7 +156,7 @@ export function MegaMenu({
               <Link
                 to={catalogHref}
                 onClick={onClose}
-                className="inline-flex items-center gap-2 rounded-full border border-[#111827] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-[#111827] hover:text-white"
+                className="inline-flex items-center gap-2 rounded-full border border-brand-pink-500 px-4 py-2 text-sm font-semibold text-brand-pink-500 transition-colors hover:bg-brand-pink-500 hover:text-white"
               >
                 {messages.megaMenu.shopAll}
                 <ChevronRight className="h-4 w-4" />

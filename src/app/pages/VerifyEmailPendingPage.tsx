@@ -221,7 +221,7 @@ export default function VerifyEmailPendingPage() {
             type="button"
             onClick={() => void handleResend()}
             disabled={!hasActiveSession || cooldownSeconds > 0 || isResending}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#111827] px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#0B1220] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-pink-500 px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-brand-pink-600 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none sm:w-auto"
           >
             <RefreshCw className={`h-4 w-4 ${isResending ? 'animate-spin' : ''}`} />
             {isResending ? verifyEmailPendingMessages.resending : verifyEmailPendingMessages.resend}
@@ -239,7 +239,7 @@ export default function VerifyEmailPendingPage() {
           {!hasActiveSession ? (
             <Link
               to="/login"
-              className="inline-flex items-center justify-center rounded-full bg-[#111827] px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#0B1220] hover:shadow-lg active:scale-[0.98]"
+              className="inline-flex items-center justify-center rounded-full bg-brand-pink-500 px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-brand-pink-600 hover:shadow-lg active:scale-[0.98]"
             >
               {verifyEmailPendingMessages.signInAgain}
             </Link>

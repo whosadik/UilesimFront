@@ -754,7 +754,7 @@ export default function CheckoutPage() {
               </button>
               <button
                 onClick={() => navigate('/cart')}
-                className="h-11 px-4 rounded-xl bg-[#111827] text-white text-sm font-medium hover:bg-[#0B1220] transition-colors"
+                className="h-11 px-4 rounded-xl bg-brand-pink-500 text-white text-sm font-medium hover:bg-brand-pink-600 transition-colors"
               >
                 {copy.goToCart}
               </button>
@@ -899,7 +899,7 @@ export default function CheckoutPage() {
             className="block group mb-3"
             onClick={() => handleRoadmapClick(roadmapNextStep?.stepId)}
           >
-            <div className="p-4 rounded-2xl bg-[#111827] hover:bg-[#0B1220] transition-colors">
+            <div className="p-4 rounded-2xl bg-brand-pink-500 hover:bg-brand-pink-600 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
                   <Map className="w-4 h-4 text-white" />
@@ -960,7 +960,7 @@ export default function CheckoutPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-[#111827] text-white group-hover:bg-[#0B1220] transition-colors">
+                <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-brand-pink-500 text-white group-hover:bg-brand-pink-600 transition-colors">
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
@@ -991,7 +991,7 @@ export default function CheckoutPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-[#111827] text-white group-hover:bg-[#0B1220] transition-colors">
+                <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-brand-pink-500 text-white group-hover:bg-brand-pink-600 transition-colors">
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
@@ -1013,7 +1013,7 @@ export default function CheckoutPage() {
           </button>
           <button
             onClick={() => navigate('/catalog')}
-            className="h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors flex items-center justify-center gap-2"
+            className="h-12 rounded-xl bg-brand-pink-500 text-white font-medium text-sm hover:bg-brand-pink-600 transition-colors flex items-center justify-center gap-2"
           >
             {copy.continueShopping}
             <ArrowRight className="w-4 h-4" />

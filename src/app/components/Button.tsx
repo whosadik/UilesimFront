@@ -19,7 +19,7 @@ export function Button({
 
   const variantStyles = {
     primary:
-      'bg-[#111827] text-white hover:bg-[#0B1220] hover:shadow-[0_18px_40px_-18px_rgba(255,77,184,0.55)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98]',
+      'bg-brand-pink-500 text-white hover:bg-brand-pink-600 hover:shadow-[0_18px_40px_-18px_rgba(255,77,184,0.55)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98]',
     ghost:
       'bg-white/80 text-gray-800 border border-[#EAE6EF] hover:bg-white hover:shadow-md hover:shadow-[#FF4DB8]/10 hover:border-[#FF4DB8]/30 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.98] backdrop-blur-sm',
   };

@@ -455,7 +455,7 @@ export default function PersonalOfferDetailPage() {
                     <Link
                       to={primaryHref}
                       onClick={handlePrimaryClick}
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#111827] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0B1220]"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-pink-500 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-pink-600"
                     >
                       {offer.ctaLabel || copy.catalogCta}
                       <ArrowRight className="h-4 w-4" />

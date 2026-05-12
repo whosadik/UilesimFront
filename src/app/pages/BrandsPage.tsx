@@ -102,7 +102,7 @@ export default function BrandsPage() {
               onClick={() => setSelectedLetter(null)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                 selectedLetter === null
-                  ? 'bg-[#111827] text-white'
+                  ? 'bg-brand-pink-500 text-white'
                   : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100'
               }`}
             >

@@ -153,7 +153,7 @@ export default function NewArrivalsPage() {
               onClick={() => setSelectedCategory(filter.id)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 selectedCategory === filter.id
-                  ? 'bg-[#111827] text-white'
+                  ? 'bg-brand-pink-500 text-white'
                   : 'bg-gray-50 text-[#6B7280] hover:bg-gray-100'
               }`}
             >

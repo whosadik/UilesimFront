@@ -106,7 +106,7 @@ export function FilterBar({
               }}
               className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
                 selectedCategory === category.id
-                  ? 'bg-[#111827] text-white shadow-md'
+                  ? 'bg-brand-pink-500 text-white shadow-md'
                   : 'border border-[#EAE6EF] bg-gray-50 text-[#6B7280] hover:bg-gray-100'
               }`}
             >

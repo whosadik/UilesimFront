@@ -193,7 +193,7 @@ export function FilterSidebar({
                       >
                         <div className="flex flex-1 items-center gap-2">
                           <Checkbox.Root
-                            className="flex h-4 w-4 items-center justify-center rounded border border-[#D1D5DB] transition-colors data-[state=checked]:border-[#111827] data-[state=checked]:bg-[#111827]"
+                            className="flex h-4 w-4 items-center justify-center rounded border border-[#D1D5DB] transition-colors data-[state=checked]:border-brand-pink-500 data-[state=checked]:bg-brand-pink-500"
                             checked={selectedFilters[group.id]?.includes(option.id)}
                             onCheckedChange={(checked) =>
                               handleCheckboxChange(group.id, option.id, checked as boolean)

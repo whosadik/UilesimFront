@@ -1269,7 +1269,7 @@ export default function ProfilePage() {
                           <Link
                             to="/cart"
                             state={{ giftCardCodeToApply: giftCard.code }}
-                            className="inline-flex items-center justify-center rounded-full border border-[#111827] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-[#111827] hover:text-white"
+                            className="inline-flex items-center justify-center rounded-full border border-brand-pink-500 px-4 py-2 text-sm font-semibold text-brand-pink-500 transition-colors hover:bg-brand-pink-500 hover:text-white"
                           >
                             {copy.applyInCart}
                           </Link>

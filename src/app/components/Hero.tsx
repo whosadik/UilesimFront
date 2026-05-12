@@ -402,7 +402,7 @@ export function Hero() {
             const eyebrowClass = isLightTone ? 'text-white/85' : 'text-[#111827]/75';
             const buttonClass = isLightTone
               ? 'bg-white text-[#111827] border border-white/80 hover:bg-white/90'
-              : 'bg-[#111827] text-white border border-[#111827] hover:bg-[#0B1220]';
+              : 'bg-brand-pink-500 text-white border border-brand-pink-500 hover:bg-brand-pink-600 hover:border-brand-pink-600';
             const buttonTo = slide.content?.buttonTo ?? HERO_CTA_ROUTES[slide.id];
             const textBox = slide.textBox;
             const contentWidthClass = getContentWidth(slide.contentPosition);

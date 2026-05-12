@@ -270,7 +270,7 @@ export function ProfileWizard({ onComplete, onClose, options, initialData }: Pro
                     currentStep > item.id
                       ? 'bg-[#FF4DB8] text-white'
                       : currentStep === item.id
-                        ? 'bg-[#111827] text-white'
+                        ? 'bg-brand-pink-500 text-white'
                         : 'bg-gray-200 text-[#6B7280]'
                   }`}
                 >

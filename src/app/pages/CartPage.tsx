@@ -1423,7 +1423,7 @@ export default function CartPage() {
               <button
                 onClick={handleCheckout}
                 disabled={isCheckingOut}
-                className="w-full h-12 rounded-xl bg-[#111827] text-white font-semibold text-sm hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2 hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full h-12 rounded-xl bg-brand-pink-500 text-white font-semibold text-sm hover:bg-brand-pink-600 transition-all flex items-center justify-center gap-2 hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isCheckingOut ? copy.checkingOut : copy.checkout}
                 {!isCheckingOut && <ArrowRight className="w-4 h-4" />}

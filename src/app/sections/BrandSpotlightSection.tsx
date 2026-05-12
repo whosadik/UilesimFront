@@ -324,7 +324,7 @@ export function BrandSpotlightSection() {
                   onClick={() => {
                     if (brandData?.slug) navigate(`/brands/${brandData.slug}`);
                   }}
-                  className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#111827] px-5 py-3 text-sm font-medium text-white transition-all hover:bg-[#0B1220] hover:shadow-[0_18px_40px_-18px_rgba(255,77,184,0.55)] active:scale-[0.98] sm:w-auto"
+                  className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-pink-500 px-5 py-3 text-sm font-medium text-white transition-all hover:bg-brand-pink-600 hover:shadow-[0_18px_40px_-18px_rgba(255,77,184,0.55)] active:scale-[0.98] sm:w-auto"
                 >
                   {messages.home.brandSpotlight.viewBrand}
                   <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

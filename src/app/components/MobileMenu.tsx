@@ -125,7 +125,7 @@ export function MobileMenu({
                 type="button"
                 onClick={() => setLanguage(lang)}
                 className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] transition-all ${
-                  language === lang ? 'bg-[#111827] text-white' : 'text-[#6B7280]'
+                  language === lang ? 'bg-brand-pink-500 text-white' : 'text-[#6B7280]'
                 }`}
               >
                 {messages.languageSwitcher.languages[lang]}
@@ -250,7 +250,7 @@ export function MobileMenu({
             <Link
               to="/login"
               onClick={onClose}
-              className="block rounded-xl bg-[#111827] px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-[#0B1220]"
+              className="block rounded-xl bg-brand-pink-500 px-4 py-3 text-center text-sm font-medium text-white transition-colors hover:bg-brand-pink-600"
             >
               {messages.navbar.guestMenu.signIn}
             </Link>

@@ -143,7 +143,7 @@ export function Footer() {
                   placeholder={messages.footer.newsletterPlaceholder}
                   className="flex-1 rounded-lg border border-[#EAE6EF] px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20"
                 />
-                <button className="rounded-lg bg-[#111827] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[#0B1220] hover:shadow-md">
+                <button className="rounded-lg bg-brand-pink-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-brand-pink-600 hover:shadow-md">
                   {messages.footer.newsletterButton}
                 </button>
               </div>

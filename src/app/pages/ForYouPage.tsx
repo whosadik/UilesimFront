@@ -1389,20 +1389,20 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
           {inCart ? (
             <div
               onClick={e => e.preventDefault()}
-              className="flex items-center justify-between h-10 rounded-xl border-2 border-[#111827] overflow-hidden"
+              className="flex items-center justify-between h-10 rounded-xl border-2 border-brand-pink-500 overflow-hidden"
             >
               <button
                 onClick={(e) => handleQuantityChange(qty - 1, e)}
                 disabled={isCartPending}
-                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors"
+                className="flex-1 h-full flex items-center justify-center text-brand-pink-500 hover:bg-brand-pink-100/60 transition-colors"
               >
                 <Minus className="w-4 h-4" />
               </button>
-              <span className="px-3 font-semibold text-[#111827] text-sm">{qty}</span>
+              <span className="px-3 font-semibold text-brand-pink-500 text-sm">{qty}</span>
               <button
                 onClick={(e) => handleQuantityChange(qty + 1, e)}
                 disabled={isCartPending}
-                className="flex-1 h-full flex items-center justify-center text-[#111827] hover:bg-gray-50 transition-colors"
+                className="flex-1 h-full flex items-center justify-center text-brand-pink-500 hover:bg-brand-pink-100/60 transition-colors"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -1411,7 +1411,7 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
             <button
               onClick={handleAdd}
               disabled={isCartPending}
-              className="w-full h-10 rounded-xl bg-[#111827] text-white text-xs font-medium hover:bg-[#0B1220] transition-all flex items-center justify-center gap-2"
+              className="w-full h-10 rounded-xl bg-brand-pink-500 text-white text-xs font-medium hover:bg-brand-pink-600 transition-all flex items-center justify-center gap-2"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               {copy.addToCart}
@@ -1459,7 +1459,7 @@ function QuickPrefsPanel({
               onClick={() => setSkinType(s)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 skinType === s
-                  ? 'bg-[#111827] text-white'
+                  ? 'bg-brand-pink-500 text-white'
                   : 'bg-gray-100 text-[#6B7280] hover:bg-gray-200'
               }`}
             >
@@ -1493,7 +1493,7 @@ function QuickPrefsPanel({
       <button
         onClick={onSave}
         disabled={isSaving}
-        className="w-full h-9 rounded-xl border border-[#111827] text-[#111827] text-xs font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+        className="w-full h-9 rounded-xl border border-brand-pink-500 text-brand-pink-500 text-xs font-medium hover:bg-brand-pink-100/60 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
       >
         <RefreshCw className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
         {isSaving ? copy.updating : copy.updateRecommendations}
@@ -1576,7 +1576,7 @@ function ColdStartState({
           <div
             key={item}
             className={`rounded-full transition-all ${
-              item === step ? 'w-8 h-2 bg-[#111827]' : item < step ? 'w-2 h-2 bg-[#111827]' : 'w-2 h-2 bg-gray-200'
+              item === step ? 'w-8 h-2 bg-brand-pink-500' : item < step ? 'w-2 h-2 bg-brand-pink-500' : 'w-2 h-2 bg-gray-200'
             }`}
           />
         ))}
@@ -1599,8 +1599,8 @@ function ColdStartState({
                   onClick={() => setSkinType(value)}
                   className={`py-3 px-4 rounded-xl text-sm font-medium border-2 transition-all ${
                     skinType === value
-                      ? 'border-[#111827] bg-[#111827] text-white'
-                      : 'border-[#EAE6EF] text-[#111827] hover:border-[#111827]/30'
+                      ? 'border-brand-pink-500 bg-brand-pink-500 text-white'
+                      : 'border-[#EAE6EF] text-[#111827] hover:border-brand-pink-500/30'
                   }`}
                 >
                   {value}
@@ -1612,7 +1612,7 @@ function ColdStartState({
           <button
             onClick={() => skinType && setStep(2)}
             disabled={!skinType}
-            className="w-full h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-xl bg-brand-pink-500 text-white font-medium text-sm hover:bg-brand-pink-600 transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
           >
             {copy.next} <ArrowRight className="w-4 h-4" />
           </button>
@@ -1651,7 +1651,7 @@ function ColdStartState({
             <button
               onClick={() => void handleFinish()}
               disabled={goals.length === 0 || isSaving}
-              className="flex-2 flex-1 h-12 rounded-xl bg-[#111827] text-white font-medium text-sm hover:bg-[#0B1220] transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
+              className="flex-2 flex-1 h-12 rounded-xl bg-brand-pink-500 text-white font-medium text-sm hover:bg-brand-pink-600 transition-colors disabled:bg-gray-200 disabled:text-[#6B7280] flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               {isSaving ? copy.saving : copy.showRecommendations}
@@ -2320,7 +2320,7 @@ export default function ForYouPage() {
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
                   <div
-                    className="h-full bg-[#111827] rounded-full"
+                    className="h-full bg-brand-pink-500 rounded-full"
                     style={{ width: `${Math.min(100, Math.max(0, roadmapOverview.progressPercent))}%` }}
                   />
                 </div>
@@ -2328,7 +2328,7 @@ export default function ForYouPage() {
                   {roadmapOverview.steps.map((step) => (
                     <div key={step.key} className="flex-1 flex flex-col items-center gap-1">
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                        step.state === 'completed' ? 'bg-[#111827] text-white' :
+                        step.state === 'completed' ? 'bg-brand-pink-500 text-white' :
                         step.state === 'current' ? 'bg-[#FF4DB8] text-white' :
                         'bg-gray-100 text-[#6B7280]'
                       }`}>
@@ -2407,7 +2407,7 @@ export default function ForYouPage() {
                   <div key={item.key} className="flex items-start gap-2">
                     <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
                       item.done
-                        ? 'bg-[#111827]'
+                        ? 'bg-brand-pink-500'
                         : item.muted
                           ? 'border border-[#D1D5DB] bg-white'
                           : 'border border-gray-300 bg-white'

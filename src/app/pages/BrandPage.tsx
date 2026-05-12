@@ -203,19 +203,19 @@ export default function BrandPage() {
             <Tabs.List className="mb-8 flex items-center gap-1 border-b border-[#EAE6EF] pb-4">
               <Tabs.Trigger
                 value="hits"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-brand-pink-500 data-[state=active]:text-white"
               >
                 {copy.hits}
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="new"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-brand-pink-500 data-[state=active]:text-white"
               >
                 {copy.new}
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="all"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-[#111827] data-[state=active]:text-white"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-all hover:text-[#111827] data-[state=active]:bg-brand-pink-500 data-[state=active]:text-white"
               >
                 {copy.allProducts}
               </Tabs.Trigger>

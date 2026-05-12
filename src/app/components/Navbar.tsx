@@ -140,7 +140,7 @@ export function Navbar({
           onClick={() => setLanguage(lang)}
           className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] transition-all ${
             language === lang
-              ? 'bg-[#111827] text-white shadow-sm'
+              ? 'bg-brand-pink-500 text-white shadow-sm'
               : 'text-[#6B7280] hover:bg-white hover:text-[#111827]'
           }`}
         >

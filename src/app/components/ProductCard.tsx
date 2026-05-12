@@ -265,7 +265,7 @@ export function ProductCard({
           <button
             onClick={handleAddToCart}
             disabled={isCartPending}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-white transition-colors hover:bg-[#0B1220] disabled:opacity-60"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-pink-500 text-white transition-colors hover:bg-brand-pink-600 disabled:opacity-60"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -339,7 +339,7 @@ export function ProductCard({
             <button
               onClick={handleAddToCart}
               disabled={inStock === false || isCartPending}
-              className="flex h-9 w-full items-center justify-center rounded-lg bg-[#111827] text-xs font-medium text-white transition-colors hover:bg-[#0B1220] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-[#6B7280]"
+              className="flex h-9 w-full items-center justify-center rounded-lg bg-brand-pink-500 text-xs font-medium text-white transition-colors hover:bg-brand-pink-600 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-[#6B7280]"
             >
               {inStock === false ? messages.productCard.unavailable : <Plus className="h-4 w-4" />}
             </button>
@@ -445,19 +445,19 @@ export function ProductCard({
               {messages.productCard.unavailable}
             </button>
           ) : inCart ? (
-            <div className="flex h-11 items-center justify-between overflow-hidden rounded-xl border-2 border-[#111827]">
+            <div className="flex h-11 items-center justify-between overflow-hidden rounded-xl border-2 border-brand-pink-500">
               <button
                 onClick={(event) => handleQuantityChange(quantity - 1, event)}
                 disabled={isCartPending}
-                className="flex h-full flex-1 items-center justify-center text-[#111827] transition-colors hover:bg-gray-50 disabled:opacity-60"
+                className="flex h-full flex-1 items-center justify-center text-brand-pink-500 transition-colors hover:bg-brand-pink-100/60 disabled:opacity-60"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="px-4 font-semibold text-[#111827]">{quantity}</span>
+              <span className="px-4 font-semibold text-brand-pink-500">{quantity}</span>
               <button
                 onClick={(event) => handleQuantityChange(quantity + 1, event)}
                 disabled={isCartPending}
-                className="flex h-full flex-1 items-center justify-center text-[#111827] transition-colors hover:bg-gray-50 disabled:opacity-60"
+                className="flex h-full flex-1 items-center justify-center text-brand-pink-500 transition-colors hover:bg-brand-pink-100/60 disabled:opacity-60"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -466,7 +466,7 @@ export function ProductCard({
             <button
               onClick={handleAddToCart}
               disabled={isCartPending}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#111827] text-sm font-medium text-white transition-all hover:bg-[#0B1220] hover:shadow-md active:scale-[0.98]"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-pink-500 text-sm font-medium text-white transition-all hover:bg-brand-pink-600 hover:shadow-md active:scale-[0.98]"
             >
               <ShoppingCart className="h-4 w-4" />
               {messages.productCard.addToCart}

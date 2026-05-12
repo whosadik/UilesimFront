@@ -195,7 +195,7 @@ export function LoyaltyStripSection() {
                 <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <Link
                     to={profileHref}
-                    className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0D1220] px-6 py-3 text-[15px] font-semibold text-white shadow-[0_18px_34px_-22px_rgba(13,18,32,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#050814] hover:shadow-[0_22px_42px_-22px_rgba(13,18,32,0.95)] active:translate-y-0 sm:w-auto"
+                    className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-pink-500 px-6 py-3 text-[15px] font-semibold text-white shadow-[0_18px_34px_-22px_rgba(255,77,184,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-pink-600 hover:shadow-[0_22px_42px_-22px_rgba(255,77,184,0.85)] active:translate-y-0 sm:w-auto"
                   >
                     {primaryCta}
                     <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />

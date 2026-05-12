@@ -200,7 +200,7 @@ export default function ResetPasswordPage() {
               <AlertBanner variant="warning" message={statusMessage} />
               <Link
                 to="/forgot-password"
-                className="inline-flex w-full items-center justify-center rounded-full bg-[#111827] px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-[#0B1220] hover:shadow-lg active:scale-[0.98]"
+                className="inline-flex w-full items-center justify-center rounded-full bg-brand-pink-500 px-6 py-3 text-sm font-medium text-white transition-all duration-200 hover:bg-brand-pink-600 hover:shadow-lg active:scale-[0.98]"
               >
                 {resetPasswordMessages.requestNewLink}
               </Link>

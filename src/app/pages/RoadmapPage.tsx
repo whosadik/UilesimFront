@@ -611,7 +611,7 @@ function RoadmapPageContent() {
                         </button>
                         <button
                           type="button"
-                          className="h-9 px-3 rounded-full bg-[#111827] text-xs font-medium text-white transition-colors hover:bg-[#0B1220] disabled:cursor-not-allowed disabled:opacity-60"
+                          className="h-9 px-3 rounded-full bg-brand-pink-500 text-xs font-medium text-white transition-colors hover:bg-brand-pink-600 disabled:cursor-not-allowed disabled:opacity-60"
                           onClick={() => handleStepStatusChange(step, "completed")}
                           disabled={!canUpdateStatus}
                         >
@@ -669,4 +669,3 @@ export default function RoadmapPage() {
     </ProfileGate>
   );
 }
-
