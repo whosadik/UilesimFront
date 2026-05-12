@@ -149,7 +149,7 @@ export const convertToProductGridFormat = (productsToConvert: typeof mockProduct
     discount: product.discount,
     rating: product.rating,
     inStock: true,
-    pointsEarned: Math.floor(product.price * 0.05), // 5% points
+    pointsEarned: Math.floor(product.price * 0.01), // 1% points
     recommendationScore: product.rating ? Math.floor(product.rating * 20) : undefined,
   }));
 };

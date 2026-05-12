@@ -149,7 +149,7 @@ function ProductPreviewCard({ product }: { product: BrandProduct }) {
   const productId = String(product.id);
   const isOutOfStock = product.inStock === false;
   const isWishlisted = isInWishlist(productId);
-  const pointsEarned = product.pointsEarned ?? Math.round(product.price * 0.1);
+  const pointsEarned = product.pointsEarned ?? Math.round(product.price * 0.01);
 
   const openProduct = () => {
     navigate(`/product/${productId}`);

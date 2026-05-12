@@ -1214,7 +1214,7 @@ const normalizeRec = (
   const score = toNumber(source.score ?? source.recommendationScore ?? product.recommendation_score) ?? 0;
   const pointsEarned =
     toNumber(product.points_earned ?? source.points_earned ?? source.pointsEarned) ??
-    Math.max(0, Math.round(price * 0.1));
+    Math.max(0, Math.round(price * 0.01));
   const whyRecommended = buildRecommendationWhy(source, product, section, copy, language);
 
   return {
@@ -1289,7 +1289,7 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
           <p className="text-xs text-[#6B7280]">
             {copy.untilTier(nextTier.name, toNext)}
           </p>
-          <p className="text-[10px] text-[#6B7280]">{copy.buyFor(Math.ceil(toNext / 0.1))}</p>
+          <p className="text-[10px] text-[#6B7280]">{copy.buyFor(Math.ceil(toNext / 0.01))}</p>
         </div>
       )}
     </div>

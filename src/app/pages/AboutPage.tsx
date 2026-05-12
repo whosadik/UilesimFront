@@ -31,7 +31,7 @@ const aboutPageCopy = {
     loyaltyTitle: "Программа лояльности",
     loyaltyIntro: "Мы ценим каждого клиента и разработали уникальную многоуровневую программу лояльности с 3 статусами: Bronze, Silver и Gold. Каждый уровень открывает дополнительные привилегии и эксклюзивные предложения.",
     loyaltyItems: [
-      { title: "Накопительные баллы", description: "5% от суммы каждой покупки возвращается баллами" },
+      { title: "Накопительные баллы", description: "1% от суммы каждой покупки возвращается баллами" },
       { title: "Персональные офферы", description: "Эксклюзивные предложения на основе ваших предпочтений" },
       { title: "Ранний доступ", description: "Первыми узнавайте о новинках и распродажах" },
       { title: "Бесплатная доставка", description: "Для Silver+ доставка всегда бесплатна" },
@@ -68,7 +68,7 @@ const aboutPageCopy = {
     loyaltyTitle: "Лоялдылық бағдарламасы",
     loyaltyIntro: "Біз әр клиентті бағалаймыз және Bronze, Silver және Gold атты 3 мәртебеден тұратын көпдеңгейлі лоялдылық бағдарламасын жасадық. Әр деңгей жаңа артықшылықтар мен эксклюзивті ұсыныстар ашады.",
     loyaltyItems: [
-      { title: "Жиналатын ұпайлар", description: "Әр сатып алудың 5%-ы ұпаймен қайтарылады" },
+      { title: "Жиналатын ұпайлар", description: "Әр сатып алудың 1%-ы ұпаймен қайтарылады" },
       { title: "Жеке офферлер", description: "Қалауыңызға негізделген эксклюзивті ұсыныстар" },
       { title: "Ерте қолжетімділік", description: "Жаңалықтар мен сатылымдар туралы бірінші болып біліңіз" },
       { title: "Тегін жеткізу", description: "Silver+ деңгейінде жеткізу әрқашан тегін" },
@@ -105,7 +105,7 @@ const aboutPageCopy = {
     loyaltyTitle: "Loyalty program",
     loyaltyIntro: "We value every customer and designed a multi-level loyalty program with 3 statuses: Bronze, Silver, and Gold. Each level unlocks extra benefits and exclusive offers.",
     loyaltyItems: [
-      { title: "Reward points", description: "5% of every purchase comes back as points" },
+      { title: "Reward points", description: "1% of every purchase comes back as points" },
       { title: "Personal offers", description: "Exclusive offers based on your preferences" },
       { title: "Early access", description: "Be the first to hear about launches and sales" },
       { title: "Free delivery", description: "Delivery is always free for Silver+ tiers" },

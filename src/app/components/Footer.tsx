@@ -18,7 +18,7 @@ import { useI18n } from '../../shared/i18n/LanguageContext';
 const TRUST_ITEMS = [
   { Icon: Truck, label: 'Доставка по РК', sub: 'от 2 дней' },
   { Icon: ShieldCheck, label: 'Оригинал 100%', sub: 'прямые контракты' },
-  { Icon: Sparkles, label: 'Кэшбэк баллами', sub: 'до 12% с покупки' },
+  { Icon: Sparkles, label: 'Кэшбэк баллами', sub: '1% с покупки' },
   { Icon: MessageCircle, label: 'Поддержка 24/7', sub: 'отвечаем за 2 мин' },
 ];
 
