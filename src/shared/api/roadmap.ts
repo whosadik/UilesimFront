@@ -78,6 +78,7 @@ export type RoadmapPlanApi = {
 
 type RoadmapRefreshPayload = {
   category?: string;
+  force_new?: boolean;
 };
 
 export function getRoadmap(category?: string): Promise<RoadmapPlanApi> {

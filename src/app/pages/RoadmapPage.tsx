@@ -45,6 +45,7 @@ const roadmapPageCopy = {
   ru: {
     loadError: "Не удалось загрузить roadmap",
     refreshed: "Roadmap обновлен с учетом ваших предпочтений",
+    created: "Новый Roadmap создан",
     refreshError: "Не удалось обновить roadmap",
     stepCompleted: "Шаг отмечен как выполненный",
     stepSkipped: "Шаг пропущен и roadmap обновлен",
@@ -80,6 +81,7 @@ const roadmapPageCopy = {
   kk: {
     loadError: "Roadmap жүктеу мүмкін болмады",
     refreshed: "Roadmap сіздің қалауыңызға сай жаңартылды",
+    created: "Жаңа Roadmap құрылды",
     refreshError: "Roadmap жаңарту мүмкін болмады",
     stepCompleted: "Қадам орындалды деп белгіленді",
     stepSkipped: "Қадам өткізіліп, roadmap жаңартылды",
@@ -115,6 +117,7 @@ const roadmapPageCopy = {
   en: {
     loadError: "Could not load roadmap",
     refreshed: "Roadmap refreshed based on your preferences",
+    created: "New roadmap created",
     refreshError: "Could not refresh roadmap",
     stepCompleted: "Step marked as completed",
     stepSkipped: "Step skipped and roadmap refreshed",
@@ -362,13 +365,16 @@ function RoadmapPageContent() {
     };
   }, [copy.loadError, language, location.pathname, navigate, retryKey]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = async (forceNew = false) => {
     setIsRefreshing(true);
 
     try {
-      const plan = await refreshRoadmap(planCategory ? { category: planCategory } : {});
+      const plan = await refreshRoadmap({
+        ...(planCategory ? { category: planCategory } : {}),
+        ...(forceNew ? { force_new: true } : {}),
+      });
       applyPlan(plan);
-      toast.success(copy.refreshed);
+      toast.success(forceNew ? copy.created : copy.refreshed);
     } catch (refreshError) {
       if (refreshError instanceof ApiError && (refreshError.status === 401 || refreshError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
@@ -486,7 +492,7 @@ function RoadmapPageContent() {
               <Map className="w-7 h-7 text-gray-700 flex-shrink-0" />
               <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
             </div>
-            <Button variant="secondary" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+            <Button variant="secondary" size="sm" onClick={() => handleRefresh()} disabled={isRefreshing}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
               {copy.refresh}
             </Button>
@@ -643,7 +649,7 @@ function RoadmapPageContent() {
                 <p className="text-sm text-gray-600 mb-4">
                   {copy.allDoneDescription(totalPointsAvailable)}
                 </p>
-                <Button variant="primary" onClick={handleRefresh}>
+                <Button variant="primary" onClick={() => handleRefresh(true)} disabled={isRefreshing}>
                   {copy.createNew}
                 </Button>
               </div>
