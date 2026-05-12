@@ -262,13 +262,34 @@ export function ProductCard({
             </div>
           </div>
 
-          <button
-            onClick={handleAddToCart}
-            disabled={isCartPending}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-pink-500 text-white transition-colors hover:bg-brand-pink-600 disabled:opacity-60"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          {inCart ? (
+            <div className="flex h-10 shrink-0 items-center justify-between overflow-hidden rounded-xl border-2 border-brand-pink-500">
+              <button
+                onClick={(event) => handleQuantityChange(quantity - 1, event)}
+                disabled={isCartPending}
+                className="flex h-full w-9 items-center justify-center text-brand-pink-500 transition-colors hover:bg-brand-pink-100/60 disabled:opacity-60"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="px-2 text-xs font-semibold text-brand-pink-500">{quantity}</span>
+              <button
+                onClick={(event) => handleQuantityChange(quantity + 1, event)}
+                disabled={isCartPending}
+                className="flex h-full w-9 items-center justify-center text-brand-pink-500 transition-colors hover:bg-brand-pink-100/60 disabled:opacity-60"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              disabled={inStock === false || isCartPending}
+              className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-brand-pink-500 px-3 text-xs font-medium text-white transition-colors hover:bg-brand-pink-600 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-[#6B7280]"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {messages.productCard.addToCart}
+            </button>
+          )}
         </div>
       </Link>
     );
@@ -336,13 +357,41 @@ export function ProductCard({
               </p>
             ) : null}
 
-            <button
-              onClick={handleAddToCart}
-              disabled={inStock === false || isCartPending}
-              className="flex h-9 w-full items-center justify-center rounded-lg bg-brand-pink-500 text-xs font-medium text-white transition-colors hover:bg-brand-pink-600 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-[#6B7280]"
-            >
-              {inStock === false ? messages.productCard.unavailable : <Plus className="h-4 w-4" />}
-            </button>
+            {inStock === false ? (
+              <button
+                disabled
+                className="h-9 w-full cursor-not-allowed rounded-lg bg-gray-100 text-xs font-medium text-[#6B7280]"
+              >
+                {messages.productCard.unavailable}
+              </button>
+            ) : inCart ? (
+              <div className="flex h-9 items-center justify-between overflow-hidden rounded-lg border-2 border-brand-pink-500">
+                <button
+                  onClick={(event) => handleQuantityChange(quantity - 1, event)}
+                  disabled={isCartPending}
+                  className="flex h-full flex-1 items-center justify-center text-brand-pink-500 transition-colors hover:bg-brand-pink-100/60 disabled:opacity-60"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="px-3 text-xs font-semibold text-brand-pink-500">{quantity}</span>
+                <button
+                  onClick={(event) => handleQuantityChange(quantity + 1, event)}
+                  disabled={isCartPending}
+                  className="flex h-full flex-1 items-center justify-center text-brand-pink-500 transition-colors hover:bg-brand-pink-100/60 disabled:opacity-60"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={isCartPending}
+                className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-pink-500 text-xs font-medium text-white transition-colors hover:bg-brand-pink-600 disabled:opacity-60"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                {messages.productCard.addToCart}
+              </button>
+            )}
           </div>
         </div>
       </Link>

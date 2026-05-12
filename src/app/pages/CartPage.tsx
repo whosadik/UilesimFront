@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Button } from '../components/Button';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { Trash2, Sparkles, ShoppingBag, ArrowRight, ChevronRight, TrendingUp } from 'lucide-react';
+import { Trash2, Sparkles, ShoppingBag, ArrowRight, ChevronRight, TrendingUp, Minus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '../../shared/api/ApiError';
 import {
@@ -620,52 +620,6 @@ const isOfferApplicable = (offer: ActiveOffer | null, items: CartItem[]): boolea
   return false;
 };
 
-function LoyaltyCartWidget({
-  pointsEarned,
-  currentBalance,
-  tier,
-  language,
-  copy,
-}: {
-  pointsEarned: number;
-  currentBalance: number;
-  tier: string;
-  language: CartPageLanguage;
-  copy: CartCopy;
-}) {
-  const newBalance = currentBalance + pointsEarned;
-
-  return (
-    <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF]">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-        <h3 className="text-sm font-semibold text-[#111827]">{copy.pointsPurchaseTitle}</h3>
-      </div>
-
-      {/* Points earned */}
-      <div className="flex items-center justify-between p-3 bg-[#FFE1F2] rounded-xl mb-4">
-        <div>
-          <p className="text-xs text-[#6B7280] mb-0.5">{copy.pointsPurchaseAfter}</p>
-          <p className="text-lg font-bold text-[#FF4DB8]">{copy.pointsForPurchase(pointsEarned)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-[#6B7280] mb-0.5">{copy.pointsNewBalance}</p>
-          <p className="text-sm font-semibold text-[#111827]">
-            {currentBalance.toLocaleString(localeByLanguage[language])} {'→'} <span className="text-[#FF4DB8]">{newBalance.toLocaleString(localeByLanguage[language])}</span>
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-xl bg-gray-50 p-3">
-        <p className="text-xs text-[#6B7280] mb-0.5">{copy.pointsCurrentTier}</p>
-        <p className="text-sm font-semibold text-[#111827]">{formatTierName(tier, language)}</p>
-        <p className="text-xs text-[#6B7280] mt-1">
-          {copy.pointsTierHint}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -1134,12 +1088,12 @@ export default function CartPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
-        <div className="mb-6">
+      <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-8">
+        <div className="mb-4">
           <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.breadcrumb }]} />
         </div>
 
-        <h1 className="text-3xl font-semibold text-[#111827] mb-8">{copy.title}</h1>
+        <h1 className="text-2xl font-semibold text-[#111827] mb-5">{copy.title}</h1>
 
         {isCartLoading ? (
           <div className="py-16">
@@ -1173,266 +1127,254 @@ export default function CartPage() {
             </div>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-3">
-              {cartItems.map(item => (
-                <div key={item.id} className="flex gap-4 p-4 rounded-2xl bg-white border border-[#EAE6EF]">
-                  <img src={item.image} alt={item.name} className="w-20 h-20 lg:w-24 lg:h-24 rounded-xl object-cover flex-shrink-0" />
+          <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
 
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[#6B7280] mb-0.5">{item.brand}</p>
-                    <h3 className="text-sm font-semibold text-[#111827] mb-2 line-clamp-1">{item.name}</h3>
-                    <p className="text-base font-bold text-[#111827]">{formatMoney(item.price, language)}</p>
-                    <p className="text-xs text-[#FF4DB8] mt-1 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
-                      {copy.pointsForPurchase(item.pointsEarned * item.quantity)}
-                    </p>
+            {/* ── Left: Cart items ── */}
+            <div className="space-y-2">
+              {cartItems.map(item => (
+                <div key={item.id} className="flex gap-3 p-3 rounded-2xl bg-white border border-[#EAE6EF] hover:border-[#ddd6e7] transition-colors">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
+                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                   </div>
 
-                  <div className="flex flex-col items-end gap-3 flex-shrink-0">
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      disabled={pendingCartActionId === item.id}
-                      className="text-[#6B7280] hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">{item.brand}</p>
+                    <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug mt-0.5">{item.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm font-bold text-[#111827]">{formatMoney(item.price, language)}</span>
+                      <span className="text-[10px] text-[#FF4DB8] flex items-center gap-0.5">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        {copy.pointsForPurchase(item.pointsEarned * item.quantity)}
+                      </span>
+                    </div>
+                  </div>
 
-                    <div className="flex items-center border border-[#EAE6EF] rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center h-8 rounded-lg border-2 border-brand-pink-500 overflow-hidden">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         disabled={pendingCartActionId === item.id}
-                        className="px-3 py-1.5 text-[#6B7280] hover:bg-gray-50 text-sm"
+                        className="w-8 h-full flex items-center justify-center text-brand-pink-500 hover:bg-[#FFE1F2] transition-colors disabled:opacity-50"
                       >
-                        -
+                        <Minus className="w-3 h-3" />
                       </button>
-                      <span className="px-3 py-1.5 text-sm font-semibold text-[#111827]">{item.quantity}</span>
+                      <span className="w-7 text-center text-sm font-semibold text-brand-pink-500">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         disabled={pendingCartActionId === item.id}
-                        className="px-3 py-1.5 text-[#6B7280] hover:bg-gray-50 text-sm"
+                        className="w-8 h-full flex items-center justify-center text-brand-pink-500 hover:bg-[#FFE1F2] transition-colors disabled:opacity-50"
                       >
-                        +
+                        <Plus className="w-3 h-3" />
                       </button>
                     </div>
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      disabled={pendingCartActionId === item.id}
+                      className="w-7 h-7 flex items-center justify-center text-[#D1D5DB] hover:text-red-400 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
 
               {/* Upsell nudge */}
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-dashed border-[#EAE6EF]">
-                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-4 h-4 text-[#6B7280]" />
+              <button
+                onClick={() => navigate(upsellSuggestion.actionHref)}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white border border-dashed border-[#EAE6EF] hover:border-[#FF4DB8]/40 hover:bg-[#FFFAFC] transition-all group text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-[#FFE1F2] flex items-center justify-center flex-shrink-0 transition-colors">
+                  <TrendingUp className="w-4 h-4 text-[#6B7280] group-hover:text-[#FF4DB8] transition-colors" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[#111827]">{upsellSuggestion.title}</p>
-                  <p className="text-xs text-[#6B7280]">{upsellSuggestion.description}</p>
+                  <p className="text-xs font-semibold text-[#111827]">{upsellSuggestion.title}</p>
+                  <p className="text-xs text-[#6B7280] truncate">{upsellSuggestion.description}</p>
                 </div>
-                <button
-                  onClick={() => navigate(upsellSuggestion.actionHref)}
-                  className="flex-shrink-0 flex items-center gap-1 text-xs text-[#111827] font-medium hover:text-[#FF4DB8] transition-colors"
-                >
-                  {upsellSuggestion.actionLabel} <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Summary Sidebar */}
-            <div className="space-y-4">
-              {/* Active Offer */}
-              <div className="p-4 rounded-2xl bg-[#FFE1F2] border border-[#FF4DB8]/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">{copy.offerBadge}</span>
-                </div>
-                {isMetaLoading ? (
-                  <p className="text-xs text-[#6B7280] mt-0.5">{copy.loadingOffer}</p>
-                ) : (
-                  <>
-                    <p className="text-sm font-semibold text-[#111827]">{offerTitle}</p>
-                    <p className="text-xs text-[#6B7280] mt-0.5">{offerDescription}</p>
-                  </>
-                )}
-                {metaError && (
-                  <div className="mt-3">
-                    <p className="text-xs text-[#B42318]">{metaError}</p>
-                    <button
-                      onClick={() => setMetaRetryKey((value) => value + 1)}
-                      className="mt-2 text-xs text-[#111827] font-medium underline underline-offset-2"
-                    >
-                      {copy.retry}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div
-                className={`p-5 rounded-2xl bg-white border ${
-                  giftCardMessageTone === 'error' ? 'border-[#FECACA] bg-[#FFF7F7]' : 'border-[#EAE6EF]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div>
-                    <h3 className="text-sm font-semibold text-[#111827]">{copy.giftCardTitle}</h3>
-                    <p className="text-xs text-[#6B7280]">{copy.giftCardHint}</p>
-                  </div>
-                  {previewTotals?.giftCard && (
-                    <span className="text-xs font-medium text-[#FF4DB8]">
-                      -{formatMoney(summaryGiftCardApplied, language)}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={giftCardCodeInput}
-                    onChange={(event) => {
-                      setGiftCardCodeInput(event.target.value);
-                      if (!appliedGiftCardCode || giftCardMessageTone !== 'success') {
-                        setGiftCardMessage(null);
-                        setGiftCardMessageTone(null);
-                      }
-                    }}
-                    placeholder="ABCD-WXYZ-EFGH-JKLM"
-                    className="flex-1 px-3 py-2 rounded-xl border border-[#EAE6EF] text-sm uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                  />
-                  {appliedGiftCardCode ? (
-                    <button
-                      type="button"
-                      onClick={handleRemoveGiftCard}
-                      className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
-                    >
-                      {copy.remove}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleApplyGiftCard}
-                      className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
-                    >
-                      {copy.apply}
-                    </button>
-                  )}
-                </div>
-
-                {giftCardMessage && (
-                  <div
-                    className={`mt-3 rounded-xl border px-3 py-2 text-xs ${
-                      giftCardMessageTone === 'success'
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        : giftCardMessageTone === 'info'
-                          ? 'border-[#E5E7EB] bg-gray-50 text-[#4B5563]'
-                          : 'border-[#FECACA] bg-[#FEF2F2] text-[#B42318]'
-                    }`}
-                  >
-                    {giftCardMessage}
-                  </div>
-                )}
-
-                {previewTotals?.giftCard && (
-                  <div className="mt-3 rounded-xl bg-gray-50 px-3 py-3 text-xs text-[#4B5563] space-y-1.5">
-                    <div className="flex justify-between gap-3">
-                      <span>{copy.code}</span>
-                      <span className="font-medium text-[#111827]">{previewTotals.giftCard.maskedCode}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span>{copy.balanceBefore}</span>
-                      <span className="font-medium text-[#111827]">{formatMoney(previewTotals.giftCard.balanceBefore, language)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span>{copy.balanceAfter}</span>
-                      <span className="font-medium text-[#111827]">{formatMoney(previewTotals.giftCard.balanceAfter, language)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Loyalty Points widget */}
-              <LoyaltyCartWidget
-                pointsEarned={summaryPointsEarned}
-                currentBalance={availablePoints}
-                tier={currentTier}
-                language={language}
-                copy={copy}
-              />
-
-              {/* Use Points */}
-              <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF]">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-                    <h3 className="text-sm font-semibold text-[#111827]">{copy.redeemPoints}</h3>
-                  </div>
-                  <span className="text-xs text-[#6B7280]">{copy.available(availablePoints)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={pointsToUse || ''}
-                    onChange={e => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints, Math.max(0, Number(e.target.value))))}
-                    placeholder="0"
-                    className="flex-1 px-3 py-2 rounded-xl border border-[#EAE6EF] text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                  />
-                  <button
-                    onClick={() => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints))}
-                    className="text-xs text-[#111827] font-medium px-3 py-2 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap"
-                  >
-                    {copy.max}
-                  </button>
-                </div>
-                {pointsToUse > 0 && (
-                  <p className="text-xs text-[#FF4DB8] mt-2">
-                    {copy.willRedeem(summaryPointsRedeemed)}
-                  </p>
-                )}
-              </div>
-
-              {/* Total */}
-              <div className="p-5 rounded-2xl bg-white border border-[#EAE6EF] space-y-2.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#6B7280]">{copy.products}</span>
-                  <span className="font-semibold text-[#111827]">{formatMoney(summarySubtotal, language)}</span>
-                </div>
-                {summaryDiscount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">{copy.discount}</span>
-                    <span className="font-semibold text-[#FF4DB8]">-{formatMoney(summaryDiscount, language)}</span>
-                  </div>
-                )}
-                {summaryGiftCardApplied > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">
-                      {copy.giftCard}{previewTotals?.giftCard?.maskedCode ? ` (${previewTotals.giftCard.maskedCode})` : ''}
-                    </span>
-                    <span className="font-semibold text-[#FF4DB8]">-{formatMoney(summaryGiftCardApplied, language)}</span>
-                  </div>
-                )}
-                {summaryPointsRedeemed > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">{copy.pointsRedeemed}</span>
-                    <span className="font-semibold text-[#FF4DB8]">-{formatMoney(summaryPointsRedeemed, language)}</span>
-                  </div>
-                )}
-                <div className="pt-3 border-t border-[#EAE6EF] flex justify-between items-baseline">
-                  <span className="text-base font-semibold text-[#111827]">{copy.total}</span>
-                  <span className="text-2xl font-bold text-[#111827]">{formatMoney(Math.max(0, summaryTotal), language)}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleCheckout}
-                disabled={isCheckingOut}
-                className="w-full h-12 rounded-xl bg-brand-pink-500 text-white font-semibold text-sm hover:bg-brand-pink-600 transition-all flex items-center justify-center gap-2 hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isCheckingOut ? copy.checkingOut : copy.checkout}
-                {!isCheckingOut && <ArrowRight className="w-4 h-4" />}
+                <ChevronRight className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#FF4DB8] flex-shrink-0 transition-colors" />
               </button>
-
-              <p className="text-center text-xs text-[#6B7280]">
-                <strong className="text-[#FF4DB8]">{copy.afterPurchase(summaryPointsEarned)}</strong>
-              </p>
             </div>
+
+            {/* ── Right: Unified summary card ── */}
+            <div className="rounded-2xl bg-white border border-[#EAE6EF] overflow-hidden sticky top-4">
+
+              {/* Offer banner */}
+              {(isMetaLoading || activeOffer || metaError) && (
+                <div className="px-4 py-3 bg-[#FFF0F8] border-b border-[#FDDCEF] flex items-start gap-2">
+                  <span className="mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF4DB8] text-white tracking-wide flex-shrink-0">
+                    {copy.offerBadge}
+                  </span>
+                  {isMetaLoading ? (
+                    <p className="text-xs text-[#9CA3AF]">{copy.loadingOffer}</p>
+                  ) : metaError ? (
+                    <div>
+                      <p className="text-xs text-[#B42318]">{metaError}</p>
+                      <button
+                        onClick={() => setMetaRetryKey((v) => v + 1)}
+                        className="text-[11px] font-medium text-[#111827] underline underline-offset-2 mt-1"
+                      >
+                        {copy.retry}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-[#111827]">{offerTitle}</p>
+                      <p className="text-[11px] text-[#6B7280] mt-0.5">{offerDescription}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="p-4 space-y-4">
+
+                {/* Order total */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#6B7280]">{copy.products}</span>
+                    <span className="font-medium text-[#111827]">{formatMoney(summarySubtotal, language)}</span>
+                  </div>
+                  {summaryDiscount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">{copy.discount}</span>
+                      <span className="font-semibold text-[#FF4DB8]">−{formatMoney(summaryDiscount, language)}</span>
+                    </div>
+                  )}
+                  {summaryGiftCardApplied > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">
+                        {copy.giftCard}{previewTotals?.giftCard?.maskedCode ? ` (${previewTotals.giftCard.maskedCode})` : ''}
+                      </span>
+                      <span className="font-semibold text-[#FF4DB8]">−{formatMoney(summaryGiftCardApplied, language)}</span>
+                    </div>
+                  )}
+                  {summaryPointsRedeemed > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">{copy.pointsRedeemed}</span>
+                      <span className="font-semibold text-[#FF4DB8]">−{formatMoney(summaryPointsRedeemed, language)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-baseline pt-2.5 border-t border-[#EAE6EF]">
+                    <span className="text-base font-bold text-[#111827]">{copy.total}</span>
+                    <span className="text-2xl font-bold text-[#111827]">{formatMoney(Math.max(0, summaryTotal), language)}</span>
+                  </div>
+                </div>
+
+                {/* Checkout button */}
+                <button
+                  onClick={handleCheckout}
+                  disabled={isCheckingOut}
+                  className="w-full h-11 rounded-xl bg-brand-pink-500 text-white font-semibold text-sm hover:bg-brand-pink-600 transition-all flex items-center justify-center gap-2 hover:shadow-md active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isCheckingOut ? copy.checkingOut : copy.checkout}
+                  {!isCheckingOut && <ArrowRight className="w-4 h-4" />}
+                </button>
+
+                {/* Gift card */}
+                <div className="border-t border-[#EAE6EF] pt-4 space-y-2">
+                  <p className="text-xs font-semibold text-[#111827]">{copy.giftCardTitle}</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={giftCardCodeInput}
+                      onChange={(e) => {
+                        setGiftCardCodeInput(e.target.value);
+                        if (!appliedGiftCardCode || giftCardMessageTone !== 'success') {
+                          setGiftCardMessage(null);
+                          setGiftCardMessageTone(null);
+                        }
+                      }}
+                      placeholder="ABCD-WXYZ-EFGH-JKLM"
+                      className="flex-1 min-w-0 px-3 py-1.5 rounded-xl border border-[#EAE6EF] text-xs uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20 focus:border-[#FF4DB8]/50"
+                    />
+                    {appliedGiftCardCode ? (
+                      <button type="button" onClick={handleRemoveGiftCard}
+                        className="text-xs text-[#6B7280] font-medium px-3 py-1.5 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap">
+                        {copy.remove}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={handleApplyGiftCard}
+                        className="text-xs text-[#111827] font-semibold px-3 py-1.5 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors whitespace-nowrap">
+                        {copy.apply}
+                      </button>
+                    )}
+                  </div>
+                  {giftCardMessage && (
+                    <p className={`text-[11px] px-2.5 py-1.5 rounded-lg ${
+                      giftCardMessageTone === 'success' ? 'bg-emerald-50 text-emerald-700'
+                      : giftCardMessageTone === 'info' ? 'bg-gray-50 text-[#4B5563]'
+                      : 'bg-[#FEF2F2] text-[#B42318]'
+                    }`}>{giftCardMessage}</p>
+                  )}
+                  {previewTotals?.giftCard && (
+                    <div className="text-xs text-[#6B7280] space-y-1 pt-1">
+                      <div className="flex justify-between">
+                        <span>{copy.balanceBefore}</span>
+                        <span className="font-medium text-[#111827]">{formatMoney(previewTotals.giftCard.balanceBefore, language)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>{copy.balanceAfter}</span>
+                        <span className="font-medium text-[#111827]">{formatMoney(previewTotals.giftCard.balanceAfter, language)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Points */}
+                <div className="border-t border-[#EAE6EF] pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
+                      <span className="text-xs font-semibold text-[#111827]">{copy.pointsPurchaseTitle}</span>
+                    </div>
+                    <span className="text-xs font-bold text-[#FF4DB8]">{copy.pointsForPurchase(summaryPointsEarned)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-[#6B7280] bg-[#FAFAFA] rounded-xl px-3 py-2">
+                    <span>
+                      {copy.pointsCurrentTier}:{' '}
+                      <span className="font-semibold text-[#111827]">{formatTierName(currentTier, language)}</span>
+                    </span>
+                    <span>
+                      {availablePoints.toLocaleString(localeByLanguage[language])}{' '}
+                      <span className="text-[#D1D5DB]">→</span>{' '}
+                      <span className="font-semibold text-[#FF4DB8]">
+                        {(availablePoints + summaryPointsEarned).toLocaleString(localeByLanguage[language])}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-medium text-[#6B7280]">{copy.redeemPoints}</span>
+                      <span className="text-[11px] text-[#6B7280]">{copy.available(availablePoints)}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={pointsToUse || ''}
+                        onChange={e => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints, Math.max(0, Number(e.target.value))))}
+                        placeholder="0"
+                        className="flex-1 px-3 py-1.5 rounded-xl border border-[#EAE6EF] text-sm focus:outline-none focus:ring-2 focus:ring-[#FF4DB8]/20 focus:border-[#FF4DB8]/50"
+                      />
+                      <button
+                        onClick={() => setPointsToUse(Math.min(availablePoints, maxRedeemablePoints))}
+                        className="text-xs text-[#111827] font-semibold px-3 py-1.5 rounded-xl border border-[#EAE6EF] hover:bg-gray-50 transition-colors"
+                      >
+                        {copy.max}
+                      </button>
+                    </div>
+                    {pointsToUse > 0 && (
+                      <p className="text-[11px] text-[#FF4DB8] mt-1.5">{copy.willRedeem(summaryPointsRedeemed)}</p>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-center text-[11px] font-medium text-[#FF4DB8] pb-1">
+                  {copy.afterPurchase(summaryPointsEarned)}
+                </p>
+
+              </div>
+            </div>
+
           </div>
         )}
       </div>
