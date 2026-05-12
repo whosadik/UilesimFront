@@ -41,6 +41,9 @@ export type Transaction = {
   channel?: string;
   offer_applied?: boolean;
   offer_assignment_id?: number | null;
+  public_campaign_id?: number | null;
+  public_offer_id?: number | null;
+  applied_offer?: Record<string, unknown> | null;
   target?: Record<string, unknown> | null;
   eligible_total?: string | number;
   gift_card?: GiftCardSnapshot | null;
