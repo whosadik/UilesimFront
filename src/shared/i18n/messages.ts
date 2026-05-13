@@ -215,7 +215,6 @@ const ru = {
       products: 'товаров',
       new: 'новинки',
       onSale: 'со скидкой',
-      featuredProducts: 'Рекомендуемые товары',
     },
     productFeed: {
       title: 'Все товары',

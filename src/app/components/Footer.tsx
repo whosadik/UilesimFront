@@ -7,9 +7,11 @@ import {
   Twitter,
   Truck,
   ShieldCheck,
-  Sparkles,
+  Sparkles, 
   MessageCircle,
-} from 'lucide-react';
+} 
+
+from 'lucide-react';
 import { Link } from 'react-router';
 
 import logoImage from '@/assets/UylesimLogo.png';

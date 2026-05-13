@@ -212,50 +212,9 @@ export function LoyaltyStripSection() {
               </div>
             </div>
 
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {perks.map(({ key, icon: Icon, color, bg }) => {
-                const perk = copy.perks[key];
-                return (
-                  <li
-                    key={key}
-                    className="group relative min-h-[108px] overflow-hidden rounded-2xl border border-white/75 bg-white/70 p-4 shadow-[0_18px_44px_-34px_rgba(13,18,32,0.45)] backdrop-blur-[14px] transition-all duration-200 hover:-translate-y-1 hover:bg-white/90 hover:shadow-[0_24px_48px_-30px_rgba(13,18,32,0.5)] lg:min-h-[132px] lg:p-4"
-                  >
-                    <div className="absolute right-5 top-5 text-[#F472B6]/40 transition-transform duration-200 group-hover:scale-110">
-                      <Sparkles className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="flex items-start gap-3 lg:gap-2.5">
-                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full lg:h-10 lg:w-10 ${bg}`}>
-                        <Icon className={`h-6 w-6 lg:h-5 lg:w-5 ${color}`} />
-                      </div>
-                      <div className="min-w-0 pr-3 lg:pr-1">
-                        <p className="text-[15px] font-semibold leading-snug text-[#0D1220] lg:text-[14px] lg:leading-[1.24]">
-                          {perk.title}
-                        </p>
-                        <p className="mt-2 text-[13px] leading-5 text-[#5E6673] lg:mt-1.5 lg:text-[12px] lg:leading-[1.45]">
-                          {perk.description}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/60 px-4 py-3 shadow-[0_18px_44px_-34px_rgba(13,18,32,0.45)] backdrop-blur-[14px] sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div className="flex items-center gap-3 text-sm text-[#4B5563]">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FDE7EF] text-[#D95F86]">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <span>{statusStripText}</span>
-              </div>
-              <Link
-                to="/help#loyalty"
-                className="group inline-flex items-center gap-2 self-start text-sm font-medium text-[#0D1220] underline decoration-[#0D1220]/20 underline-offset-4 transition-colors hover:text-[#C9985A] sm:self-auto"
-              >
-                {copy.statusesLink}
-                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </Link>
-            </div>
+            
           </div>
         </div>
       </div>

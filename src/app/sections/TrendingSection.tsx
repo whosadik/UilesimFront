@@ -34,6 +34,7 @@ export function TrendingSection({
           title={messages.home.trending.title}
           subtitle={messages.home.trending.subtitle}
           eyebrow="LIVE NOW"
+          showViewAll={false}
           live
         />
 
