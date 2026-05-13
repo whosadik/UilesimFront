@@ -27,9 +27,6 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <Reveal>
-        <TrustStripSection />
-      </Reveal>
       <Reveal delay={60}>
         <LoyaltyStripSection />
       </Reveal>
