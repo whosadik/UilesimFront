@@ -1,5 +1,6 @@
 import { X, ChevronRight, Percent, Search, Heart } from 'lucide-react';
 import { type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router';
 
 import { useI18n } from '../../shared/i18n/LanguageContext';
@@ -95,14 +96,14 @@ export function MobileMenu({
   const isPathActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  return (
+  return createPortal(
     <>
       <div
-        className="fixed inset-0 z-50 animate-in fade-in duration-200 bg-black/40 lg:hidden"
+        className="fixed inset-0 z-[60] animate-in fade-in duration-200 bg-black/50"
         onClick={onClose}
       />
 
-      <div className="fixed top-0 left-0 bottom-0 z-50 w-[85%] max-w-sm overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-left duration-300 lg:hidden">
+      <div className="fixed top-0 right-0 bottom-0 z-[70] w-[85%] max-w-sm overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-right duration-300">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EAE6EF] bg-white px-6 py-4">
           <span className="text-lg font-bold text-[#111827]">{messages.mobileMenu.title}</span>
           <button
@@ -267,6 +268,7 @@ export function MobileMenu({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

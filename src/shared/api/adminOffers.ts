@@ -1,7 +1,7 @@
 import { apiFetch } from './httpClient';
 
 export type OfferType = 'discount' | 'points_multiplier' | 'gift';
-export type TargetScope = 'cart' | 'category' | 'product_type' | 'product_id';
+export type TargetScope = 'cart' | 'category' | 'brand' | 'product_type' | 'product_id';
 
 export type Offer = {
   id: number;
@@ -14,6 +14,8 @@ export type Offer = {
   cooldown_days: number;
   expires_in_days: number;
   allowed_categories: string[];
+  allowed_brands: string[];
+  allowed_product_ids: number[];
   allowed_product_types: string[];
   allowed_steps: string[];
   min_total_spend_90d: string | number;

@@ -6,8 +6,8 @@ import {
   BarChart3,
   FlaskConical,
   ScrollText,
-  Megaphone,
-  Database,
+  Target,
+  ShoppingBag,
   HeartPulse,
   ChevronLeft,
   Search,
@@ -15,6 +15,8 @@ import {
   LogOut,
   Shield,
   ChevronDown,
+  Package,
+  Sparkles,
 } from 'lucide-react';
 import logoImage from '@/assets/UylesimLogo.png';
 import { useAuth } from '../../../shared/auth/AuthContext';
@@ -24,8 +26,10 @@ const navItems = [
   { label: 'Metrics', href: '/admin/metrics', icon: BarChart3 },
   { label: 'Recs Experiments', href: '/admin/experiments', icon: FlaskConical },
   { label: 'Audit', href: '/admin/audit', icon: ScrollText },
-  { label: 'Campaigns', href: '/admin/campaigns', icon: Megaphone },
-  { label: 'Cache', href: '/admin/cache', icon: Database },
+  { label: 'Товары', href: '/admin/catalog/products', icon: Package },
+  { label: 'Бренды', href: '/admin/catalog/brands', icon: Sparkles },
+  { label: 'Персональные кампании', href: '/admin/campaigns/personal', icon: Target },
+  { label: 'Акции на каталог', href: '/admin/campaigns/catalog', icon: ShoppingBag },
   { label: 'Health', href: '/admin/health', icon: HeartPulse },
 ];
 

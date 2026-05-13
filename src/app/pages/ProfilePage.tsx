@@ -28,6 +28,7 @@ import {
   updateProfile,
 } from '../../shared/api/me';
 import { home } from '../../shared/api/recommendations';
+import { recommendationScoreToPercent } from '../../shared/recommendations/score';
 import { formatMoney } from '../utils/formatters';
 import {
   getProfileOptionLabels,
@@ -876,7 +877,7 @@ export default function ProfilePage() {
                 typeof prod.category === 'string'
                   ? formatCatalogCategoryLabel(prod.category, language) ?? prod.category
                   : undefined,
-              recommendationScore: typeof it?.score === 'number' ? it.score : undefined,
+              recommendationScore: recommendationScoreToPercent(it?.score, it?.components),
             } satisfies RecommendationCard;
           })
           .filter((x): x is RecommendationCard => x !== null);

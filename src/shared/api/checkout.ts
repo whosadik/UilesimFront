@@ -7,8 +7,21 @@ export type CheckoutBase = {
   channel?: string;
   items: CheckoutItem[];
   apply_assignment_id?: number;
+  apply_public_offer_id?: number;
   redeem_points?: number;
   gift_card_code?: string;
+};
+
+export type AvailableOfferKind = 'personal' | 'public';
+
+export type AvailableOffer = {
+  kind: AvailableOfferKind;
+  assignment_id: number | null;
+  public_offer_id: number | null;
+  public_campaign_id: number | null;
+  discount_amount: string;
+  offer_payload: Record<string, unknown>;
+  priority?: number;
 };
 
 export type CheckoutPreviewRequest = CheckoutBase;

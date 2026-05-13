@@ -192,9 +192,6 @@ export default function WishlistPage() {
 
         {wishlistProducts.length > 0 ? (
           <>
-            <div className="mb-6">
-              <FilterBar />
-            </div>
 
             <ProductGrid
               products={wishlistProducts}
