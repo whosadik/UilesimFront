@@ -49,6 +49,7 @@ import {
   mapProfileSingleLabelToApiValue,
   resolveProfileTaxonomy,
 } from '../../shared/profile/taxonomy';
+import { recommendationScoreToPercent } from '../../shared/recommendations/score';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 import type { AppLanguage } from '../../shared/i18n/messages';
 
@@ -535,7 +536,7 @@ type RecommendationCard = {
   originalPrice?: number;
   image: string;
   pointsEarned: number;
-  recommendationScore: number;
+  recommendationScore?: number;
   whyRecommended: string;
   whatImproves: string;
   expectedBenefit: string;
@@ -1211,7 +1212,10 @@ const normalizeRec = (
   const id = String(product.id ?? source.id ?? fallbackId);
   const price = toNumber(product.price ?? source.price) ?? 0;
   const originalPrice = toNumber(product.original_price ?? source.original_price ?? source.originalPrice);
-  const score = toNumber(source.score ?? source.recommendationScore ?? product.recommendation_score) ?? 0;
+  const score = recommendationScoreToPercent(
+    source.score ?? source.recommendationScore ?? product.recommendation_score,
+    source.components,
+  );
   const pointsEarned =
     toNumber(product.points_earned ?? source.points_earned ?? source.pointsEarned) ??
     Math.max(0, Math.round(price * 0.01));
@@ -1237,7 +1241,7 @@ const normalizeRec = (
       (typeof source.image === 'string' && source.image) ||
       FALLBACK_RECOMMENDATION_IMAGE,
     pointsEarned: Math.max(0, Math.round(pointsEarned)),
-    recommendationScore: Math.max(0, Math.min(100, Math.round(score))),
+    recommendationScore: score,
     whyRecommended,
     whatImproves: buildRecommendationImprovement(source, product, copy, language),
     expectedBenefit: buildRecommendationBenefit(source, product, section, copy, language),
@@ -1348,11 +1352,12 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
-          {/* Score badge */}
-          <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-white/95 backdrop-blur-sm shadow-sm">
-            <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
-            <span className="text-[10px] font-semibold text-[#111827]">{copy.match(product.recommendationScore)}</span>
-          </div>
+          {product.recommendationScore !== undefined && product.recommendationScore > 0 ? (
+            <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-white/95 backdrop-blur-sm shadow-sm">
+              <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
+              <span className="text-[10px] font-semibold text-[#111827]">{copy.match(product.recommendationScore)}</span>
+            </div>
+          ) : null}
         </div>
 
         <div className="p-4">

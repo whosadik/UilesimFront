@@ -4,6 +4,7 @@ import { ApiError } from '../../shared/api/ApiError';
 import { createRequestId } from '../../shared/api/httpClient';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
+import { recommendationScoreToPercent } from '../../shared/recommendations/score';
 
 export type HomeRecommendationSectionKey = 'for_you' | 'trending';
 
@@ -66,9 +67,7 @@ function mapRecommendationProduct(
     return null;
   }
 
-  const rawScore = toNumber(item.score);
-  const scorePercent =
-    rawScore === undefined ? undefined : rawScore <= 1 ? Math.round(rawScore * 100) : Math.round(rawScore);
+  const scorePercent = recommendationScoreToPercent(item.score, item.components);
 
   return {
     id: String(product.id),
