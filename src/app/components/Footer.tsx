@@ -15,12 +15,6 @@ import { Link } from 'react-router';
 import logoImage from '@/assets/UylesimLogo.png';
 import { useI18n } from '../../shared/i18n/LanguageContext';
 
-const TRUST_ITEMS = [
-  { Icon: Truck, label: 'Доставка по РК', sub: 'от 2 дней' },
-  { Icon: ShieldCheck, label: 'Оригинал 100%', sub: 'прямые контракты' },
-  { Icon: Sparkles, label: 'Кэшбэк баллами', sub: '1% с покупки' },
-  { Icon: MessageCircle, label: 'Поддержка 24/7', sub: 'отвечаем за 2 мин' },
-];
 
 export function Footer() {
   const { messages } = useI18n();
@@ -28,22 +22,6 @@ export function Footer() {
   return (
     <footer className="relative mt-12 border-t border-[#EAE6EF] bg-gradient-to-b from-[#FBF7FA] via-white to-[#FFF1F8] pt-12 pb-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FF4DB8]/40 to-transparent" />
-
-      <div className="mx-auto mb-12 max-w-[1160px] px-6 lg:px-[140px]">
-        <div className="grid grid-cols-2 gap-3 rounded-3xl border border-[#EAE6EF] bg-white/70 p-4 shadow-[0_2px_30px_-18px_rgba(17,24,39,0.18)] backdrop-blur sm:grid-cols-4 sm:gap-2 sm:p-6">
-          {TRUST_ITEMS.map(({ Icon, label, sub }) => (
-            <div key={label} className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFE1F2] text-[#B4185B]">
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#111827]">{label}</p>
-                <p className="truncate text-[11px] text-[#6B7280]">{sub}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       <div className="mx-auto max-w-[1160px] px-6 lg:px-[140px]">
         <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
