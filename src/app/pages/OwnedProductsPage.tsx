@@ -573,24 +573,6 @@ export default function OwnedProductsPage() {
                           </div>
                         )}
                       </div>
-
-                      <button
-                        onClick={() => handleToggleActive(product.id, product.is_active)}
-                        disabled={isPending}
-                        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {product.is_active ? (
-                          <>
-                            <ToggleRight className="w-5 h-5 text-green-600" />
-                            {isPending ? copy.updatingStatus : copy.markCompleted}
-                          </>
-                        ) : (
-                          <>
-                            <ToggleLeft className="w-5 h-5 text-gray-400" />
-                            {isPending ? copy.updatingStatus : copy.activateAgain}
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                 </div>
