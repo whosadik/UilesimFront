@@ -10,7 +10,7 @@ import {
   getCart,
   type CartItem as ApiCartItem,
 } from '../../shared/api/cart';
-import { commit, preview } from '../../shared/api/checkout';
+import { commit, preview, type AvailableOffer } from '../../shared/api/checkout';
 import { getLoyalty } from '../../shared/api/me';
 import { nextOffer } from '../../shared/api/offers';
 import {
@@ -61,11 +61,16 @@ interface CheckoutTotals {
   pointsRedeemed: number;
   total: number;
   pointsEarned: number;
+  appliedOffer?: ActiveOffer | null;
 }
+
+type OfferSourceType = 'personal_system' | 'public_campaign';
 
 interface ActiveOffer {
   assignmentId?: number;
   name: string;
+  sourceType: OfferSourceType;
+  campaignName?: string;
   type?: string;
   value?: number;
   scope?: string;
@@ -159,8 +164,16 @@ const cartPageCopy = {
     checkoutError: 'Не удалось оформить заказ.',
     personalOfferTitleFallback: 'Персональный оффер',
     noPersonalOfferTitle: 'Сейчас персонального оффера нет',
-    activeOfferDiscount: (value: number) => `Активный оффер: ${value}%`,
-    activeOfferPoints: (value: number) => `Активный оффер: x${value} баллов`,
+    activeOfferDiscount: (value: number) => `${value}% скидка`,
+    activeOfferPoints: (value: number) => `x${value} баллов`,
+    offerSourceBadgeSystem: 'СИСТЕМА',
+    offerSourceBadgeCampaign: 'АКЦИЯ',
+    offerSystemTitle: (title: string) => `Оффер системы: ${title}`,
+    offerCampaignTitle: (title: string) => `Акция: ${title}`,
+    offerSystemSource: (campaignName?: string) =>
+      campaignName ? `Подобрано системой: ${campaignName}.` : 'Подобрано системой по профилю и истории покупок.',
+    offerCampaignSource: (campaignName?: string) =>
+      campaignName ? `Промо-кампания: «${campaignName}».` : 'Публичная акция магазина.',
     offerAppearsLater: 'Когда для вас появится новый оффер, он автоматически отобразится здесь.',
     offerEstimatedBenefit: (value: number) => `Выгода по расчёту: ${value.toLocaleString(localeByLanguage.ru)} ₸`,
     offerMinimumBasket: (value: number) => `Оффер применится к корзине от ${value.toLocaleString(localeByLanguage.ru)} ₸.`,
@@ -236,8 +249,16 @@ const cartPageCopy = {
     checkoutError: 'Тапсырысты рәсімдеу мүмкін болмады.',
     personalOfferTitleFallback: 'Жеке оффер',
     noPersonalOfferTitle: 'Қазір жеке оффер жоқ',
-    activeOfferDiscount: (value: number) => `Белсенді оффер: ${value}%`,
-    activeOfferPoints: (value: number) => `Белсенді оффер: x${value} ұпай`,
+    activeOfferDiscount: (value: number) => `${value}% жеңілдік`,
+    activeOfferPoints: (value: number) => `x${value} ұпай`,
+    offerSourceBadgeSystem: 'ЖҮЙЕ',
+    offerSourceBadgeCampaign: 'АКЦИЯ',
+    offerSystemTitle: (title: string) => `Жүйелік оффер: ${title}`,
+    offerCampaignTitle: (title: string) => `Акция: ${title}`,
+    offerSystemSource: (campaignName?: string) =>
+      campaignName ? `Жүйе таңдаған: ${campaignName}.` : 'Жүйе профиль мен сатып алу тарихына қарап таңдады.',
+    offerCampaignSource: (campaignName?: string) =>
+      campaignName ? `Промо-науқан: «${campaignName}».` : 'Дүкеннің ашық акциясы.',
     offerAppearsLater: 'Сізге жаңа оффер пайда болғанда, ол автоматты түрде осында шығады.',
     offerEstimatedBenefit: (value: number) => `Есептік пайда: ${value.toLocaleString(localeByLanguage.kk)} ₸`,
     offerMinimumBasket: (value: number) => `Оффер ${value.toLocaleString(localeByLanguage.kk)} ₸ бастап себетке қолданылады.`,
@@ -313,8 +334,16 @@ const cartPageCopy = {
     checkoutError: 'Could not complete checkout.',
     personalOfferTitleFallback: 'Personal offer',
     noPersonalOfferTitle: 'There is no personal offer right now',
-    activeOfferDiscount: (value: number) => `Active offer: ${value}%`,
-    activeOfferPoints: (value: number) => `Active offer: x${value} points`,
+    activeOfferDiscount: (value: number) => `${value}% discount`,
+    activeOfferPoints: (value: number) => `x${value} points`,
+    offerSourceBadgeSystem: 'SYSTEM',
+    offerSourceBadgeCampaign: 'PROMO',
+    offerSystemTitle: (title: string) => `System offer: ${title}`,
+    offerCampaignTitle: (title: string) => `Promotion: ${title}`,
+    offerSystemSource: (campaignName?: string) =>
+      campaignName ? `Selected by the system: ${campaignName}.` : 'Selected by the system from your profile and purchase history.',
+    offerCampaignSource: (campaignName?: string) =>
+      campaignName ? `Promo campaign: "${campaignName}".` : 'Public store promotion.',
     offerAppearsLater: 'When a new offer becomes available for you, it will appear here automatically.',
     offerEstimatedBenefit: (value: number) => `Estimated benefit: ${value.toLocaleString(localeByLanguage.en)} ₸`,
     offerMinimumBasket: (value: number) => `The offer will apply to carts from ${value.toLocaleString(localeByLanguage.en)} ₸.`,
@@ -423,7 +452,12 @@ const parseActiveOffer = (value: unknown, fallbackName: string): ActiveOffer | n
 
   const offerData = value.offer;
   const targetData = isRecord(value.target) ? value.target : null;
+  const campaignData = isRecord(value.campaign) ? value.campaign : null;
   const assignmentId = toNumber(value.assignment_id);
+  const source = firstString(value.source);
+  const campaignType = firstString(campaignData?.type, value.campaign_type);
+  const isPublicCampaign =
+    value.public_campaign === true || source === 'public_campaign' || campaignType === 'public';
   const targetValue =
     targetData && (typeof targetData.value === 'number' || typeof targetData.value === 'string')
       ? String(targetData.value)
@@ -433,6 +467,8 @@ const parseActiveOffer = (value: unknown, fallbackName: string): ActiveOffer | n
   return {
     assignmentId: assignmentId !== undefined ? Math.round(assignmentId) : undefined,
     name: (typeof offerData.name === 'string' && offerData.name.trim()) || fallbackName,
+    sourceType: isPublicCampaign ? 'public_campaign' : 'personal_system',
+    campaignName: firstString(campaignData?.name, value.campaign_name),
     type: typeof offerData.type === 'string' ? offerData.type : undefined,
     value: toNumber(offerData.value),
     scope,
@@ -585,39 +621,80 @@ const createIdempotencyKey = (): string => {
   return `cart-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const isOfferApplicable = (offer: ActiveOffer | null, items: CartItem[]): boolean => {
-  if (!offer?.assignmentId) {
-    return false;
-  }
+type OfferChoice =
+  | { kind: 'auto' }
+  | { kind: 'personal'; assignmentId: number }
+  | { kind: 'public'; publicOfferId: number };
 
-  if (!offer.scope || offer.scope === 'cart') {
-    return true;
-  }
+type AvailableOfferSummary = {
+  key: string;
+  kind: 'personal' | 'public';
+  assignmentId: number | null;
+  publicOfferId: number | null;
+  publicCampaignId: number | null;
+  discountAmount: number;
+  offer: ActiveOffer;
+};
 
-  if (offer.scope === 'product_id') {
-    return Boolean(offer.targetValue && items.some((item) => item.id === offer.targetValue));
-  }
+const parseAvailableOffers = (
+  value: unknown,
+  fallbackName: string,
+): AvailableOfferSummary[] => {
+  if (!Array.isArray(value)) return [];
 
-  if (offer.scope === 'category') {
-    return Boolean(
-      offer.targetValue &&
-      items.some((item) => item.category && item.category === offer.targetValue),
-    );
-  }
+  const out: AvailableOfferSummary[] = [];
+  value.forEach((entry, index) => {
+    if (!isRecord(entry)) return;
+    const kindRaw = entry.kind;
+    const kind: 'personal' | 'public' | null =
+      kindRaw === 'personal' ? 'personal' : kindRaw === 'public' ? 'public' : null;
+    if (!kind) return;
 
-  if (offer.scope === 'product_type') {
-    return items.some((item) => {
-      if (offer.targetCategory && item.category !== offer.targetCategory) {
-        return false;
-      }
-      if (offer.targetValue && item.productType !== offer.targetValue) {
-        return false;
-      }
-      return true;
+    const offerPayload = entry.offer_payload ?? entry;
+    const parsed = parseActiveOffer(offerPayload, fallbackName);
+    if (!parsed) return;
+
+    const assignmentId = toNumber(entry.assignment_id);
+    const publicOfferId = toNumber(entry.public_offer_id);
+    const publicCampaignId = toNumber(entry.public_campaign_id);
+    const discount = toNumber(entry.discount_amount) ?? 0;
+
+    const idForKey =
+      kind === 'personal'
+        ? assignmentId !== undefined
+          ? `p-${Math.round(assignmentId)}`
+          : `p-idx-${index}`
+        : publicOfferId !== undefined
+          ? `c-${Math.round(publicOfferId)}`
+          : `c-idx-${index}`;
+
+    out.push({
+      key: idForKey,
+      kind,
+      assignmentId: assignmentId !== undefined ? Math.round(assignmentId) : null,
+      publicOfferId: publicOfferId !== undefined ? Math.round(publicOfferId) : null,
+      publicCampaignId: publicCampaignId !== undefined ? Math.round(publicCampaignId) : null,
+      discountAmount: Math.max(0, Math.round(discount)),
+      offer: parsed,
     });
-  }
+  });
+  return out;
+};
 
-  return false;
+const offerChoiceKey = (
+  choice: OfferChoice,
+  options: AvailableOfferSummary[],
+): string | null => {
+  if (choice.kind === 'personal') {
+    const found = options.find((o) => o.kind === 'personal' && o.assignmentId === choice.assignmentId);
+    return found?.key ?? null;
+  }
+  if (choice.kind === 'public') {
+    const found = options.find((o) => o.kind === 'public' && o.publicOfferId === choice.publicOfferId);
+    return found?.key ?? null;
+  }
+  // auto: the first option is the best (backend orders by discount desc)
+  return options[0]?.key ?? null;
 };
 
 
@@ -642,6 +719,8 @@ export default function CartPage() {
   const [availablePoints, setAvailablePoints] = useState(1247);
   const [currentTier, setCurrentTier] = useState('gold');
   const [activeOffer, setActiveOffer] = useState<ActiveOffer | null>(null);
+  const [availableOffers, setAvailableOffers] = useState<AvailableOfferSummary[]>([]);
+  const [offerChoice, setOfferChoice] = useState<OfferChoice>({ kind: 'auto' });
   const [roadmapPlan, setRoadmapPlan] = useState<RoadmapPlanApi | null>(null);
   const [isMetaLoading, setIsMetaLoading] = useState(true);
   const [metaError, setMetaError] = useState<string | null>(null);
@@ -706,7 +785,6 @@ export default function CartPage() {
   const pointsRedeemed = Math.min(pointsToUse, Math.max(0, Math.floor(subtotal - discount)));
   const total = Math.max(0, subtotal - discount - pointsRedeemed);
   const totalPointsEarned = cartItems.reduce((sum, item) => sum + item.pointsEarned * item.quantity, 0);
-  const offerApplicable = isOfferApplicable(activeOffer, cartItems);
 
   const summarySubtotal = previewTotals?.subtotal ?? subtotal;
   const summaryDiscount = previewTotals?.discount ?? discount;
@@ -867,7 +945,8 @@ export default function CartPage() {
   const buildCheckoutPayload = () => ({
     channel: 'online',
     items: buildCheckoutItems(),
-    apply_assignment_id: offerApplicable ? activeOffer?.assignmentId : undefined,
+    apply_assignment_id: offerChoice.kind === 'personal' ? offerChoice.assignmentId : undefined,
+    apply_public_offer_id: offerChoice.kind === 'public' ? offerChoice.publicOfferId : undefined,
     gift_card_code: appliedGiftCardCode ?? undefined,
     redeem_points: pointsToUse > 0 ? pointsToUse : undefined,
   });
@@ -904,6 +983,23 @@ export default function CartPage() {
           toNumber(response.estimated_points_earned) ??
           toNumber(response.points_earned) ??
           totalPointsEarned;
+        const appliedOffer = parseActiveOffer(response.applied_offer, copy.personalOfferTitleFallback);
+        const parsedAvailable = parseAvailableOffers(response.available_offers, copy.personalOfferTitleFallback);
+        setAvailableOffers(parsedAvailable);
+
+        // If the current explicit choice is no longer in the available list (e.g. cart changed),
+        // fall back to auto-pick so the UI doesn't get stuck on an inapplicable selection.
+        if (offerChoice.kind === 'personal') {
+          const stillAvailable = parsedAvailable.some(
+            (o) => o.kind === 'personal' && o.assignmentId === offerChoice.assignmentId,
+          );
+          if (!stillAvailable) setOfferChoice({ kind: 'auto' });
+        } else if (offerChoice.kind === 'public') {
+          const stillAvailable = parsedAvailable.some(
+            (o) => o.kind === 'public' && o.publicOfferId === offerChoice.publicOfferId,
+          );
+          if (!stillAvailable) setOfferChoice({ kind: 'auto' });
+        }
 
         setPreviewTotals({
           subtotal: Math.max(0, Math.round(gross)),
@@ -920,6 +1016,7 @@ export default function CartPage() {
           pointsRedeemed: Math.max(0, Math.round(usedPoints)),
           total: Math.max(0, Math.round(net)),
           pointsEarned: Math.max(0, Math.round(earned)),
+          appliedOffer,
         });
         if (giftCard) {
           setGiftCardMessage(copy.giftCardAppliedToOrder);
@@ -959,7 +1056,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeOffer?.assignmentId, appliedGiftCardCode, cartItems, copy, discount, giftCardMessageTone, location.pathname, navigate, offerApplicable, pointsToUse, subtotal, total, totalPointsEarned]);
+  }, [appliedGiftCardCode, cartItems, copy, discount, giftCardMessageTone, location.pathname, navigate, offerChoice, pointsToUse, subtotal, total, totalPointsEarned]);
 
   const handleApplyGiftCard = () => {
     const trimmedCode = giftCardCodeInput.trim().toUpperCase();
@@ -1032,41 +1129,67 @@ export default function CartPage() {
 
   const fallbackOfferTitle = copy.personalOfferTitleFallback;
   const roadmapUpsell = buildRoadmapUpsell(roadmapPlan, language, copy);
+  // Only show offers that the backend actually applied to the current cart.
+  // If a user has a personal next-offer but it doesn't fit the cart, we surface
+  // a soft notice below instead of pretending it's active.
+  const displayedOffer = previewTotals?.appliedOffer ?? null;
+  const displayedOfferApplicable = Boolean(previewTotals?.appliedOffer);
+  const hasAvailableAlternatives = availableOffers.length >= 2;
+  const activeChoiceKey = offerChoiceKey(offerChoice, availableOffers);
+  const inapplicableActiveOffer =
+    !displayedOffer && activeOffer && availableOffers.length === 0 ? activeOffer : null;
+  const offerSourceBadge = displayedOffer?.sourceType === 'public_campaign'
+    ? copy.offerSourceBadgeCampaign
+    : copy.offerSourceBadgeSystem;
+  const offerSourceBadgeClass = displayedOffer?.sourceType === 'public_campaign'
+    ? 'border-[#A7F3D0] bg-[#D1FAE5] text-[#047857]'
+    : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4338CA]';
+  const offerSourceText = displayedOffer
+    ? displayedOffer.sourceType === 'public_campaign'
+      ? copy.offerCampaignSource(displayedOffer.campaignName)
+      : copy.offerSystemSource(displayedOffer.campaignName)
+    : undefined;
   const offerScopedLabel =
-    (activeOffer?.targetCategory
-      ? formatCatalogCategoryLabel(activeOffer.targetCategory, language) ??
+    (displayedOffer?.targetCategory
+      ? formatCatalogCategoryLabel(displayedOffer.targetCategory, language) ??
         messages.catalog.categories[
-          activeOffer.targetCategory as keyof typeof messages.catalog.categories
+          displayedOffer.targetCategory as keyof typeof messages.catalog.categories
         ] ??
-        formatLabel(activeOffer.targetCategory)
+        formatLabel(displayedOffer.targetCategory)
       : undefined) ??
-    formatCatalogProductTypeLabel(activeOffer?.targetProductType, language) ??
-    formatLabel(activeOffer?.targetProductType);
-  const offerTitle =
-    !activeOffer
+    formatCatalogProductTypeLabel(displayedOffer?.targetProductType, language) ??
+    formatLabel(displayedOffer?.targetProductType);
+  const offerBaseTitle =
+    !displayedOffer
       ? copy.noPersonalOfferTitle
-      : activeOffer.type === 'discount' && activeOffer.value !== undefined
-      ? copy.activeOfferDiscount(activeOffer.value)
-      : activeOffer.type === 'points_multiplier' && activeOffer.value !== undefined
-        ? copy.activeOfferPoints(activeOffer.value)
-      : activeOffer.name || fallbackOfferTitle;
+      : displayedOffer.type === 'discount' && displayedOffer.value !== undefined
+        ? copy.activeOfferDiscount(displayedOffer.value)
+        : displayedOffer.type === 'points_multiplier' && displayedOffer.value !== undefined
+          ? copy.activeOfferPoints(displayedOffer.value)
+          : displayedOffer.name || fallbackOfferTitle;
+  const offerTitle =
+    !displayedOffer
+      ? copy.noPersonalOfferTitle
+      : displayedOffer.sourceType === 'public_campaign'
+        ? copy.offerCampaignTitle(offerBaseTitle)
+        : copy.offerSystemTitle(offerBaseTitle);
 
   const offerDescription =
-    !activeOffer
+    !displayedOffer
       ? copy.offerAppearsLater
-      : summaryDiscount > 0 && offerApplicable
+      : summaryDiscount > 0 && displayedOfferApplicable
       ? copy.offerEstimatedBenefit(summaryDiscount)
-      : activeOffer.scope === 'cart' && activeOffer.minBasketAmount !== undefined
-        ? copy.offerMinimumBasket(activeOffer.minBasketAmount)
-        : activeOffer.scope === 'cart'
+      : displayedOffer.scope === 'cart' && displayedOffer.minBasketAmount !== undefined
+        ? copy.offerMinimumBasket(displayedOffer.minBasketAmount)
+        : displayedOffer.scope === 'cart'
           ? copy.offerWholeCart
-          : activeOffer.scope === 'product_id' && roadmapUpsell
+          : displayedOffer.scope === 'product_id' && roadmapUpsell
             ? copy.offerRoadmapScope(roadmapUpsell.title)
-            : activeOffer.scope === 'product_id' && activeOffer.targetValue
-              ? copy.offerProductScope(activeOffer.targetValue)
-              : activeOffer.scope === 'category' && offerScopedLabel
+            : displayedOffer.scope === 'product_id' && displayedOffer.targetValue
+              ? copy.offerProductScope(displayedOffer.targetValue)
+              : displayedOffer.scope === 'category' && offerScopedLabel
                 ? copy.offerCategoryScope(offerScopedLabel)
-                : activeOffer.scope === 'product_type' && offerScopedLabel
+                : displayedOffer.scope === 'product_type' && offerScopedLabel
                   ? copy.offerTypeScope(offerScopedLabel)
                   : copy.offerMatchingProducts;
 
@@ -1198,27 +1321,115 @@ export default function CartPage() {
             <div className="rounded-2xl bg-white border border-[#EAE6EF] overflow-hidden sticky top-4">
 
               {/* Offer banner */}
-              {(isMetaLoading || activeOffer || metaError) && (
-                <div className="px-4 py-3 bg-[#FFF0F8] border-b border-[#FDDCEF] flex items-start gap-2">
-                  <span className="mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF4DB8] text-white tracking-wide flex-shrink-0">
-                    {copy.offerBadge}
-                  </span>
-                  {isMetaLoading ? (
-                    <p className="text-xs text-[#9CA3AF]">{copy.loadingOffer}</p>
-                  ) : metaError ? (
-                    <div>
-                      <p className="text-xs text-[#B42318]">{metaError}</p>
-                      <button
-                        onClick={() => setMetaRetryKey((v) => v + 1)}
-                        className="text-[11px] font-medium text-[#111827] underline underline-offset-2 mt-1"
-                      >
-                        {copy.retry}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-[#111827]">{offerTitle}</p>
-                      <p className="text-[11px] text-[#6B7280] mt-0.5">{offerDescription}</p>
+              {(isMetaLoading || displayedOffer || metaError || inapplicableActiveOffer) && (
+                <div className="border-b border-[#FDDCEF] bg-[#FFF0F8]">
+                  <div className="px-4 py-3 flex items-start gap-2">
+                    <span className={`mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border tracking-wide flex-shrink-0 ${displayedOffer ? offerSourceBadgeClass : 'border-[#FDDCEF] bg-[#FF4DB8] text-white'}`}>
+                      {displayedOffer ? offerSourceBadge : copy.offerBadge}
+                    </span>
+                    {isMetaLoading ? (
+                      <p className="text-xs text-[#9CA3AF]">{copy.loadingOffer}</p>
+                    ) : metaError ? (
+                      <div>
+                        <p className="text-xs text-[#B42318]">{metaError}</p>
+                        <button
+                          onClick={() => setMetaRetryKey((v) => v + 1)}
+                          className="text-[11px] font-medium text-[#111827] underline underline-offset-2 mt-1"
+                        >
+                          {copy.retry}
+                        </button>
+                      </div>
+                    ) : displayedOffer ? (
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[#111827]">{offerTitle}</p>
+                        {offerSourceText && (
+                          <p className="text-[11px] text-[#374151] mt-0.5">{offerSourceText}</p>
+                        )}
+                        <p className="text-[11px] text-[#6B7280] mt-0.5">{offerDescription}</p>
+                      </div>
+                    ) : inapplicableActiveOffer ? (
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-[#374151]">
+                          {inapplicableActiveOffer.name || fallbackOfferTitle}
+                        </p>
+                        <p className="text-[11px] text-[#9CA3AF] mt-0.5">
+                          Оффер не подходит к товарам в этой корзине.
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Alternative-offer chooser (only if 2+ applicable options) */}
+                  {hasAvailableAlternatives && (
+                    <div className="px-4 pb-3 pt-1 space-y-1.5 border-t border-[#FDDCEF]">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                        Выберите выгоду
+                      </p>
+                      {availableOffers.map((option) => {
+                        const isActive = option.key === activeChoiceKey;
+                        const isBest = option.key === availableOffers[0].key;
+                        const optionLabel =
+                          option.offer.type === 'discount' && option.offer.value !== undefined
+                            ? copy.activeOfferDiscount(option.offer.value)
+                            : option.offer.type === 'points_multiplier' && option.offer.value !== undefined
+                              ? copy.activeOfferPoints(option.offer.value)
+                              : option.offer.name || fallbackOfferTitle;
+                        const sourceLabel = option.offer.sourceType === 'public_campaign'
+                          ? copy.offerSourceBadgeCampaign
+                          : copy.offerSourceBadgeSystem;
+                        return (
+                          <label
+                            key={option.key}
+                            className={`flex items-start gap-2 p-2 rounded-xl cursor-pointer border text-left transition-colors ${
+                              isActive
+                                ? 'border-[#FF4DB8] bg-white'
+                                : 'border-transparent hover:bg-white/60'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="offer-choice"
+                              checked={isActive}
+                              onChange={() => {
+                                if (option.kind === 'personal' && option.assignmentId !== null) {
+                                  setOfferChoice({ kind: 'personal', assignmentId: option.assignmentId });
+                                } else if (option.kind === 'public' && option.publicOfferId !== null) {
+                                  setOfferChoice({ kind: 'public', publicOfferId: option.publicOfferId });
+                                }
+                              }}
+                              className="mt-1 accent-[#FF4DB8]"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs font-semibold text-[#111827]">{optionLabel}</span>
+                                <span className="text-[9px] font-bold uppercase tracking-wide text-[#6B7280]">
+                                  {sourceLabel}
+                                </span>
+                                {isBest && (
+                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-[#FF4DB8]">
+                                    Лучшая
+                                  </span>
+                                )}
+                              </div>
+                              {option.offer.campaignName && (
+                                <p className="text-[11px] text-[#6B7280] truncate">{option.offer.campaignName}</p>
+                              )}
+                              <p className="text-[11px] text-[#374151] mt-0.5">
+                                −{formatMoney(option.discountAmount, language)}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                      {offerChoice.kind !== 'auto' && (
+                        <button
+                          type="button"
+                          onClick={() => setOfferChoice({ kind: 'auto' })}
+                          className="text-[11px] text-[#6B7280] underline underline-offset-2 hover:text-[#111827]"
+                        >
+                          Выбрать автоматически
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

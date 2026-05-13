@@ -1,4 +1,5 @@
-import { createBrowserRouter } from "react-router";
+import { createElement } from "react";
+import { createBrowserRouter, Navigate } from "react-router";
 import AppProviders from "./AppProviders";
 import Root from "./Root";
 import HomePage from "./pages/HomePage";
@@ -45,8 +46,10 @@ import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminMetricsPage from "./pages/admin/AdminMetricsPage";
 import AdminExperimentsPage from "./pages/admin/AdminExperimentsPage";
 import AdminAuditPage from "./pages/admin/AdminAuditPage";
-import AdminCampaignsPage from "./pages/admin/AdminCampaignsPage";
-import AdminCampaignDetailPage from "./pages/admin/AdminCampaignDetailPage";
+import AdminPersonalCampaignsPage from "./pages/admin/campaigns/AdminPersonalCampaignsPage";
+import AdminPersonalCampaignDetailPage from "./pages/admin/campaigns/AdminPersonalCampaignDetailPage";
+import AdminCatalogPromotionsPage from "./pages/admin/campaigns/AdminCatalogPromotionsPage";
+import AdminCatalogPromotionDetailPage from "./pages/admin/campaigns/AdminCatalogPromotionDetailPage";
 import AdminCachePage from "./pages/admin/AdminCachePage";
 import AdminHealthPage from "./pages/admin/AdminHealthPage";
 
@@ -107,9 +110,13 @@ export const router = createBrowserRouter([
           { path: "metrics", Component: AdminMetricsPage },
           { path: "experiments", Component: AdminExperimentsPage },
           { path: "audit", Component: AdminAuditPage },
-          { path: "campaigns", Component: AdminCampaignsPage },
-          { path: "campaigns/:id", Component: AdminCampaignDetailPage },
-          { path: "campaigns/new", Component: AdminCampaignDetailPage },
+          { path: "campaigns", element: createElement(Navigate, { to: "/admin/campaigns/personal", replace: true }) },
+          { path: "campaigns/personal", Component: AdminPersonalCampaignsPage },
+          { path: "campaigns/personal/new", Component: AdminPersonalCampaignDetailPage },
+          { path: "campaigns/personal/:id", Component: AdminPersonalCampaignDetailPage },
+          { path: "campaigns/catalog", Component: AdminCatalogPromotionsPage },
+          { path: "campaigns/catalog/new", Component: AdminCatalogPromotionDetailPage },
+          { path: "campaigns/catalog/:id", Component: AdminCatalogPromotionDetailPage },
           { path: "cache", Component: AdminCachePage },
           { path: "health", Component: AdminHealthPage },
         ],
