@@ -8,7 +8,6 @@ import {
   ScrollText,
   Target,
   ShoppingBag,
-  Database,
   HeartPulse,
   ChevronLeft,
   Search,
@@ -31,7 +30,6 @@ const navItems = [
   { label: 'Бренды', href: '/admin/catalog/brands', icon: Sparkles },
   { label: 'Персональные кампании', href: '/admin/campaigns/personal', icon: Target },
   { label: 'Акции на каталог', href: '/admin/campaigns/catalog', icon: ShoppingBag },
-  { label: 'Cache', href: '/admin/cache', icon: Database },
   { label: 'Health', href: '/admin/health', icon: HeartPulse },
 ];
 

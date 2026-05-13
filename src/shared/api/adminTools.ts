@@ -74,13 +74,3 @@ export function buildAdminAuditExportCsvUrl(params?: {
 }) {
   return `/api/admin/audit/export.csv${buildQuery(params)}`;
 }
-
-export function invalidateAdminCache(payload: { scope?: string; key?: string }) {
-  return apiFetch<{ ok: boolean; deleted?: number; keys?: string[] }>(
-    '/api/admin/cache/invalidate',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-  );
-}

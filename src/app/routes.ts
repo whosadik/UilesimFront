@@ -50,7 +50,6 @@ import AdminPersonalCampaignsPage from "./pages/admin/campaigns/AdminPersonalCam
 import AdminPersonalCampaignDetailPage from "./pages/admin/campaigns/AdminPersonalCampaignDetailPage";
 import AdminCatalogPromotionsPage from "./pages/admin/campaigns/AdminCatalogPromotionsPage";
 import AdminCatalogPromotionDetailPage from "./pages/admin/campaigns/AdminCatalogPromotionDetailPage";
-import AdminCachePage from "./pages/admin/AdminCachePage";
 import AdminHealthPage from "./pages/admin/AdminHealthPage";
 import AdminBrandsPage from "./pages/admin/catalog/AdminBrandsPage";
 import AdminBrandDetailPage from "./pages/admin/catalog/AdminBrandDetailPage";
@@ -127,7 +126,6 @@ export const router = createBrowserRouter([
           { path: "catalog/brands", Component: AdminBrandsPage },
           { path: "catalog/brands/new", Component: AdminBrandDetailPage },
           { path: "catalog/brands/:id", Component: AdminBrandDetailPage },
-          { path: "cache", Component: AdminCachePage },
           { path: "health", Component: AdminHealthPage },
         ],
       },
