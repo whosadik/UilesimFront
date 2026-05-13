@@ -52,6 +52,10 @@ import AdminCatalogPromotionsPage from "./pages/admin/campaigns/AdminCatalogProm
 import AdminCatalogPromotionDetailPage from "./pages/admin/campaigns/AdminCatalogPromotionDetailPage";
 import AdminCachePage from "./pages/admin/AdminCachePage";
 import AdminHealthPage from "./pages/admin/AdminHealthPage";
+import AdminBrandsPage from "./pages/admin/catalog/AdminBrandsPage";
+import AdminBrandDetailPage from "./pages/admin/catalog/AdminBrandDetailPage";
+import AdminProductsPage from "./pages/admin/catalog/AdminProductsPage";
+import AdminProductDetailPage from "./pages/admin/catalog/AdminProductDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -117,6 +121,12 @@ export const router = createBrowserRouter([
           { path: "campaigns/catalog", Component: AdminCatalogPromotionsPage },
           { path: "campaigns/catalog/new", Component: AdminCatalogPromotionDetailPage },
           { path: "campaigns/catalog/:id", Component: AdminCatalogPromotionDetailPage },
+          { path: "catalog/products", Component: AdminProductsPage },
+          { path: "catalog/products/new", Component: AdminProductDetailPage },
+          { path: "catalog/products/:id", Component: AdminProductDetailPage },
+          { path: "catalog/brands", Component: AdminBrandsPage },
+          { path: "catalog/brands/new", Component: AdminBrandDetailPage },
+          { path: "catalog/brands/:id", Component: AdminBrandDetailPage },
           { path: "cache", Component: AdminCachePage },
           { path: "health", Component: AdminHealthPage },
         ],
