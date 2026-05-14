@@ -681,6 +681,23 @@ export default function ProfilePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('profile') === 'quiz' || params.get('open') === 'profile') {
+      setWizardOpen(true);
+    }
+  }, [location.search]);
+
+  const handleWizardOpenChange = (open: boolean) => {
+    setWizardOpen(open);
+    if (!open) {
+      const params = new URLSearchParams(location.search);
+      if (params.get('profile') === 'quiz' || params.get('open') === 'profile') {
+        navigate(location.pathname, { replace: true });
+      }
+    }
+  };
+
   const offerStatus = useMemo<'active' | 'none' | 'expired'>(() => {
     if (!offer) return 'none';
     if (offer.expiresAt) {
@@ -1407,7 +1424,7 @@ export default function ProfilePage() {
         </section>
       </div>
 
-      <Dialog.Root open={wizardOpen} onOpenChange={setWizardOpen}>
+      <Dialog.Root open={wizardOpen} onOpenChange={handleWizardOpenChange}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50 animate-in fade-in" />
           <Dialog.Content
@@ -1511,7 +1528,7 @@ export default function ProfilePage() {
                     toast.success(copy.profileSaved);
                   }
 
-                  setWizardOpen(false);
+                  handleWizardOpenChange(false);
                 } catch (error) {
                   if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
                     navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -1520,7 +1537,7 @@ export default function ProfilePage() {
                   if (error instanceof Error) toast.error(error.message);
                 }
               }}
-              onClose={() => setWizardOpen(false)}
+              onClose={() => handleWizardOpenChange(false)}
             />
           </Dialog.Content>
         </Dialog.Portal>

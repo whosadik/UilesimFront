@@ -11,6 +11,7 @@ interface ForYouSectionProps {
   isLoading: boolean;
   error: string | null;
   requiresAuth: boolean;
+  profileNeedsQuestionnaire: boolean;
   onRetry: () => void;
   onEvent?: (eventType: string, data: any) => void;
 }
@@ -20,6 +21,7 @@ export function ForYouSection({
   isLoading,
   error,
   requiresAuth,
+  profileNeedsQuestionnaire,
   onRetry,
   onEvent,
 }: ForYouSectionProps) {
@@ -50,6 +52,15 @@ export function ForYouSection({
             action={{
               label: messages.common.signIn,
               onClick: () => navigate('/login', { state: { from: location.pathname } }),
+            }}
+          />
+        ) : !isLoading && profileNeedsQuestionnaire ? (
+          <EmptyState
+            title={messages.home.forYou.profileRequiredTitle}
+            description={messages.home.forYou.profileRequiredDescription}
+            action={{
+              label: messages.home.forYou.profileRequiredAction,
+              onClick: () => navigate('/me?profile=quiz', { state: { from: location.pathname } }),
             }}
           />
         ) : !isLoading && products.length === 0 ? (
