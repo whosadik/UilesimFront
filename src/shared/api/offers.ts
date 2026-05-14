@@ -88,7 +88,10 @@ export type PromotionCampaignOffer = {
   value: string;
   target_scope: string;
   allowed_categories: string[];
+  allowed_brands?: string[];
+  allowed_product_ids?: number[];
   allowed_product_types: string[];
+  products_count?: number;
 };
 
 export type PromotionCampaignDetail = {
@@ -100,12 +103,17 @@ export type PromotionCampaignDetail = {
   end_date: string | null;
   allowed_categories: string[];
   allowed_steps: string[];
+  allowed_brands?: string[];
+  allowed_product_ids?: number[];
 };
 
 export type PromotionDetailResponse = {
   ok: boolean;
   campaign: PromotionCampaignDetail;
   offers: PromotionCampaignOffer[];
+  products_count?: number;
+  products_preview_limit?: number;
+  products?: Record<string, unknown>[];
 };
 
 export function getPromotionBanner(id: number | string): Promise<PromotionDetailResponse> {

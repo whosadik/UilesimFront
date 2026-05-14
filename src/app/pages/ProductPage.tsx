@@ -366,6 +366,11 @@ const formatReviewDate = (value: string, language: 'ru' | 'kk' | 'en'): string =
   return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
 };
 
+const formatProductPrice = (value: number, language: 'ru' | 'kk' | 'en'): string => {
+  const locale = language === 'kk' ? 'kk-KZ' : language === 'en' ? 'en-US' : 'ru-RU';
+  return `${value.toLocaleString(locale)} ₸`;
+};
+
 const mapApiProductToView = (
   payload: Record<string, unknown>,
   fallbackId: string,
@@ -889,9 +894,9 @@ export default function ProductPage() {
             </div>
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-[#111827]">{product.price} ₸</span>
+              <span className="text-3xl font-bold text-[#111827]">{formatProductPrice(product.price, language)}</span>
               {product.originalPrice !== undefined && product.originalPrice > 0 && (
-                <span className="text-lg text-[#6B7280] line-through">{product.originalPrice} ₸</span>
+                <span className="text-lg text-[#6B7280] line-through">{formatProductPrice(product.originalPrice, language)}</span>
               )}
             </div>
 
@@ -1224,4 +1229,3 @@ export default function ProductPage() {
     </div>
   );
 }
-

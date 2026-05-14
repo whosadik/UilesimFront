@@ -42,6 +42,8 @@ interface CartItem {
   name: string;
   brand: string;
   price: number;
+  originalPrice?: number;
+  discount?: number;
   quantity: number;
   image: string;
   pointsEarned: number;
@@ -594,6 +596,20 @@ const mapApiCartItem = (
     ? product.image_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
     : [];
 
+  const price = Math.max(0, Math.round(toNumber(product.price) ?? 0));
+  const originalPriceRaw = toNumber(product.original_price ?? product.originalPrice);
+  const originalPrice =
+    originalPriceRaw !== undefined && originalPriceRaw > price
+      ? Math.max(0, Math.round(originalPriceRaw))
+      : undefined;
+  const discountRaw = toNumber(product.discount);
+  const discount =
+    discountRaw !== undefined && discountRaw > 0
+      ? Math.max(1, Math.round(discountRaw))
+      : originalPrice
+        ? Math.max(1, Math.round(((originalPrice - price) / originalPrice) * 100))
+        : undefined;
+
   return {
     id,
     name:
@@ -602,7 +618,9 @@ const mapApiCartItem = (
     brand:
       (typeof product.brand === 'string' && product.brand.trim()) ||
       'Uilesim',
-    price: Math.max(0, Math.round(toNumber(product.price) ?? 0)),
+    price,
+    originalPrice,
+    discount,
     quantity: Math.max(1, Math.round(toNumber(item.quantity) ?? 1)),
     image:
       (typeof product.image_url === 'string' && product.image_url) ||
@@ -1264,7 +1282,17 @@ export default function CartPage() {
                     <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">{item.brand}</p>
                     <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug mt-0.5">{item.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
+                      {item.originalPrice ? (
+                        <span className="text-xs text-[#9CA3AF] line-through">
+                          {formatMoney(item.originalPrice, language)}
+                        </span>
+                      ) : null}
                       <span className="text-sm font-bold text-[#111827]">{formatMoney(item.price, language)}</span>
+                      {item.discount ? (
+                        <span className="rounded-full bg-[#FFE1F2] px-1.5 py-0.5 text-[10px] font-semibold text-[#B83280]">
+                          -{item.discount}%
+                        </span>
+                      ) : null}
                       <span className="text-[10px] text-[#FF4DB8] flex items-center gap-0.5">
                         <Sparkles className="w-2.5 h-2.5" />
                         {copy.pointsForPurchase(item.pointsEarned * item.quantity)}

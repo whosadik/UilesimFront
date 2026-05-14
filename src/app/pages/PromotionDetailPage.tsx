@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
 import { Button } from '../components/Button';
+import { ProductGrid } from '../components/ProductGrid';
 import { getPromotionBanner, type PromotionDetailResponse } from '../../shared/api/offers';
 import { ApiError } from '../../shared/api/ApiError';
 import { useI18n } from '../../shared/i18n/LanguageContext';
@@ -11,6 +12,9 @@ import {
   formatCatalogCategoryLabel,
   formatCatalogProductTypeLabel,
 } from '../../shared/catalog/presentation';
+import { mapApiProductToGrid } from '../utils/productGridMapping';
+
+const FALLBACK_IMAGE_URL = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
 
 const copyByLanguage = {
   ru: {
@@ -90,11 +94,48 @@ const copyByLanguage = {
   },
 } as const;
 
+const promotionProductsCopy = {
+  ru: {
+    brandsTitle: 'Бренды',
+    productIdsTitle: 'Конкретные товары',
+    productsTitle: 'Товары по акции',
+    productsCount: (count: number) => `Подходит товаров: ${count}`,
+    productsShown: (shown: number, total: number) => `Показаны первые ${shown} из ${total}. Остальные доступны в каталоге со скидкой.`,
+    emptyProducts: 'Для этой акции пока не найдено подходящих товаров.',
+    offerProductsCount: (count: number) => `Товаров участвует: ${count}`,
+  },
+  kk: {
+    brandsTitle: 'Брендтер',
+    productIdsTitle: 'Нақты тауарлар',
+    productsTitle: 'Акциядағы тауарлар',
+    productsCount: (count: number) => `Сәйкес тауарлар: ${count}`,
+    productsShown: (shown: number, total: number) => `Алғашқы ${shown} / ${total} тауар көрсетілді. Қалғандары каталогта жеңілдікпен қолжетімді.`,
+    emptyProducts: 'Бұл акцияға сәйкес тауарлар әзірге табылмады.',
+    offerProductsCount: (count: number) => `${count} тауар қатысады`,
+  },
+  en: {
+    brandsTitle: 'Brands',
+    productIdsTitle: 'Specific products',
+    productsTitle: 'Products in this promotion',
+    productsCount: (count: number) => `Eligible products: ${count}`,
+    productsShown: (shown: number, total: number) => `Showing the first ${shown} of ${total}. The rest are available in the catalog with the discount.`,
+    emptyProducts: 'No matching products were found for this promotion yet.',
+    offerProductsCount: (count: number) => `${count} products included`,
+  },
+} as const;
+
+const extraScopeCopy = {
+  ru: { brand: 'на бренд' },
+  kk: { brand: 'брендке' },
+  en: { brand: 'on brand' },
+} as const;
+
 export default function PromotionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { language, messages } = useI18n();
   const copy = copyByLanguage[language];
+  const productCopy = promotionProductsCopy[language];
 
   const [data, setData] = useState<PromotionDetailResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,6 +175,22 @@ export default function PromotionDetailPage() {
 
   const campaign = data?.campaign;
   const offers = data?.offers ?? [];
+  const campaignCategories = campaign?.allowed_categories ?? [];
+  const campaignSteps = campaign?.allowed_steps ?? [];
+  const campaignBrands = campaign?.allowed_brands ?? [];
+  const campaignProductIds = campaign?.allowed_product_ids ?? [];
+  const campaignProducts = useMemo(
+    () =>
+      (data?.products ?? []).map((item, index) =>
+        mapApiProductToGrid(item, index, {
+          fallbackIdPrefix: 'promotion-product',
+          fallbackImageUrl: FALLBACK_IMAGE_URL,
+          fallbackProductLabel: (productId) => `Product #${productId}`,
+        }),
+      ),
+    [data?.products],
+  );
+  const productsCount = data?.products_count ?? campaignProducts.length;
 
   const formatValue = (offerType: string, value: string) => {
     if (offerType === 'discount') return `-${value}%`;
@@ -146,6 +203,11 @@ export default function PromotionDetailPage() {
 
   const formatStep = (value: string) =>
     formatCatalogProductTypeLabel(value, language) ?? value;
+
+  const formatScope = (value: string) =>
+    (copy.scope as Record<string, string>)[value] ??
+    (extraScopeCopy[language] as Record<string, string>)[value] ??
+    value;
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
@@ -207,13 +269,16 @@ export default function PromotionDetailPage() {
               )}
             </div>
 
-            {(campaign.allowed_categories.length > 0 || campaign.allowed_steps.length > 0) && (
+            {(campaignCategories.length > 0 ||
+              campaignSteps.length > 0 ||
+              campaignBrands.length > 0 ||
+              campaignProductIds.length > 0) && (
               <div className="grid sm:grid-cols-2 gap-4 mb-8">
-                {campaign.allowed_categories.length > 0 && (
+                {campaignCategories.length > 0 && (
                   <div className="rounded-xl border border-[#EAE6EF] bg-white p-4">
                     <div className="text-xs text-[#9CA3AF] mb-2">{copy.categoriesTitle}</div>
                     <div className="flex flex-wrap gap-2">
-                      {campaign.allowed_categories.map((cat) => (
+                      {campaignCategories.map((cat) => (
                         <span
                           key={cat}
                           className="inline-flex px-2.5 py-0.5 rounded-full text-xs bg-pink-50 text-pink-700 border border-pink-200"
@@ -224,16 +289,46 @@ export default function PromotionDetailPage() {
                     </div>
                   </div>
                 )}
-                {campaign.allowed_steps.length > 0 && (
+                {campaignBrands.length > 0 && (
+                  <div className="rounded-xl border border-[#EAE6EF] bg-white p-4">
+                    <div className="text-xs text-[#9CA3AF] mb-2">{productCopy.brandsTitle}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {campaignBrands.map((brand) => (
+                        <span
+                          key={brand}
+                          className="inline-flex px-2.5 py-0.5 rounded-full text-xs bg-pink-50 text-pink-700 border border-pink-200"
+                        >
+                          {brand}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {campaignSteps.length > 0 && (
                   <div className="rounded-xl border border-[#EAE6EF] bg-white p-4">
                     <div className="text-xs text-[#9CA3AF] mb-2">{copy.stepsTitle}</div>
                     <div className="flex flex-wrap gap-2">
-                      {campaign.allowed_steps.map((step) => (
+                      {campaignSteps.map((step) => (
                         <span
                           key={step}
                           className="inline-flex px-2.5 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
                         >
                           {formatStep(step)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {campaignProductIds.length > 0 && (
+                  <div className="rounded-xl border border-[#EAE6EF] bg-white p-4">
+                    <div className="text-xs text-[#9CA3AF] mb-2">{productCopy.productIdsTitle}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {campaignProductIds.map((productId) => (
+                        <span
+                          key={productId}
+                          className="inline-flex px-2.5 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
+                        >
+                          #{productId}
                         </span>
                       ))}
                     </div>
@@ -263,13 +358,27 @@ export default function PromotionDetailPage() {
                       </div>
                       <div className="text-xs text-[#6B7280]">
                         {copy.offerType[offer.offer_type] ?? offer.offer_type}{' '}
-                        {copy.scope[offer.target_scope] ?? offer.target_scope}
+                        {formatScope(offer.target_scope)}
                       </div>
+                      {typeof offer.products_count === 'number' && (
+                        <div className="mt-2 text-xs font-medium text-[#111827]">
+                          {productCopy.offerProductsCount(offer.products_count)}
+                        </div>
+                      )}
                       {offer.allowed_categories.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {offer.allowed_categories.map((c) => (
                             <span key={c} className="text-[10px] text-[#6B7280] uppercase tracking-wide">
                               #{formatCategory(c)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {(offer.allowed_brands ?? []).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {(offer.allowed_brands ?? []).map((brand) => (
+                            <span key={brand} className="text-[10px] text-[#6B7280] uppercase tracking-wide">
+                              #{brand}
                             </span>
                           ))}
                         </div>
@@ -280,7 +389,28 @@ export default function PromotionDetailPage() {
               )}
             </div>
 
-            <Button variant="primary" onClick={() => navigate('/catalog')}>
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4">
+                <h2 className="text-xl font-semibold text-[#111827]">{productCopy.productsTitle}</h2>
+                <div className="text-sm text-[#6B7280]">{productCopy.productsCount(productsCount)}</div>
+              </div>
+              {campaignProducts.length === 0 ? (
+                <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
+                  {productCopy.emptyProducts}
+                </div>
+              ) : (
+                <>
+                  <ProductGrid products={campaignProducts} columns={3} />
+                  {productsCount > campaignProducts.length && (
+                    <p className="mt-4 text-sm text-[#6B7280]">
+                      {productCopy.productsShown(campaignProducts.length, productsCount)}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+
+            <Button variant="primary" onClick={() => navigate('/catalog?sale=true')}>
               {copy.cta}
             </Button>
           </>

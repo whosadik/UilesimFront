@@ -68,6 +68,15 @@ const toStringArray = (value: unknown): string[] =>
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     : [];
 
+const localeByLanguage = {
+  ru: 'ru-RU',
+  kk: 'kk-KZ',
+  en: 'en-US',
+} as const;
+
+const formatPrice = (value: number, language: keyof typeof localeByLanguage): string =>
+  `${value.toLocaleString(localeByLanguage[language])} ₸`;
+
 const pickImage = (product: ProductCardModel): string => {
   const candidates: string[] = [];
 
@@ -126,9 +135,11 @@ export function ProductCard({
       : undefined;
 
   const price = Math.max(0, Math.round(toNumber(product.price) ?? 0));
+  const formattedPrice = formatPrice(price, language);
   const originalPriceRaw = toNumber(product.originalPrice ?? product.original_price);
   const originalPrice =
     originalPriceRaw !== undefined ? Math.max(0, Math.round(originalPriceRaw)) : undefined;
+  const formattedOriginalPrice = originalPrice !== undefined ? formatPrice(originalPrice, language) : undefined;
 
   let discount = toNumber(product.discount);
   if (discount === undefined && originalPrice !== undefined && originalPrice > price) {
@@ -255,9 +266,9 @@ export function ProductCard({
             <p className="mb-0.5 text-xs text-[#6B7280]">{productBrand}</p>
             <h3 className="mb-1 line-clamp-1 text-sm font-semibold text-[#111827]">{productName}</h3>
             <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold text-[#111827]">{price} ₸</span>
+              <span className="text-base font-bold text-[#111827]">{formattedPrice}</span>
               {originalPrice ? (
-                <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₸</span>
+                <span className="text-sm text-[#6B7280] line-through">{formattedOriginalPrice}</span>
               ) : null}
             </div>
           </div>
@@ -344,9 +355,9 @@ export function ProductCard({
             </h3>
 
             <div className="mb-2 flex items-baseline gap-1.5">
-              <span className="text-base font-bold text-[#111827]">{price} ₸</span>
+              <span className="text-base font-bold text-[#111827]">{formattedPrice}</span>
               {originalPrice ? (
-                <span className="text-xs text-[#6B7280] line-through">{originalPrice} ₸</span>
+                <span className="text-xs text-[#6B7280] line-through">{formattedOriginalPrice}</span>
               ) : null}
             </div>
 
@@ -473,9 +484,9 @@ export function ProductCard({
           ) : null}
 
           <div className="mb-2 flex items-baseline gap-2">
-            <span className="text-lg font-bold text-[#111827]">{price} ₸</span>
+            <span className="text-lg font-bold text-[#111827]">{formattedPrice}</span>
             {originalPrice ? (
-              <span className="text-sm text-[#6B7280] line-through">{originalPrice} ₸</span>
+              <span className="text-sm text-[#6B7280] line-through">{formattedOriginalPrice}</span>
             ) : null}
           </div>
 
