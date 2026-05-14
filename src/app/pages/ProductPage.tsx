@@ -36,6 +36,8 @@ interface ProductViewModel {
   description: string;
   ingredients: string;
   howToUse: string;
+  volume: string;
+  specs: Array<{ label: string; value: string }>;
 }
 
 interface RecommendationCard {
@@ -99,6 +101,8 @@ const productPageCopy = {
     addToCart: 'В корзину',
     ingredients: 'Ингредиенты',
     howToUse: 'Как использовать',
+    specifications: 'Характеристики',
+    volumeLabel: 'Объём',
     relatedProducts: 'Похожие товары',
     relatedProductsEmpty: 'Похожие товары пока недоступны.',
     customerReviews: 'Отзывы покупателей',
@@ -151,6 +155,8 @@ const productPageCopy = {
     addToCart: 'Себетке',
     ingredients: 'Құрамы',
     howToUse: 'Қолдану тәсілі',
+    specifications: 'Сипаттамалары',
+    volumeLabel: 'Көлемі',
     relatedProducts: 'Ұқсас тауарлар',
     relatedProductsEmpty: 'Ұқсас тауарлар әзірге қолжетімсіз.',
     customerReviews: 'Сатып алушылар пікірлері',
@@ -202,6 +208,8 @@ const productPageCopy = {
     addToCart: 'Add to cart',
     ingredients: 'Ingredients',
     howToUse: 'How to use',
+    specifications: 'Specifications',
+    volumeLabel: 'Size',
     relatedProducts: 'Related products',
     relatedProductsEmpty: 'Related products are not available yet.',
     customerReviews: 'Customer reviews',
@@ -400,6 +408,16 @@ const mapApiProductToView = (
   );
   const pointsEarnedRaw = firstNumber(payload.points_earned, rawMeta?.points_earned, attrs?.points_earned);
 
+  const specs: Array<{ label: string; value: string }> = [];
+  const specsBlock = toRecord(attrs?.specs);
+  if (specsBlock) {
+    for (const [label, value] of Object.entries(specsBlock)) {
+      if (typeof value === 'string' && value.trim()) {
+        specs.push({ label, value: value.trim() });
+      }
+    }
+  }
+
   return {
     id: String(payload.id ?? fallbackId),
     name: firstString(payload.name) ?? fallbackProductLabel(fallbackId),
@@ -416,6 +434,8 @@ const mapApiProductToView = (
     description: firstString(payload.description) ?? copy.fallbackDescription,
     ingredients: firstString(payload.ingredients_inci, payload.ingredients) ?? copy.fallbackIngredients,
     howToUse: firstString(payload.application_text, payload.how_to_use, payload.howToUse) ?? copy.fallbackUsage,
+    volume: firstString(payload.volume_raw, payload.volume) ?? '',
+    specs,
   };
 };
 
@@ -879,7 +899,14 @@ export default function ProductPage() {
               <p className="text-sm font-medium text-[#FF4DB8]">{copy.bonusPoints(product.pointsEarned)}</p>
             )}
 
-            <p className="text-base text-[#6B7280] leading-relaxed">{product.description}</p>
+            <p className="text-base text-[#6B7280] leading-relaxed whitespace-pre-line">{product.description}</p>
+
+            {product.volume ? (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold text-[#111827]">{copy.volumeLabel}:</span>
+                <span className="text-[#6B7280]">{product.volume}</span>
+              </div>
+            ) : null}
 
             <div className="flex items-center gap-4">
               <div className="flex items-center border border-[#EAE6EF] rounded-xl overflow-hidden">
@@ -913,12 +940,33 @@ export default function ProductPage() {
             </div>
 
             <div className="pt-6 border-t border-[#EAE6EF] space-y-4">
+              {product.specs.length > 0 ? (
+                <details className="group" open>
+                  <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3">
+                    {copy.specifications}
+                    <ChevronDown className="h-4 w-4 text-[#6B7280] transition-transform group-open:rotate-180" />
+                  </summary>
+                  <dl className="mt-2 grid grid-cols-1 gap-y-2 text-sm sm:grid-cols-[160px_1fr] sm:gap-x-4">
+                    {product.specs.map((spec) => (
+                      <div key={spec.label} className="contents">
+                        <dt className="text-[#6B7280]">{spec.label}</dt>
+                        <dd className="text-[#111827]">{spec.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
+              ) : null}
+
               <details className="group">
-                <summary className="flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3">
+                <summary
+                  className={`flex items-center justify-between cursor-pointer text-sm font-semibold text-[#111827] py-3 ${
+                    product.specs.length > 0 ? 'border-t border-[#EAE6EF]' : ''
+                  }`}
+                >
                   {copy.ingredients}
                   <ChevronDown className="h-4 w-4 text-[#6B7280] transition-transform group-open:rotate-180" />
                 </summary>
-                <p className="text-sm text-[#6B7280] mt-2">{product.ingredients}</p>
+                <p className="text-sm text-[#6B7280] mt-2 whitespace-pre-line">{product.ingredients}</p>
               </details>
 
               <details className="group">
@@ -926,7 +974,7 @@ export default function ProductPage() {
                   {copy.howToUse}
                   <ChevronDown className="h-4 w-4 text-[#6B7280] transition-transform group-open:rotate-180" />
                 </summary>
-                <p className="text-sm text-[#6B7280] mt-2">{product.howToUse}</p>
+                <p className="text-sm text-[#6B7280] mt-2 whitespace-pre-line">{product.howToUse}</p>
               </details>
             </div>
           </div>
