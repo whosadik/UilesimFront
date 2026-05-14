@@ -8,7 +8,7 @@ import { Button } from '../components/Button';
 import { ProfileWizard } from '../components/ProfileWizard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorState } from '../components/ErrorState';
-import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock, User, Phone, MapPin, Mail, Gift } from 'lucide-react';
+import { Sparkles, Heart, ChevronRight, Package, Receipt, Map, Clock, User, Phone, MapPin, Mail, Gift, Star } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
@@ -68,8 +68,14 @@ const profilePageCopy = {
     notSpecified: 'не указан',
     saving: 'Сохраняем...',
     saveDetails: 'Сохранить данные',
-    giftCardsForYou: 'Подарочные карты для вас',
+    privileges: 'Ваши привилегии',
+    privilegesSubtitle: 'Персональные офферы и подарочные карты',
+    giftCardsForYou: 'Подарочные карты',
     giftCardsHint: 'Показываем этот блок только если на ваш email действительно отправили подарочную карту.',
+    giftCardsEmpty: 'Подарочных карт пока нет',
+    giftCardsEmptyHint: 'Попросите кого-нибудь подарить вам карту или',
+    giftCardsEmptyLink: 'купите сами',
+    buyGiftCard: 'Купить подарочную карту',
     fromWhom: 'От кого',
     remaining: 'Остаток',
     nominal: 'Номинал',
@@ -79,7 +85,7 @@ const profilePageCopy = {
     copied: 'Скопировано',
     copyCode: 'Скопировать код',
     applyInCart: 'Применить в корзине',
-    personalOffer: 'Ваш персональный оффер',
+    personalOffer: 'Персональный оффер',
     offerAppliedToast: 'Оффер отмечен. Применение будет на этапе корзины.',
     specialForYou: 'Специально для вас',
     recommendationsByProfile: 'Рекомендации на основе вашего профиля',
@@ -110,9 +116,9 @@ const profilePageCopy = {
     offerProduct: (value: string) => `На товар #${value}`,
     offerCondition: (value: string) => `Условие: ${value}`,
     spendFallback: 'нет данных',
-    explainWindow: (start: string, end: string) => `Мы смотрим ваши покупки за последние 90 дней: с ${start} по ${end}.`,
-    explainPurchases: (count: string) => `В расчет попали ${count} покупки из истории заказов за этот период.`,
-    explainMethod: (_value: string) => 'Любимая категория — это категория, где вы купили больше всего товаров. Если несколько категорий равны, мы дополнительно смотрим количество позиций, дату последней покупки и выбираем самый устойчивый результат.',
+    explainWindow: (start: string, end: string) => `Окно: ${start} → ${end}`,
+    explainPurchases: (count: string) => `Учтено покупок: ${count}`,
+    explainMethod: (value: string) => `Метод: ${value}`,
     giftCardStatusActive: 'Активна',
     giftCardStatusExhausted: 'Использована',
     giftCardStatusExpired: 'Истекла',
@@ -143,8 +149,14 @@ const profilePageCopy = {
     notSpecified: 'көрсетілмеген',
     saving: 'Сақтап жатырмыз...',
     saveDetails: 'Деректерді сақтау',
-    giftCardsForYou: 'Сізге арналған сыйлық карталары',
+    privileges: 'Артықшылықтарыңыз',
+    privilegesSubtitle: 'Жеке офферлер мен сыйлық карталары',
+    giftCardsForYou: 'Сыйлық карталары',
     giftCardsHint: 'Бұл блок тек сіздің email-іңізге шын мәнінде сыйлық картасы жіберілген болса ғана көрсетіледі.',
+    giftCardsEmpty: 'Әзірге сыйлық карталары жоқ',
+    giftCardsEmptyHint: 'Біреуден сыйлық картасын сұраңыз немесе',
+    giftCardsEmptyLink: 'өзіңіз сатып алыңыз',
+    buyGiftCard: 'Сыйлық картасын сатып алу',
     fromWhom: 'Кімнен',
     remaining: 'Қалдық',
     nominal: 'Номинал',
@@ -154,7 +166,7 @@ const profilePageCopy = {
     copied: 'Көшірілді',
     copyCode: 'Кодты көшіру',
     applyInCart: 'Себетте қолдану',
-    personalOffer: 'Жеке офферіңіз',
+    personalOffer: 'Жеке оффер',
     offerAppliedToast: 'Оффер белгіленді. Қолдану себет кезеңінде болады.',
     specialForYou: 'Арнайы сіз үшін',
     recommendationsByProfile: 'Профиліңізге негізделген ұсыныстар',
@@ -185,9 +197,9 @@ const profilePageCopy = {
     offerProduct: (value: string) => `#${value} тауарына`,
     offerCondition: (value: string) => `Шарт: ${value}`,
     spendFallback: 'дерек жоқ',
-    explainWindow: (start: string, end: string) => `Біз соңғы 90 күндегі сатып алуларыңызды қараймыз: ${start} бастап ${end} дейін.`,
-    explainPurchases: (count: string) => `Осы кезеңдегі тапсырыс тарихынан ${count} сатып алу есепке алынды.`,
-    explainMethod: (_value: string) => 'Сүйікті санат — ең көп тауар сатып алынған санат. Егер бірнеше санат тең болса, позициялар санын, соңғы сатып алу күнін және ең тұрақты нәтижені ескереміз.',
+    explainWindow: (start: string, end: string) => `Аралық: ${start} → ${end}`,
+    explainPurchases: (count: string) => `Ескерілген сатып алулар: ${count}`,
+    explainMethod: (value: string) => `Әдіс: ${value}`,
     giftCardStatusActive: 'Белсенді',
     giftCardStatusExhausted: 'Пайдаланылған',
     giftCardStatusExpired: 'Мерзімі өтті',
@@ -218,8 +230,14 @@ const profilePageCopy = {
     notSpecified: 'not specified',
     saving: 'Saving...',
     saveDetails: 'Save details',
-    giftCardsForYou: 'Gift cards for you',
+    privileges: 'Your privileges',
+    privilegesSubtitle: 'Personal offers and gift cards',
+    giftCardsForYou: 'Gift cards',
     giftCardsHint: 'We show this block only if a gift card was actually sent to your email.',
+    giftCardsEmpty: 'No gift cards yet',
+    giftCardsEmptyHint: 'Ask someone to gift you a card, or',
+    giftCardsEmptyLink: 'buy one yourself',
+    buyGiftCard: 'Buy a gift card',
     fromWhom: 'From',
     remaining: 'Remaining',
     nominal: 'Amount',
@@ -229,7 +247,7 @@ const profilePageCopy = {
     copied: 'Copied',
     copyCode: 'Copy code',
     applyInCart: 'Apply in cart',
-    personalOffer: 'Your personal offer',
+    personalOffer: 'Personal offer',
     offerAppliedToast: 'Offer marked. It will be applied at the cart stage.',
     specialForYou: 'Special for you',
     recommendationsByProfile: 'Recommendations based on your profile',
@@ -260,9 +278,9 @@ const profilePageCopy = {
     offerProduct: (value: string) => `For product #${value}`,
     offerCondition: (value: string) => `Condition: ${value}`,
     spendFallback: 'no data',
-    explainWindow: (start: string, end: string) => `We look at your purchases from the last 90 days: from ${start} to ${end}.`,
-    explainPurchases: (count: string) => `${count} purchases from your order history were included for this period.`,
-    explainMethod: (_value: string) => 'Your favorite category is the category where you bought the most products. If several categories are tied, we also compare line count, most recent purchase date, and choose the most stable result.',
+    explainWindow: (start: string, end: string) => `Window: ${start} → ${end}`,
+    explainPurchases: (count: string) => `Purchases counted: ${count}`,
+    explainMethod: (value: string) => `Method: ${value}`,
     giftCardStatusActive: 'Active',
     giftCardStatusExhausted: 'Used',
     giftCardStatusExpired: 'Expired',
@@ -299,7 +317,7 @@ const favoriteExplainMethodLabels = {
 } as const;
 
 type ProfileWizardData = {
-  skinType?: string[]; // API ждёт string, берём первый
+  skinType?: string[];
   goals?: string[];
   avoidFlags?: string[];
   budgetMin?: number;
@@ -366,104 +384,11 @@ function formatLocalizedDate(language: AppLanguage, iso?: string | null) {
   return d.toLocaleDateString(localeByLanguage[language], { day: 'numeric', month: 'long' });
 }
 
-function formatFavoriteExplainDate(value: unknown, language: AppLanguage): string | null {
-  if (typeof value !== 'string' && typeof value !== 'number' && !(value instanceof Date)) {
-    return null;
-  }
-
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    return typeof value === 'string' && value.trim() ? value.trim() : null;
-  }
-
-  return new Intl.DateTimeFormat(localeByLanguage[language], {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
-}
-
 function mapTier(raw: unknown): 'bronze' | 'silver' | 'gold' {
   const t = String(raw ?? '').trim().toLowerCase();
   if (!t) return 'bronze';
   if (t === 'bronze' || t === 'silver' || t === 'gold') return t;
   return 'gold';
-}
-
-// API поддерживает budget как enum (low/medium/high) :contentReference[oaicite:17]{index=17}
-// В UI у тебя budgetMin/budgetMax — поэтому маппим в enum (порог можно поменять под бизнес-логику).
-function mapBudgetEnum(budgetMax?: number): 'low' | 'medium' | 'high' {
-  const v = typeof budgetMax === 'number' ? budgetMax : 0;
-  if (v > 0 && v <= 2500) return 'low';
-  if (v > 2500 && v <= 7500) return 'medium';
-  return 'high';
-}
-
-const SKIN_TYPE_MAP: Record<string, 'dry' | 'oily' | 'combination' | 'normal' | 'sensitive'> = {
-  dry: 'dry',
-  oily: 'oily',
-  combination: 'combination',
-  normal: 'normal',
-  sensitive: 'sensitive',
-  'сухая': 'dry',
-  'жирная': 'oily',
-  'комбинированная': 'combination',
-  'нормальная': 'normal',
-  'чувствительная': 'sensitive',
-};
-
-const GOAL_MAP: Record<string, string> = {
-  hydration: 'hydration',
-  'anti-age': 'anti_age',
-  anti_age: 'anti_age',
-  acne: 'acne',
-  brightening: 'brightening',
-  spf: 'spf',
-  pore_care: 'pore_care',
-  'увлажнение': 'hydration',
-  'анти-эйдж': 'anti_age',
-  'против акне': 'acne',
-  'осветление': 'brightening',
-  'защита от солнца': 'spf',
-  'сужение пор': 'pore_care',
-};
-
-const AVOID_FLAG_MAP: Record<string, string> = {
-  parabens: 'parabens',
-  silicones: 'silicones',
-  fragrance: 'fragrance',
-  alcohol: 'alcohol',
-  essential_oils: 'essential_oils',
-  gluten: 'gluten',
-  'парабены': 'parabens',
-  'силиконы': 'silicones',
-  'отдушки': 'fragrance',
-  'спирт': 'alcohol',
-  'эфирные масла': 'essential_oils',
-  'глютен': 'gluten',
-};
-
-function normalizeKey(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function mapSkinType(value?: string): 'dry' | 'oily' | 'combination' | 'normal' | 'sensitive' {
-  if (!value) {
-    return 'normal';
-  }
-  return SKIN_TYPE_MAP[normalizeKey(value)] ?? 'normal';
-}
-
-function mapListValues(values: string[] | undefined, dictionary: Record<string, string>): string[] {
-  if (!Array.isArray(values)) {
-    return [];
-  }
-
-  return values
-    .map((value) => dictionary[normalizeKey(String(value))] ?? String(value))
-    .filter((value) => value.length > 0);
 }
 
 function calcCompletion(profile: Record<string, unknown>) {
@@ -566,19 +491,13 @@ function buildProfileName(
   const lastName = readTextField(profile.last_name);
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
 
-  if (fullName) {
-    return fullName;
-  }
+  if (fullName) return fullName;
 
   const username = typeof user?.username === 'string' ? user.username.trim() : '';
-  if (username) {
-    return username;
-  }
+  if (username) return username;
 
   const email = typeof user?.email === 'string' ? user.email.trim() : '';
-  if (email) {
-    return email.split('@')[0] || email;
-  }
+  if (email) return email.split('@')[0] || email;
 
   return copy.guest;
 }
@@ -706,10 +625,12 @@ export default function ProfilePage() {
     }
     return 'active';
   }, [offer]);
+
   const resolvedProfileTaxonomy = useMemo(
     () => resolveProfileTaxonomy(profileTaxonomy, language),
     [language, profileTaxonomy],
   );
+
   const profileWizardOptions = useMemo(
     () => ({
       steps: resolvedProfileTaxonomy.steps.map((step) => ({
@@ -728,6 +649,7 @@ export default function ProfilePage() {
     }),
     [resolvedProfileTaxonomy],
   );
+
   const profileWizardInitialData = useMemo<ProfileWizardData>(() => {
     const hairProfile = isRecord(currentProfile.hair_profile) ? currentProfile.hair_profile : {};
     const makeupProfile = isRecord(currentProfile.makeup_profile) ? currentProfile.makeup_profile : {};
@@ -735,10 +657,8 @@ export default function ProfilePage() {
     const budgetOption = resolvedProfileTaxonomy.budget_options.find(
       (option) => option.value === currentProfile.budget,
     );
-    const budgetMin =
-      typeof budgetOption?.min === 'number' ? budgetOption.min : 500;
-    const budgetMax =
-      typeof budgetOption?.max === 'number' ? budgetOption.max : 10000;
+    const budgetMin = typeof budgetOption?.min === 'number' ? budgetOption.min : 500;
+    const budgetMax = typeof budgetOption?.max === 'number' ? budgetOption.max : 10000;
 
     return {
       skinType: (() => {
@@ -801,12 +721,12 @@ export default function ProfilePage() {
 
       try {
         const [profileResp, profileTaxonomyResp, loyaltyResp, favResp, offerResp, homeResp, receivedGiftCardsResp] = await Promise.all([
-          getProfile(),          // GET /api/me/profile :contentReference[oaicite:18]{index=18}
+          getProfile(),
           getProfileTaxonomy().catch(() => null),
-          getLoyalty(),          // GET /api/me/loyalty :contentReference[oaicite:19]{index=19}
-          getFavoriteCategory(), // GET /api/me/favorite-category :contentReference[oaicite:20]{index=20}
-          getNextOffer(),        // GET /api/me/next-offer :contentReference[oaicite:21]{index=21}
-          home(),                // GET /api/me/recommendations/home :contentReference[oaicite:22]{index=22}
+          getLoyalty(),
+          getFavoriteCategory(),
+          getNextOffer(),
+          home(),
           listReceivedGiftCards().catch(() => ({ ok: true, count: 0, items: [] })),
         ]);
 
@@ -838,23 +758,20 @@ export default function ProfilePage() {
             ? favObj.currency.trim()
             : null;
 
-        // В API explain — объект, в UI у тебя строка, поэтому делаем компактный текст.
-        const explainWindowStart = formatFavoriteExplainDate(explainObj?.window_start, language);
-        const explainWindowEnd = formatFavoriteExplainDate(explainObj?.window_end, language);
         const explainText = explainObj
           ? [
-              explainWindowStart && explainWindowEnd
-                ? copy.explainWindow(explainWindowStart, explainWindowEnd)
+              explainObj.window_start
+                ? copy.explainWindow(String(explainObj.window_start), String(explainObj.window_end))
                 : null,
-              Number.isFinite(historyItemsValue)
-                ? copy.explainPurchases(String(Math.max(0, Math.round(historyItemsValue))))
+              explainObj.history_items_considered
+                ? copy.explainPurchases(String(explainObj.history_items_considered))
                 : null,
               explainObj.picked_by
                 ? copy.explainMethod(formatFavoriteExplainMethod(explainObj.picked_by, language))
                 : null,
             ]
               .filter(Boolean)
-              .join('\n\n')
+              .join(' · ')
           : '';
 
         setFavoriteCategory({
@@ -876,11 +793,11 @@ export default function ProfilePage() {
           currency: currencyValue,
           explain: explainText,
         });
+
         setReceivedGiftCards(Array.isArray(receivedGiftCardsResp?.items) ? receivedGiftCardsResp.items : []);
 
-        // home: { ok, sections:[{key,title,results:[{product,score,...}]}] } :contentReference[oaicite:23]{index=23}
         let results: unknown[] = [];
-        let forYouKey = 'for_you';
+        const forYouKey = 'for_you';
 
         if (Array.isArray(homeResp)) {
           results = homeResp;
@@ -922,7 +839,6 @@ export default function ProfilePage() {
 
         setRecommendations(mapped);
 
-        // next-offer
         const offerObj = isRecord(offerResp) ? offerResp : null;
         const offerInner = offerObj && isRecord(offerObj.offer) ? offerObj.offer : null;
 
@@ -962,10 +878,7 @@ export default function ProfilePage() {
   }, [copy, isAuthLoading, language, location.pathname, messages.catalog.categories, navigate, retryKey, user]);
 
   const handlePersonalDetailChange = (field: keyof PersonalDetailsState, value: string) => {
-    setPersonalDetails((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setPersonalDetails((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleCopyGiftCardCode = async (giftCardId: number, code?: string) => {
@@ -1051,6 +964,8 @@ export default function ProfilePage() {
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+
+        {/* Breadcrumbs + заголовок */}
         <div className="mb-6">
           <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.breadcrumb }]} />
         </div>
@@ -1060,6 +975,7 @@ export default function ProfilePage() {
           <p className="text-base text-[#6B7280]">{copy.subtitle}</p>
         </div>
 
+        {/* 1. Hero: ProfileSummaryCard + Favorite Category */}
         <div className="grid lg:grid-cols-3 gap-6 mb-12">
           <div className="lg:col-span-2">
             <ProfileSummaryCard
@@ -1094,33 +1010,195 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-1 text-sm text-[#6B7280]">
-                <p>
-                  {favoriteCategory.historyItemsConsidered !== null
-                    ? copy.historyItems(favoriteCategory.historyItemsConsidered)
-                    : copy.historyItems(null)}
-                </p>
-                <p>
-                  {favoriteCategory.windowDays !== null ? copy.analysisWindow(favoriteCategory.windowDays) : copy.analysisWindow(null)}
-                </p>
+                <p>{favoriteCategory.historyItemsConsidered !== null
+                  ? copy.historyItems(favoriteCategory.historyItemsConsidered)
+                  : copy.historyItems(null)}</p>
+                <p>{favoriteCategory.windowDays !== null
+                  ? copy.analysisWindow(favoriteCategory.windowDays)
+                  : copy.analysisWindow(null)}</p>
               </div>
 
               <details className="text-xs text-[#6B7280] pt-2 border-t border-[#EAE6EF]">
                 <summary className="cursor-pointer hover:text-[#FF4DB8] transition-colors">
                   {copy.howCalculated}
                 </summary>
-                <p className="mt-2 whitespace-pre-line leading-5">{favoriteCategory.explain || copy.noData}</p>
+                <p className="mt-2">{favoriteCategory.explain || copy.noData}</p>
               </details>
             </div>
           </div>
         </div>
 
+        {/* 2. Ваши привилегии: Оффер + Gift Cards */}
+        <section className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFF4E8] to-amber-50 flex items-center justify-center">
+              <Star className="w-5 h-5 text-[#F97316]" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-[#111827]">{copy.privileges}</h2>
+              <p className="text-sm text-[#6B7280]">{copy.privilegesSubtitle}</p>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Персональный оффер */}
+            <div>
+              <p className="text-sm font-semibold text-[#6B7280] uppercase tracking-wide mb-3">{copy.personalOffer}</p>
+              <OfferCard
+                status={offerStatus}
+                title={offer?.offerName}
+                description={mapOfferDescription(offer?.target, copy, language)}
+                expiresAt={formatLocalizedDate(language, offer?.expiresAt)}
+                discountType={offer?.offerType === 'points_multiplier' ? 'points' : offer?.offerType === 'gift' ? 'gift' : 'percentage'}
+                discountValue={offer?.value}
+                onApply={async () => {
+                  if (!offer) return;
+                  try {
+                    await clickOffer(offer.assignmentId, { source: 'profile_page' });
+                    toast.success(copy.offerAppliedToast);
+                  } catch {
+                    // не блокируем UX
+                  }
+                }}
+              />
+            </div>
+
+            {/* Gift Cards */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-[#6B7280] uppercase tracking-wide">{copy.giftCardsForYou}</p>
+                <Link
+                  to="/gift-cards"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-[#FF4DB8] hover:text-[#e03da0] transition-colors"
+                >
+                  <Gift className="w-4 h-4" />
+                  {copy.buyGiftCard}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+
+              {receivedGiftCards.length === 0 ? (
+                /* Empty state — всегда показываем секцию */
+                <div className="rounded-2xl border border-dashed border-[#E5E7EB] bg-white p-6 flex flex-col items-center justify-center text-center gap-3 min-h-[160px]">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFF4E8] flex items-center justify-center">
+                    <Gift className="w-6 h-6 text-[#F97316]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#111827] mb-1">{copy.giftCardsEmpty}</p>
+                    <p className="text-sm text-[#6B7280]">
+                      {copy.giftCardsEmptyHint}{' '}
+                      <Link
+                        to="/gift-cards"
+                        className="text-[#FF4DB8] hover:underline font-medium"
+                      >
+                        {copy.giftCardsEmptyLink}
+                      </Link>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+                  {receivedGiftCards.map((giftCard) => {
+                    const senderLabel = giftCard.sender_name || giftCard.sender_email || copy.giftCardFallbackSender;
+                    const expiresAt = formatLocalizedDate(language, giftCard.snapshot?.expires_at as string | null | undefined);
+                    const remainingAmount = giftCard.snapshot?.remaining_amount ?? 0;
+                    const totalAmount = giftCard.snapshot?.amount ?? 0;
+                    const status = String(giftCard.snapshot?.status ?? giftCard.status ?? '');
+                    const isActive = status.toLowerCase() === 'active';
+
+                    return (
+                      <article
+                        key={giftCard.id}
+                        className="rounded-2xl border border-[#F3E7D6] bg-gradient-to-br from-[#FFF9F2] to-white p-5"
+                      >
+                        <div className="mb-4 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-[#6B7280]">{copy.fromWhom}</p>
+                            <p className="break-words text-lg font-bold text-[#111827]">{senderLabel}</p>
+                          </div>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              isActive ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#4B5563]'
+                            }`}
+                          >
+                            {formatGiftCardStatus(status, copy)}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="rounded-xl bg-white/80 px-4 py-3">
+                            <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">{copy.remaining}</p>
+                            <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(remainingAmount)}</p>
+                          </div>
+                          <div className="rounded-xl bg-white/80 px-4 py-3">
+                            <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">{copy.nominal}</p>
+                            <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(totalAmount)}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 text-sm text-[#6B7280]">
+                          <p>
+                            {copy.code}: <span className="font-medium text-[#111827]">{String(giftCard.snapshot?.masked_code ?? '-')}</span>
+                          </p>
+                          {giftCard.message ? (
+                            <p>{copy.message}: <span className="text-[#111827]">{giftCard.message}</span></p>
+                          ) : null}
+                          {expiresAt ? (
+                            <p>{copy.validUntil}: <span className="font-medium text-[#111827]">{expiresAt}</span></p>
+                          ) : null}
+                        </div>
+
+                        {giftCard.code ? (
+                          <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={() => void handleCopyGiftCardCode(giftCard.id, giftCard.code)}
+                              className="inline-flex items-center justify-center rounded-full border border-[#E5E7EB] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-gray-50"
+                            >
+                              {copiedGiftCardId === giftCard.id ? copy.copied : copy.copyCode}
+                            </button>
+                            <Link
+                              to="/cart"
+                              state={{ giftCardCodeToApply: giftCard.code }}
+                              className="inline-flex items-center justify-center rounded-full border border-brand-pink-500 px-4 py-2 text-sm font-semibold text-brand-pink-500 transition-colors hover:bg-brand-pink-500 hover:text-white"
+                            >
+                              {copy.applyInCart}
+                            </Link>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Рекомендации */}
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FFE1F2] flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-[#FF4DB8]" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827]">{copy.specialForYou}</h2>
+                <p className="text-sm text-[#6B7280]">{copy.recommendationsByProfile}</p>
+              </div>
+            </div>
+            <Button variant="ghost">{copy.viewAll}</Button>
+          </div>
+
+          <ProductCarousel products={recommendations} />
+        </section>
+
+        {/* 4. Личные данные */}
         <section className="mb-12">
           <div className="rounded-2xl bg-white border border-[#EAE6EF] p-6 lg:p-8 shadow-sm">
             <div className="flex flex-col gap-2 mb-6">
               <h2 className="text-2xl font-bold text-[#111827]">{copy.personalDetails}</h2>
-              <p className="text-sm text-[#6B7280]">
-                {copy.personalDetailsHint}
-              </p>
+              <p className="text-sm text-[#6B7280]">{copy.personalDetailsHint}</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -1224,144 +1302,7 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {receivedGiftCards.length > 0 && (
-          <section className="mb-12">
-            <div className="rounded-2xl border border-[#EAE6EF] bg-white p-6 lg:p-8 shadow-sm">
-              <div className="mb-6 flex items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF4E8]">
-                    <Gift className="h-5 w-5 text-[#F97316]" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-[#111827]">{copy.giftCardsForYou}</h2>
-                    <p className="text-sm text-[#6B7280]">
-                      {copy.giftCardsHint}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                {receivedGiftCards.map((giftCard) => {
-                  const senderLabel = giftCard.sender_name || giftCard.sender_email || copy.giftCardFallbackSender;
-                  const expiresAt = formatLocalizedDate(language, giftCard.snapshot?.expires_at as string | null | undefined);
-                  const remainingAmount = giftCard.snapshot?.remaining_amount ?? 0;
-                  const totalAmount = giftCard.snapshot?.amount ?? 0;
-                  const status = String(giftCard.snapshot?.status ?? giftCard.status ?? '');
-                  const isActive = status.toLowerCase() === 'active';
-
-                  return (
-                    <article
-                      key={giftCard.id}
-                      className="rounded-2xl border border-[#F3E7D6] bg-gradient-to-br from-[#FFF9F2] to-white p-5"
-                    >
-                      <div className="mb-4 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-[#6B7280]">{copy.fromWhom}</p>
-                          <p className="break-words text-lg font-bold text-[#111827]">{senderLabel}</p>
-                        </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            isActive ? 'bg-[#DCFCE7] text-[#166534]' : 'bg-[#F3F4F6] text-[#4B5563]'
-                          }`}
-                        >
-                          {formatGiftCardStatus(status, copy)}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-white/80 px-4 py-3">
-                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">{copy.remaining}</p>
-                          <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(remainingAmount)}</p>
-                        </div>
-                        <div className="rounded-xl bg-white/80 px-4 py-3">
-                          <p className="text-xs uppercase tracking-[0.08em] text-[#6B7280]">{copy.nominal}</p>
-                          <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(totalAmount)}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-2 text-sm text-[#6B7280]">
-                        <p>
-                          {copy.code}: <span className="font-medium text-[#111827]">{String(giftCard.snapshot?.masked_code ?? '-')}</span>
-                        </p>
-                        {giftCard.message ? (
-                          <p>
-                            {copy.message}: <span className="text-[#111827]">{giftCard.message}</span>
-                          </p>
-                        ) : null}
-                        {expiresAt ? (
-                          <p>
-                            {copy.validUntil}: <span className="font-medium text-[#111827]">{expiresAt}</span>
-                          </p>
-                        ) : null}
-                      </div>
-
-                      {giftCard.code ? (
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <button
-                            type="button"
-                            onClick={() => void handleCopyGiftCardCode(giftCard.id, giftCard.code)}
-                            className="inline-flex items-center justify-center rounded-full border border-[#E5E7EB] px-4 py-2 text-sm font-semibold text-[#111827] transition-colors hover:bg-gray-50"
-                          >
-                            {copiedGiftCardId === giftCard.id ? copy.copied : copy.copyCode}
-                          </button>
-                          <Link
-                            to="/cart"
-                            state={{ giftCardCodeToApply: giftCard.code }}
-                            className="inline-flex items-center justify-center rounded-full border border-brand-pink-500 px-4 py-2 text-sm font-semibold text-brand-pink-500 transition-colors hover:bg-brand-pink-500 hover:text-white"
-                          >
-                            {copy.applyInCart}
-                          </Link>
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-[#111827] mb-6">{copy.personalOffer}</h2>
-
-          <OfferCard
-            status={offerStatus}
-            title={offer?.offerName}
-            description={mapOfferDescription(offer?.target, copy, language)}
-            expiresAt={formatLocalizedDate(language, offer?.expiresAt)}
-            discountType={offer?.offerType === 'points_multiplier' ? 'points' : offer?.offerType === 'gift' ? 'gift' : 'percentage'}
-            discountValue={offer?.value}
-            onApply={async () => {
-              if (!offer) return;
-              try {
-                // POST /api/offers/click :contentReference[oaicite:25]{index=25}
-                await clickOffer(offer.assignmentId, { source: 'profile_page' });
-                toast.success(copy.offerAppliedToast);
-              } catch (e) {
-                // не блокируем UX
-              }
-            }}
-          />
-        </section>
-
-        <section className="mb-12">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#FFE1F2] flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-[#FF4DB8]" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-[#111827]">{copy.specialForYou}</h2>
-                <p className="text-sm text-[#6B7280]">{copy.recommendationsByProfile}</p>
-              </div>
-            </div>
-            <Button variant="ghost">{copy.viewAll}</Button>
-          </div>
-
-          <ProductCarousel products={recommendations} />
-        </section>
-
+        {/* 5. Управление */}
         <section>
           <h2 className="text-2xl font-bold text-[#111827] mb-6">{copy.management}</h2>
           <div className="grid md:grid-cols-2 gap-4">
@@ -1545,4 +1486,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
