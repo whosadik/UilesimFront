@@ -66,8 +66,8 @@ export function Navbar({
       href: '/catalog',
     },
     { label: messages.navbar.mainMenu.brands, href: '/brands' },
-    { label: messages.navbar.mainMenu.new, href: '/new' },
-    { label: messages.navbar.mainMenu.promotions, href: '/promotions' },
+    // { label: messages.navbar.mainMenu.new, href: '/new' },
+    // { label: messages.navbar.mainMenu.promotions, href: '/promotions' },
     { label: messages.navbar.mainMenu.forYou, href: '/for-you' },
   ];
 

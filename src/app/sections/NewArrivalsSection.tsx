@@ -143,6 +143,7 @@ export function NewArrivalsSection() {
           title={messages.home.newArrivals.title}
           subtitle={messages.home.newArrivals.subtitle}
           eyebrow="JUST IN"
+          showViewAll={false}
         />
 
         {error ? (

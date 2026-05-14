@@ -169,7 +169,7 @@ export function PromotionsSection() {
         aria-hidden
       />
       <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
-        <CarouselHeader title={messages.home.promotions.title} onViewAll={() => navigate('/promotions')} />
+        <CarouselHeader title={messages.home.promotions.title} showViewAll={false} />
 
         {error ? (
           <ErrorState

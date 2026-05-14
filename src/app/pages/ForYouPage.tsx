@@ -1,9 +1,9 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
-  Sparkles, ArrowRight, TrendingUp, ShoppingBag,
-  ChevronRight, Clock, Check, RefreshCw, Zap, Map,
-  Plus, Minus, Star, Settings, Mail,
+  Sparkles, ArrowRight, ShoppingBag,
+  ChevronRight, Clock, Check, RefreshCw, Zap,
+  Plus, Minus, Settings, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../shared/auth/AuthContext';
@@ -1344,87 +1344,85 @@ function EnhancedRecCard({ product, cartQuantity, onAdd, onSetQuantity, onProduc
   };
 
   return (
-    <Link to={`/product/${product.id}`} className="block group" onClick={() => onProductClick?.(product)}>
-      <div className="bg-white rounded-2xl border border-[#EAE6EF] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-          {product.recommendationScore !== undefined && product.recommendationScore > 0 ? (
-            <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full bg-white/95 backdrop-blur-sm shadow-sm">
-              <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
-              <span className="text-[10px] font-semibold text-[#111827]">{copy.match(product.recommendationScore)}</span>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="p-4">
-          {/* Why chip */}
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-              • {product.whyRecommended}
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280] text-[10px]">
-              ↑ {product.whatImproves}
-            </span>
-          </div>
-
-          <p className="text-[10px] text-[#6B7280] mb-0.5">{product.brand}</p>
-          <h3 className="text-sm font-semibold text-[#111827] mb-1 line-clamp-2">{product.name}</h3>
-
-          {/* Expected benefit */}
-          <p className="text-[10px] text-[#6B7280] mb-3 flex items-center gap-1">
-            <Clock className="w-3 h-3 flex-shrink-0" />
-            {product.expectedBenefit}
-          </p>
-
-          {/* Price + points */}
-          <div className="flex items-baseline justify-between mb-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-base font-bold text-[#111827]">{product.price.toLocaleString(forYouLocale[language])} ₸</span>
-              {product.originalPrice && (
-                <span className="text-xs text-[#6B7280] line-through">{product.originalPrice.toLocaleString(forYouLocale[language])} ₸</span>
-              )}
-            </div>
-            <span className="text-[10px] text-[#FF4DB8] font-medium">+{product.pointsEarned} {copy.pointsShort}</span>
-          </div>
-
-          {inCart ? (
-            <div
-              onClick={e => e.preventDefault()}
-              className="flex items-center justify-between h-10 rounded-xl border-2 border-brand-pink-500 overflow-hidden"
-            >
-              <button
-                onClick={(e) => handleQuantityChange(qty - 1, e)}
-                disabled={isCartPending}
-                className="flex-1 h-full flex items-center justify-center text-brand-pink-500 hover:bg-brand-pink-100/60 transition-colors"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <span className="px-3 font-semibold text-brand-pink-500 text-sm">{qty}</span>
-              <button
-                onClick={(e) => handleQuantityChange(qty + 1, e)}
-                disabled={isCartPending}
-                className="flex-1 h-full flex items-center justify-center text-brand-pink-500 hover:bg-brand-pink-100/60 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleAdd}
-              disabled={isCartPending}
-              className="w-full h-10 rounded-xl bg-brand-pink-500 text-white text-xs font-medium hover:bg-brand-pink-600 transition-all flex items-center justify-center gap-2"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              {copy.addToCart}
-            </button>
-          )}
-        </div>
+ <Link to={`/product/${product.id}`} className="block group h-full" onClick={() => onProductClick?.(product)}>
+  <div className="bg-white rounded-2xl border border-[#EAE6EF] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all h-full flex flex-col">
+    
+    {/* Изображение — фиксированное соотношение */}
+    <div className="aspect-[4/3] overflow-hidden bg-gray-50 flex-shrink-0">
+      <img
+        src={product.image}
+        alt={product.name}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+      />
+    </div>
+{product.recommendationScore > 0 && (
+  <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-white/90 shadow-sm">
+    <span className="text-[11px] font-semibold text-[#111827]">
+      {copy.match(product.recommendationScore)}
+    </span>
+  </div>
+)}
+    {/* Контент — flex-col, нижняя часть прижата к низу */}
+    <div className="p-4 flex flex-col flex-1">
+      
+      {/* Верхняя зона — растягивается, выравнивает карточки */}
+      <div className="flex-1">
+        <p className="text-[10px] text-[#FF4DB8] mb-0.5 truncate">{product.brand}</p>
+        <h3 className="text-sm font-semibold text-[#111827] mb-1 line-clamp-2 min-h-[2.5rem]">
+          {product.name}
+        </h3>
+        <p className="text-[10px] text-[#6B7280] line-clamp-1 min-h-[1rem]">
+          {product.whyRecommended}
+        </p>
       </div>
-    </Link>
+
+      {/* Нижняя зона — всегда на одном уровне */}
+      <div className="mt-3">
+        <div className="flex items-baseline justify-between mb-3">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-base font-bold text-[#111827]">
+              {product.price.toLocaleString(forYouLocale[language])} ₸
+            </span>
+            {product.originalPrice && (
+              <span className="text-xs text-[#6B7280] line-through">
+                {product.originalPrice.toLocaleString(forYouLocale[language])} ₸
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-[#FF4DB8] font-medium">
+            +{product.pointsEarned} {copy.pointsShort}
+          </span>
+        </div>
+
+        {inCart ? (
+          <div
+            onClick={e => e.preventDefault()}
+            className="flex items-center justify-between h-10 rounded-xl border-2 border-brand-pink-500 overflow-hidden"
+          >
+            <button onClick={(e) => handleQuantityChange(qty - 1, e)} disabled={isCartPending}
+              className="flex-1 h-full flex items-center justify-center text-brand-pink-500 hover:bg-brand-pink-100/60 transition-colors">
+              <Minus className="w-4 h-4" />
+            </button>
+            <span className="px-3 font-semibold text-brand-pink-500 text-sm">{qty}</span>
+            <button onClick={(e) => handleQuantityChange(qty + 1, e)} disabled={isCartPending}
+              className="flex-1 h-full flex items-center justify-center text-brand-pink-500 hover:bg-brand-pink-100/60 transition-colors">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleAdd}
+            disabled={isCartPending}
+            className="w-full h-10 rounded-xl bg-brand-pink-500 text-white text-xs font-medium hover:bg-brand-pink-600 transition-all flex items-center justify-center gap-2"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            {copy.addToCart}
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+</Link>
   );
 }
 
@@ -2177,51 +2175,28 @@ export default function ForYouPage() {
           {/* ─── Main column ─────────────────────────────────────── */}
           <div className="flex-1 min-w-0">
 
-            {/* ─── Next Best Action ─────────────────────────────── */}
-            <div className="relative bg-[#111827] rounded-2xl p-6 mb-6 overflow-hidden">
-              {/* decorative */}
-              <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-white/5 -translate-y-1/3 translate-x-1/4 pointer-events-none" />
-              <div className="absolute bottom-0 right-12 w-24 h-24 rounded-full bg-[#FF4DB8]/10 translate-y-1/2 pointer-events-none" />
-
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg bg-[#FF4DB8]/20 flex items-center justify-center">
-                    <Zap className="w-3.5 h-3.5 text-[#FF4DB8]" />
-                  </div>
-                  <span className="text-xs text-white/60 font-medium uppercase tracking-wide">{copy.nextStep}</span>
-                </div>
-
-                <h2 className="text-xl font-semibold text-white mb-2">
-                  {roadmapHeading}
-                </h2>
-                <p className="text-sm text-white/70 mb-1">
-                  {roadmapOverview.nextStepDescription}
-                </p>
-
-                {/* Relevance tag */}
-                <p className="text-xs text-[#FF4DB8] mb-5 flex items-center gap-1">
-                  <Star className="w-3 h-3" />
-                  {copy.whyNow}: {roadmapOverview.nextStepWhy}
-                </p>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <Link
-                    to="/me/roadmap"
-                    onClick={handleRoadmapClick}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-[#111827] text-sm font-semibold hover:bg-gray-50 transition-colors"
-                  >
-                    {copy.goToStep}
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  {roadmapOverview.nextStepPoints ? (
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 text-white text-sm">
-                      <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
-                      <span>{copy.pointsAfterPurchase(roadmapOverview.nextStepPoints)}</span>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
+           {/* ─── Next Best Action ─────────────────────────────── */}
+<div className="flex items-center gap-4 bg-white rounded-2xl border border-[#EAE6EF] px-5 py-4 mb-6">
+  <div className="w-9 h-9 rounded-xl bg-[#111827] flex items-center justify-center flex-shrink-0">
+    <Zap className="w-4 h-4 text-[#FF4DB8]" />
+  </div>
+  <div className="flex-1 min-w-0">
+    <p className="text-[10px] text-[#6B7280] uppercase tracking-wide font-medium mb-0.5">
+      {copy.nextStep}
+    </p>
+    <p className="text-sm font-semibold text-[#111827] truncate">
+      {roadmapHeading}
+    </p>
+  </div>
+  <Link
+    to="/me/roadmap"
+    onClick={handleRoadmapClick}
+    className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-[#1f2937] transition-colors"
+  >
+    {copy.goToStep}
+    <ArrowRight className="w-3.5 h-3.5" />
+  </Link>
+</div>
 
             {/* ─── Recommendations: For You ─────────────────────── */}
             <section className="mb-8">
@@ -2263,186 +2238,61 @@ export default function ForYouPage() {
               )}
             </section>
 
-            {/* ─── Recommendations: Trending ──────────────────────── */}
-            <section className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-[#111827]" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-[#111827]">{copy.trendingForYou}</h2>
-                    <p className="text-xs text-[#6B7280]">{copy.trendingDescription}</p>
-                  </div>
-                </div>
-                <Link to="/new" className="text-sm text-[#6B7280] hover:text-[#111827] flex items-center gap-1 transition-colors">
-                  {copy.all} <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {trendingRecommendations.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {trendingRecommendations.map(p => (
-                    <EnhancedRecCard
-                      key={p.id}
-                      product={p}
-                      cartQuantity={getCartQuantity(p.id)}
-                      onAdd={handleRecommendationAddToCart}
-                      onSetQuantity={handleRecommendationQuantityChange}
-                      onProductClick={handleRecommendationClick}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <RecommendationEmptyState
-                  title={copy.trendsPending}
-                  description={copy.trendsPendingDescription}
-                  ctaLabel={copy.viewNew}
-                  ctaTo="/new"
-                />
-              )}
-            </section>
           </div>
 
-          {/* ─── Sidebar ─────────────────────────────────────────── */}
-          <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
+         {/* ─── Sidebar ─────────────────────────────────────────── */}
+<div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
 
-            {/* Loyalty Progress */}
-            <LoyaltyProgressMini points={loyaltyPoints} tier={loyaltyTier} />
+ 
+  {/* Active Offer */}
+  <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">
+        {copy.offerBadge}
+      </span>
+      <span className="text-xs text-[#6B7280]">{copy.personal}</span>
+    </div>
 
-            {/* Roadmap Progress */}
-            <Link to="/me/roadmap" className="block group" onClick={handleRoadmapClick}>
-              <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF] hover:shadow-md transition-all">
-                <div className="flex items-center gap-2 mb-3">
-                  <Map className="w-4 h-4 text-[#6B7280]" />
-                  <span className="text-sm font-semibold text-[#111827]">{copy.myRoadmap}</span>
-                  <span className="ml-auto text-[10px] text-[#FF4DB8] font-semibold flex items-center gap-1">
-                    {copy.stepProgress(
-                      Math.min(roadmapOverview.currentStepIndex, Math.max(1, roadmapOverview.totalSteps)),
-                      Math.max(1, roadmapOverview.totalSteps),
-                    )} <ChevronRight className="w-3 h-3" />
-                  </span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                  <div
-                    className="h-full bg-brand-pink-500 rounded-full"
-                    style={{ width: `${Math.min(100, Math.max(0, roadmapOverview.progressPercent))}%` }}
-                  />
-                </div>
-                <div className="flex gap-1 mt-3">
-                  {roadmapOverview.steps.map((step) => (
-                    <div key={step.key} className="flex-1 flex flex-col items-center gap-1">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                        step.state === 'completed' ? 'bg-brand-pink-500 text-white' :
-                        step.state === 'current' ? 'bg-[#FF4DB8] text-white' :
-                        'bg-gray-100 text-[#6B7280]'
-                      }`}>
-                        {step.state === 'completed' ? <Check className="w-3 h-3" /> : step.stepIndex}
-                      </div>
-                      <span className="text-[8px] text-[#6B7280] text-center hidden sm:block">{step.title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Link>
+    <h3 className="text-sm font-semibold text-[#111827] mb-1">
+      {personalOffer?.title ?? copy.noOfferTitle}
+    </h3>
+    <p className="text-xs text-[#6B7280] mb-3">
+      {personalOffer?.description ?? copy.noOfferDescription}
+    </p>
 
-            {/* Active Offer */}
-            <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF4DB8] text-white">{copy.offerBadge}</span>
-                <span className="text-xs text-[#6B7280]">{copy.personal}</span>
-              </div>
-              <h3 className="text-sm font-semibold text-[#111827] mt-2 mb-1">
-                {personalOffer?.title ?? copy.noOfferTitle}
-              </h3>
-              <p className="text-xs text-[#6B7280] mb-3">
-                {personalOffer?.description ?? copy.noOfferDescription}
-              </p>
+    <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
+      <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
+      <p className="text-xs text-[#111827]">
+        {personalOffer?.highlight ?? copy.noOfferHighlight}
+      </p>
+    </div>
 
-              {/* Saving highlight */}
-              <div className="flex items-center gap-2 p-3 bg-[#FFE1F2] rounded-xl mb-3">
-                <Sparkles className="w-4 h-4 text-[#FF4DB8] flex-shrink-0" />
-                <p className="text-xs text-[#111827]">
-                  {personalOffer?.highlight ?? copy.noOfferHighlight}
-                </p>
-              </div>
+    {hasOfferCountdown && (
+      <div className="flex items-center gap-2 text-xs text-[#6B7280] mb-3">
+        <Clock className="w-3.5 h-3.5" />
+        <span>{copy.expiresIn}</span>
+        <span className="font-semibold text-[#111827]">
+          {Math.floor((offerCountdownMs ?? 0) / 3600000)}{copy.hoursShort}{' '}
+          {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}{copy.minutesShort}
+        </span>
+      </div>
+    )}
 
-              {/* Countdown */}
-              {hasOfferCountdown ? (
-                <div className="flex items-center gap-2 text-xs text-[#6B7280]">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{copy.expiresIn}</span>
-                  <span className="font-semibold text-[#111827]">
-                    {Math.floor((offerCountdownMs ?? 0) / 3600000)}{copy.hoursShort}{' '}
-                    {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}{copy.minutesShort}
-                  </span>
-                </div>
-              ) : null}
-              {personalOffer?.assignmentId ? (
-                <Link
-                  to={`/promotions/offers/${personalOffer.assignmentId}`}
-                  onClick={() => {
-                    void clickOffer(personalOffer.assignmentId as number, { source: 'for_you_sidebar' }).catch(() => undefined);
-                  }}
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#111827] transition-colors hover:text-[#FF4DB8]"
-                >
-                  {copy.offerDetails}
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              ) : null}
-            </div>
-
-            {/* Quick Preferences */}
-            <QuickPrefsPanel
-              skinType={skinType}
-              setSkinType={setSkinType}
-              goals={goals}
-              setGoals={setGoals}
-              onSave={handleSavePrefs}
-              isSaving={isSaving}
-              skinTypeOptions={skinTypeOptions}
-              goalOptions={goalOptions}
-            />
-
-            {/* Quick actions */}
-            <div className="p-5 bg-gray-50 rounded-2xl border border-[#EAE6EF]">
-              <p className="text-xs font-semibold text-[#111827] mb-3">{copy.quickActions}</p>
-              <div className="flex flex-col gap-2.5">
-                {sidebarQuickActions.map((item) => (
-                  <div key={item.key} className="flex items-start gap-2">
-                    <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      item.done
-                        ? 'bg-brand-pink-500'
-                        : item.muted
-                          ? 'border border-[#D1D5DB] bg-white'
-                          : 'border border-gray-300 bg-white'
-                    }`}>
-                      {item.done && <Check className="w-2.5 h-2.5 text-white" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs ${
-                        item.done
-                          ? 'text-[#6B7280] line-through'
-                          : item.muted
-                            ? 'text-[#6B7280]'
-                            : 'text-[#111827]'
-                      }`}>
-                        {item.title}
-                      </p>
-                      <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                        {item.description}
-                      </p>
-                    </div>
-                    <span className={`text-xs font-semibold ${
-                      item.muted ? 'text-[#9CA3AF]' : 'text-[#FF4DB8]'
-                    }`}>
-                      {item.accent}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+    {personalOffer?.assignmentId && (
+      <Link
+        to={`/promotions/offers/${personalOffer.assignmentId}`}
+        onClick={() => {
+          void clickOffer(personalOffer.assignmentId as number, { source: 'for_you_sidebar' })
+            .catch(() => undefined);
+        }}
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#111827] hover:text-[#FF4DB8] transition-colors"
+      >
+        {copy.offerDetails}
+        <ArrowRight className="w-3.5 h-3.5" />
+      </Link>
+    )}
+  </div>
+</div>
         </div>
       </div>
     </div>

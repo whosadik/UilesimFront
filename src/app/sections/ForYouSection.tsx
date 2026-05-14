@@ -34,6 +34,7 @@ export function ForYouSection({
           title={messages.home.forYou.title}
           subtitle={messages.home.forYou.subtitle}
           eyebrow="PERSONAL"
+          showViewAll={false}
         />
 
         {error ? (

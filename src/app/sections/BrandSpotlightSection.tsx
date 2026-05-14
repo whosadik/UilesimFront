@@ -445,14 +445,7 @@ export function BrandSpotlightSection() {
             </h2>
           </div>
 
-          <button
-            type="button"
-            onClick={openBrand}
-            className="group hidden items-center gap-1.5 text-sm font-semibold text-[#151923] transition-colors hover:text-[#FF4DB8] sm:inline-flex"
-          >
-            {messages.home.brandSpotlight.viewBrand}
-            <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </button>
+          
         </div>
 
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[604px_minmax(0,1fr)]">
@@ -515,23 +508,15 @@ export function BrandSpotlightSection() {
                   </div>
                 </div>
 
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+               <div className="mt-7">
                   <button
                     type="button"
                     onClick={openBrand}
-                    className="group inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#FF4DB8] px-5 text-sm font-bold text-white shadow-[0_18px_48px_-24px_rgba(255,77,184,0.95)] transition-all hover:bg-[#F02FA5] active:scale-[0.98]"
+                    className="group inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FF4DB8] px-5 text-sm font-bold text-white shadow-[0_18px_48px_-24px_rgba(255,77,184,0.95)] transition-all hover:bg-[#F02FA5] active:scale-[0.98]"
                   >
                     {messages.home.brandSpotlight.viewBrand}
                     <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </button>
-
-                  <a
-                    href="#brand-recommended-products"
-                    className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[#EDE2EA] bg-white/82 px-4 text-[11px] font-semibold text-[#4B5563] shadow-sm backdrop-blur transition-colors hover:border-[#FFB6DD] hover:text-[#FF4DB8]"
-                  >
-                    {messages.home.brandSpotlight.featuredProducts}
-                    <Sparkles className="h-4 w-4" />
-                  </a>
                 </div>
               </div>
             </div>
