@@ -36,6 +36,7 @@ const ru = {
       roadmap: 'План ухода',
       myRoutine: 'Моя рутина',
       transactions: 'Транзакции',
+      favorites: 'Избранное',
     },
     guestMenu: {
       signIn: 'Войти',
@@ -548,6 +549,7 @@ const kk: TranslationMessages = {
       roadmap: 'Күтім жоспары',
       myRoutine: 'Менің рутинам',
       transactions: 'Транзакциялар',
+      favorites: 'Таңдаулы',
     },
     guestMenu: {
       signIn: 'Кіру',
@@ -1059,6 +1061,7 @@ const en: TranslationMessages = {
       roadmap: 'Roadmap',
       myRoutine: 'My routine',
       transactions: 'Transactions',
+      favorites: 'Favorite',
     },
     guestMenu: {
       signIn: 'Sign in',

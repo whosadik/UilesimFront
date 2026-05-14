@@ -79,7 +79,11 @@ export function Navbar({
       href: '/me/owned',
       icon: <Package className="w-4 h-4" />,
     },
-    { label: messages.navbar.profileMenu.roadmap, href: '/me/roadmap', icon: <Map className="w-4 h-4" /> },
+    {
+    label: messages.navbar.profileMenu.favorites,
+    href: '/wishlist',
+    icon: <Heart className="w-4 h-4" />,
+  },
     {
       label: messages.navbar.profileMenu.myRoutine,
       href: '/me/routine',
@@ -319,9 +323,9 @@ export function Navbar({
             <Link to="/search">
               <IconButton icon={<Search className="w-5 h-5" />} />
             </Link>
-            <Link to="/wishlist">
-              <IconButton icon={<Heart className="w-5 h-5" />} badge={wishlistCount} />
-            </Link>
+              {/* <Link to="/wishlist">
+                <IconButton icon={<Heart className="w-5 h-5" />} badge={wishlistCount} />
+              </Link> */}
             <Link to="/cart">
               <IconButton icon={<ShoppingCart className="w-5 h-5" />} badge={cartCount} />
             </Link>

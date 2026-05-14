@@ -99,8 +99,8 @@ const routinePageCopy = {
     createTitle: "Создайте свою рутину",
     createDescription: "Сгенерируйте персональный план ухода за кожей на основе вашего профиля и предпочтений.",
     createButton: "Сгенерировать рутину",
-    morning: "🌅 Утренняя",
-    evening: "🌙 Вечерняя",
+    morning: "Утренняя",
+    evening: "Вечерняя",
     totalTime: "Общее время",
     minutes: (value: number) => `~${value} минут`,
     details: "Подробнее",
@@ -149,8 +149,8 @@ const routinePageCopy = {
     createTitle: "Рутинаны жасаңыз",
     createDescription: "Профиль мен қалауыңыз негізінде тері күтімінің жеке жоспарын жасаңыз.",
     createButton: "Рутинаны жасау",
-    morning: "🌅 Таңертеңгі",
-    evening: "🌙 Кешкі",
+    morning: "Таңертеңгі",
+    evening: "Кешкі",
     totalTime: "Жалпы уақыт",
     minutes: (value: number) => `~${value} минут`,
     details: "Толығырақ",
@@ -199,8 +199,8 @@ const routinePageCopy = {
     createTitle: "Create your routine",
     createDescription: "Generate a personal skincare plan based on your profile and preferences.",
     createButton: "Generate routine",
-    morning: "🌅 Morning",
-    evening: "🌙 Evening",
+    morning: "Morning",
+    evening: "Evening",
     totalTime: "Total time",
     minutes: (value: number) => `~${value} min`,
     details: "Details",
@@ -881,7 +881,7 @@ function RoutinePageContent() {
             </div>
 
             <div className="mt-8 p-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
-              <h3 className="font-semibold text-gray-900 mb-3">💡 {copy.tips}</h3>
+              <h3 className="font-semibold text-gray-900 mb-3"> {copy.tips}</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 {tips.map((tip, index) => (
                   <li key={index}>• {tip}</li>
