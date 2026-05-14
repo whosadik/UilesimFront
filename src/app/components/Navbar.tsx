@@ -69,6 +69,7 @@ export function Navbar({
     // { label: messages.navbar.mainMenu.new, href: '/new' },
     // { label: messages.navbar.mainMenu.promotions, href: '/promotions' },
     { label: messages.navbar.mainMenu.forYou, href: '/for-you' },
+        { label: messages.navbar.profileMenu.roadmap, href: '/me/roadmap' },
   ];
 
   const defaultProfileMenu: MobileMenuItem[] = [
@@ -88,11 +89,6 @@ export function Navbar({
       label: messages.navbar.profileMenu.transactions,
       href: '/me/transactions',
       icon: <Receipt className="w-4 h-4" />,
-    },
-    {
-      label: messages.navbar.mainMenu.giftCards,
-      href: '/gift-cards',
-      icon: <Gift className="w-4 h-4" />,
     },
   ];
 

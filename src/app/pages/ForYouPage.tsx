@@ -2162,7 +2162,7 @@ export default function ForYouPage() {
               {copy.hello(user?.username ?? copy.defaultName)}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          {/* <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-[#EAE6EF]">
               <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
               <span className="text-sm font-semibold text-[#111827]">{loyaltyPoints.toLocaleString(forYouLocale[language])} {copy.points}</span>
@@ -2170,7 +2170,7 @@ export default function ForYouPage() {
                 {formatTierLabel(loyaltyTier, copy)}
               </span>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {isDataLoading && (
@@ -2262,7 +2262,8 @@ export default function ForYouPage() {
 
          {/* ─── Sidebar ─────────────────────────────────────────── */}
 <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
-
+            {/* Loyalty Progress */}
+                        <LoyaltyProgressMini points={loyaltyPoints} tier={loyaltyTier} />
  
   {/* Active Offer */}
   <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">
