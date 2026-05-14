@@ -192,6 +192,7 @@ const forYouPageCopy = {
     noOfferDescription: 'Когда API подберёт подходящее предложение, оно появится здесь.',
     noOfferHighlight: 'Сейчас для вашего профиля нет активного предложения.',
     expiresIn: 'Истекает через:',
+    daysShort: 'дн',
     hoursShort: 'ч',
     minutesShort: 'мин',
     quickActions: 'Быстрые действия',
@@ -328,6 +329,7 @@ const forYouPageCopy = {
     noOfferDescription: 'API лайықты ұсыныс тапқанда, ол осында пайда болады.',
     noOfferHighlight: 'Қазір профиліңіз үшін белсенді ұсыныс жоқ.',
     expiresIn: 'Аяқталуына:',
+    daysShort: 'күн',
     hoursShort: 'сағ',
     minutesShort: 'мин',
     quickActions: 'Жылдам әрекеттер',
@@ -464,6 +466,7 @@ const forYouPageCopy = {
     noOfferDescription: 'When the API finds a suitable offer, it will appear here.',
     noOfferHighlight: 'There is no active offer for your profile right now.',
     expiresIn: 'Expires in:',
+    daysShort: 'd',
     hoursShort: 'h',
     minutesShort: 'min',
     quickActions: 'Quick actions',
@@ -482,6 +485,23 @@ const forYouLocale: Record<AppLanguage, string> = {
 };
 
 type ForYouCopy = (typeof forYouPageCopy)[AppLanguage];
+
+function formatPersonalOfferTimeLeft(milliseconds: number, copy: ForYouCopy): string {
+  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return `${days}${copy.daysShort} ${hours}${copy.hoursShort} ${minutes}${copy.minutesShort}`;
+  }
+
+  if (hours > 0) {
+    return `${hours}${copy.hoursShort} ${minutes}${copy.minutesShort}`;
+  }
+
+  return `${minutes}${copy.minutesShort}`;
+}
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
@@ -2272,8 +2292,7 @@ export default function ForYouPage() {
         <Clock className="w-3.5 h-3.5" />
         <span>{copy.expiresIn}</span>
         <span className="font-semibold text-[#111827]">
-          {Math.floor((offerCountdownMs ?? 0) / 3600000)}{copy.hoursShort}{' '}
-          {Math.floor(((offerCountdownMs ?? 0) % 3600000) / 60000)}{copy.minutesShort}
+          {formatPersonalOfferTimeLeft(offerCountdownMs ?? 0, copy)}
         </span>
       </div>
     )}

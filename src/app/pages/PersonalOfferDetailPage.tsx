@@ -207,6 +207,51 @@ const formatDateTime = (value: string | undefined, language: AppLanguage): strin
   }).format(date);
 };
 
+const offerReasonCopy = {
+  ru: {
+    routedBestOffer: 'Мы выбрали лучший доступный оффер из первой подходящей кампании с учетом лимитов, периода ожидания и общей эффективности.',
+    bestScore: 'Оффер получил лучшую оценку среди подходящих вариантов с учетом доступности, периода ожидания и бюджета.',
+    noActiveCampaigns: 'Сейчас нет активных кампаний для персонального оффера.',
+    noEligibleOffers: 'Мы проверили доступные кампании, но подходящих офферов с учетом ограничений пока нет.',
+  },
+  kk: {
+    routedBestOffer: 'Бірінші сәйкес науқаннан лимиттерді, күту мерзімін және жалпы тиімділікті ескере отырып, ең қолайлы оффер таңдалды.',
+    bestScore: 'Оффер қолжетімділік, күту мерзімі және бюджет шарттарын ескере отырып, сәйкес нұсқалардың ішінде ең жоғары бағалау алды.',
+    noActiveCampaigns: 'Қазір жеке оффер үшін белсенді науқандар жоқ.',
+    noEligibleOffers: 'Қолжетімді науқандар тексерілді, бірақ шектеулерге сай келетін оффер әзірге жоқ.',
+  },
+  en: {
+    routedBestOffer: 'We picked the best available offer from the first eligible campaign, accounting for limits, cooldown, and overall effectiveness.',
+    bestScore: 'This offer had the best score among eligible options after availability, cooldown, and budget checks.',
+    noActiveCampaigns: 'There are no active campaigns for a personal offer right now.',
+    noEligibleOffers: 'We checked the available campaigns, but no offer currently matches the constraints.',
+  },
+} as const;
+
+const localizeOfferReason = (reason: string | undefined, language: AppLanguage): string | undefined => {
+  if (!reason) {
+    return undefined;
+  }
+
+  const normalized = reason.toLowerCase().replace(/\s+/g, ' ').trim();
+  const copy = offerReasonCopy[language];
+
+  if (normalized.includes('best offer within first eligible campaign')) {
+    return copy.routedBestOffer;
+  }
+  if (normalized.includes('max(score)')) {
+    return copy.bestScore;
+  }
+  if (normalized === 'no active campaigns') {
+    return copy.noActiveCampaigns;
+  }
+  if (normalized.includes('no eligible offers')) {
+    return copy.noEligibleOffers;
+  }
+
+  return reason;
+};
+
 const parseOfferDetail = (
   payload: unknown,
   language: AppLanguage,
@@ -249,7 +294,7 @@ const parseOfferDetail = (
     targetCategory: firstString(target?.category),
     targetProductType: firstString(target?.product_type),
     campaignName: campaign,
-    reasonText: firstString(reason?.picked_because),
+    reasonText: localizeOfferReason(firstString(reason?.picked_because), language),
   };
 };
 

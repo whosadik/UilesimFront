@@ -110,9 +110,9 @@ const profilePageCopy = {
     offerProduct: (value: string) => `На товар #${value}`,
     offerCondition: (value: string) => `Условие: ${value}`,
     spendFallback: 'нет данных',
-    explainWindow: (start: string, end: string) => `Окно: ${start} → ${end}`,
-    explainPurchases: (count: string) => `Учтено покупок: ${count}`,
-    explainMethod: (value: string) => `Метод: ${value}`,
+    explainWindow: (start: string, end: string) => `Мы смотрим ваши покупки за последние 90 дней: с ${start} по ${end}.`,
+    explainPurchases: (count: string) => `В расчет попали ${count} покупки из истории заказов за этот период.`,
+    explainMethod: (_value: string) => 'Любимая категория — это категория, где вы купили больше всего товаров. Если несколько категорий равны, мы дополнительно смотрим количество позиций, дату последней покупки и выбираем самый устойчивый результат.',
     giftCardStatusActive: 'Активна',
     giftCardStatusExhausted: 'Использована',
     giftCardStatusExpired: 'Истекла',
@@ -185,9 +185,9 @@ const profilePageCopy = {
     offerProduct: (value: string) => `#${value} тауарына`,
     offerCondition: (value: string) => `Шарт: ${value}`,
     spendFallback: 'дерек жоқ',
-    explainWindow: (start: string, end: string) => `Аралық: ${start} → ${end}`,
-    explainPurchases: (count: string) => `Ескерілген сатып алулар: ${count}`,
-    explainMethod: (value: string) => `Әдіс: ${value}`,
+    explainWindow: (start: string, end: string) => `Біз соңғы 90 күндегі сатып алуларыңызды қараймыз: ${start} бастап ${end} дейін.`,
+    explainPurchases: (count: string) => `Осы кезеңдегі тапсырыс тарихынан ${count} сатып алу есепке алынды.`,
+    explainMethod: (_value: string) => 'Сүйікті санат — ең көп тауар сатып алынған санат. Егер бірнеше санат тең болса, позициялар санын, соңғы сатып алу күнін және ең тұрақты нәтижені ескереміз.',
     giftCardStatusActive: 'Белсенді',
     giftCardStatusExhausted: 'Пайдаланылған',
     giftCardStatusExpired: 'Мерзімі өтті',
@@ -260,9 +260,9 @@ const profilePageCopy = {
     offerProduct: (value: string) => `For product #${value}`,
     offerCondition: (value: string) => `Condition: ${value}`,
     spendFallback: 'no data',
-    explainWindow: (start: string, end: string) => `Window: ${start} → ${end}`,
-    explainPurchases: (count: string) => `Purchases counted: ${count}`,
-    explainMethod: (value: string) => `Method: ${value}`,
+    explainWindow: (start: string, end: string) => `We look at your purchases from the last 90 days: from ${start} to ${end}.`,
+    explainPurchases: (count: string) => `${count} purchases from your order history were included for this period.`,
+    explainMethod: (_value: string) => 'Your favorite category is the category where you bought the most products. If several categories are tied, we also compare line count, most recent purchase date, and choose the most stable result.',
     giftCardStatusActive: 'Active',
     giftCardStatusExhausted: 'Used',
     giftCardStatusExpired: 'Expired',
@@ -364,6 +364,25 @@ function formatLocalizedDate(language: AppLanguage, iso?: string | null) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
   return d.toLocaleDateString(localeByLanguage[language], { day: 'numeric', month: 'long' });
+}
+
+function formatFavoriteExplainDate(value: unknown, language: AppLanguage): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number' && !(value instanceof Date)) {
+    return null;
+  }
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  return new Intl.DateTimeFormat(localeByLanguage[language], {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
 }
 
 function mapTier(raw: unknown): 'bronze' | 'silver' | 'gold' {
@@ -803,20 +822,22 @@ export default function ProfilePage() {
             : null;
 
         // В API explain — объект, в UI у тебя строка, поэтому делаем компактный текст.
+        const explainWindowStart = formatFavoriteExplainDate(explainObj?.window_start, language);
+        const explainWindowEnd = formatFavoriteExplainDate(explainObj?.window_end, language);
         const explainText = explainObj
           ? [
-              explainObj.window_start
-                ? copy.explainWindow(String(explainObj.window_start), String(explainObj.window_end))
+              explainWindowStart && explainWindowEnd
+                ? copy.explainWindow(explainWindowStart, explainWindowEnd)
                 : null,
-              explainObj.history_items_considered
-                ? copy.explainPurchases(String(explainObj.history_items_considered))
+              Number.isFinite(historyItemsValue)
+                ? copy.explainPurchases(String(Math.max(0, Math.round(historyItemsValue))))
                 : null,
               explainObj.picked_by
                 ? copy.explainMethod(formatFavoriteExplainMethod(explainObj.picked_by, language))
                 : null,
             ]
               .filter(Boolean)
-              .join(' · ')
+              .join('\n\n')
           : '';
 
         setFavoriteCategory({
@@ -1070,7 +1091,7 @@ export default function ProfilePage() {
                 <summary className="cursor-pointer hover:text-[#FF4DB8] transition-colors">
                   {copy.howCalculated}
                 </summary>
-                <p className="mt-2">{favoriteCategory.explain || copy.noData}</p>
+                <p className="mt-2 whitespace-pre-line leading-5">{favoriteCategory.explain || copy.noData}</p>
               </details>
             </div>
           </div>
