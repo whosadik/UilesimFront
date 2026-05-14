@@ -3,6 +3,7 @@ import { useLocation } from 'react-router';
 import { ApiError } from '../../shared/api/ApiError';
 import { createRequestId } from '../../shared/api/httpClient';
 import { useI18n } from '../../shared/i18n/LanguageContext';
+import { getProfile } from '../../shared/api/me';
 import { home, sendEvent, type HomeRecsResponse } from '../../shared/api/recommendations';
 import { recommendationScoreToPercent } from '../../shared/recommendations/score';
 
@@ -25,6 +26,7 @@ type HomeRecommendationsState = {
   isLoading: boolean;
   error: string | null;
   requiresAuth: boolean;
+  profileNeedsQuestionnaire: boolean;
 };
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80';
@@ -52,6 +54,31 @@ function toNumber(value: unknown): number | undefined {
   }
 
   return undefined;
+}
+
+function hasRequiredProfileAnswers(profile: unknown): boolean {
+  if (!isRecord(profile)) {
+    return false;
+  }
+
+  if ('profile_completed_at' in profile) {
+    return (
+      typeof profile.profile_completed_at === 'string' &&
+      profile.profile_completed_at.trim().length > 0
+    );
+  }
+
+  const skinType = typeof profile.skin_type === 'string' ? profile.skin_type.trim() : '';
+  const hasGoals = Array.isArray(profile.goals) && profile.goals.length > 0;
+  const budget = profile.budget;
+  const hasBudget =
+    typeof budget === 'number'
+      ? Number.isFinite(budget)
+      : typeof budget === 'string'
+        ? budget.trim().length > 0
+        : Boolean(budget);
+
+  return Boolean(skinType) && hasGoals && hasBudget;
 }
 
 function mapRecommendationProduct(
@@ -127,6 +154,7 @@ export function useHomeRecommendations() {
     isLoading: true,
     error: null,
     requiresAuth: false,
+    profileNeedsQuestionnaire: false,
   });
 
   useEffect(() => {
@@ -140,15 +168,47 @@ export function useHomeRecommendations() {
         isLoading: true,
         error: null,
         requiresAuth: false,
+        profileNeedsQuestionnaire: false,
       }));
 
       try {
-        const response = await home({ requestId });
+        const [homeResult, profileResult] = await Promise.allSettled([
+          home({ requestId }),
+          getProfile(),
+        ]);
         if (cancelled) {
           return;
         }
 
+        const authError = [homeResult, profileResult].some(
+          (result) =>
+            result.status === 'rejected' &&
+            result.reason instanceof ApiError &&
+            (result.reason.status === 401 || result.reason.status === 403),
+        );
+
+        if (authError) {
+          setState({
+            forYouProducts: [],
+            trendingProducts: [],
+            isLoading: false,
+            error: null,
+            requiresAuth: true,
+            profileNeedsQuestionnaire: false,
+          });
+          return;
+        }
+
+        if (homeResult.status === 'rejected') {
+          throw homeResult.reason;
+        }
+
         const fallbackProductLabel = (id: string) => `${messages.productCard.productFallback} #${id}`;
+        const response = homeResult.value;
+        const profileNeedsQuestionnaire =
+          profileResult.status === 'fulfilled'
+            ? !hasRequiredProfileAnswers(profileResult.value)
+            : false;
 
         setState({
           forYouProducts: toProducts(response, 'for_you', fallbackProductLabel),
@@ -156,6 +216,7 @@ export function useHomeRecommendations() {
           isLoading: false,
           error: null,
           requiresAuth: false,
+          profileNeedsQuestionnaire,
         });
       } catch (loadError) {
         if (cancelled) {
@@ -169,6 +230,7 @@ export function useHomeRecommendations() {
             isLoading: false,
             error: null,
             requiresAuth: true,
+            profileNeedsQuestionnaire: false,
           });
           return;
         }
@@ -179,6 +241,7 @@ export function useHomeRecommendations() {
           isLoading: false,
           error: loadError instanceof Error ? loadError.message : homeRecommendationErrors[language],
           requiresAuth: false,
+          profileNeedsQuestionnaire: false,
         });
       }
     };

@@ -20,6 +20,7 @@ export default function HomePage() {
     isLoading,
     error,
     requiresAuth,
+    profileNeedsQuestionnaire,
     retry,
     createSectionEventHandler,
   } = useHomeRecommendations();
@@ -36,6 +37,7 @@ export default function HomePage() {
           isLoading={isLoading}
           error={error}
           requiresAuth={requiresAuth}
+          profileNeedsQuestionnaire={profileNeedsQuestionnaire}
           onRetry={retry}
           onEvent={createSectionEventHandler('for_you')}
         />
