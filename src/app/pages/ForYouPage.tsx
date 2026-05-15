@@ -69,7 +69,7 @@ const forYouPageCopy = {
     points: 'баллов',
     pointsShort: 'б.',
     buyFor: (amount: number) => `Купите на ${amount.toLocaleString('ru-RU')} ₸`,
-    untilTier: (tier: string, points: number) => `До ${tier}: ${points} баллов`,
+    untilTier: (tier: string, amount: number) => `До ${tier}: потратьте ещё ${amount.toLocaleString('ru-RU')} ₸`,
     match: (value: number) => `${value}% совпадение`,
     addToCart: 'В корзину',
     preferences: 'Мои предпочтения',
@@ -206,7 +206,7 @@ const forYouPageCopy = {
     points: 'ұпай',
     pointsShort: 'ұп.',
     buyFor: (amount: number) => `${amount.toLocaleString('kk-KZ')} ₸ сомаға сатып алыңыз`,
-    untilTier: (tier: string, points: number) => `${tier} деңгейіне дейін: ${points} ұпай`,
+    untilTier: (tier: string, amount: number) => `${tier} деңгейіне: тағы ${amount.toLocaleString('ru-RU')} ₸`,
     match: (value: number) => `${value}% сәйкестік`,
     addToCart: 'Себетке',
     preferences: 'Менің қалауым',
@@ -343,7 +343,7 @@ const forYouPageCopy = {
     points: 'points',
     pointsShort: 'pts',
     buyFor: (amount: number) => `Buy for ${amount.toLocaleString('en-US')} ₸`,
-    untilTier: (tier: string, points: number) => `To ${tier}: ${points} points`,
+    untilTier: (tier: string, amount: number) => `To ${tier}: spend ${amount.toLocaleString('en-US')} ₸ more`,
     match: (value: number) => `${value}% match`,
     addToCart: 'Add to cart',
     preferences: 'My preferences',
@@ -1271,20 +1271,36 @@ const normalizeRec = (
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function LoyaltyProgressMini({ points, tier }: { points: number; tier: string }) {
+function LoyaltyProgressMini({
+  points,
+  tier,
+  spend90d,
+  nextTierThreshold,
+  nextTierName,
+}: {
+  points: number;
+  tier: string;
+  spend90d: number;
+  nextTierThreshold: number | null;
+  nextTierName: string | null;
+}) {
   const { language } = useI18n();
   const copy = forYouPageCopy[language];
-  const tiers = [
-    { name: copy.bronze, key: 'bronze', min: 0, max: 500, color: '#CD7F32' },
-    { name: copy.silver, key: 'silver', min: 500, max: 1000, color: '#9CA3AF' },
-    { name: copy.gold, key: 'gold', min: 1000, max: 1500, color: '#F59E0B' },
-  ];
-  const currentTier = tiers.find(t => t.key === tier) || tiers[2];
-  const nextTier = tiers[tiers.indexOf(currentTier) + 1];
-  const progress = nextTier
-    ? ((points - currentTier.min) / (nextTier.min - currentTier.min)) * 100
+
+  const TIER_COLORS: Record<string, string> = {
+    bronze: '#CD7F32',
+    silver: '#9CA3AF',
+    gold: '#F59E0B',
+  };
+  const tierColor = TIER_COLORS[tier] ?? '#CD7F32';
+  const tierLabel = tier === 'bronze' ? copy.bronze : tier === 'silver' ? copy.silver : copy.gold;
+
+  const progress = nextTierThreshold && nextTierThreshold > 0
+    ? Math.min(100, (spend90d / nextTierThreshold) * 100)
     : 100;
-  const toNext = nextTier ? nextTier.min - points : 0;
+  const spendRemaining = nextTierThreshold !== null && nextTierThreshold > spend90d
+    ? Math.ceil(nextTierThreshold - spend90d)
+    : 0;
 
   return (
     <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">
@@ -1295,26 +1311,23 @@ function LoyaltyProgressMini({ points, tier }: { points: number; tier: string })
         </div>
         <span
           className="text-xs font-semibold px-2.5 py-1 rounded-full"
-          style={{ backgroundColor: `${currentTier.color}20`, color: currentTier.color }}
+          style={{ backgroundColor: `${tierColor}20`, color: tierColor }}
         >
-          {currentTier.name}
+          {tierLabel}
         </span>
       </div>
 
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
         <div
           className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${Math.min(100, progress)}%`, backgroundColor: currentTier.color }}
+          style={{ width: `${Math.min(100, progress)}%`, backgroundColor: tierColor }}
         />
       </div>
 
-      {nextTier && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-[#6B7280]">
-            {copy.untilTier(nextTier.name, toNext)}
-          </p>
-          <p className="text-[10px] text-[#6B7280]">{copy.buyFor(Math.ceil(toNext / 0.01))}</p>
-        </div>
+      {nextTierName && nextTierThreshold !== null && (
+        <p className="text-xs text-[#6B7280]">
+          {copy.untilTier(nextTierName, spendRemaining)}
+        </p>
       )}
     </div>
   );
@@ -1741,8 +1754,11 @@ export default function ForYouPage() {
   const [trendingRecommendations, setTrendingRecommendations] = useState<RecommendationCard[]>([]);
   const [personalOffer, setPersonalOffer] = useState<PersonalOfferCard | null>(null);
   const [roadmapPlan, setRoadmapPlan] = useState<RoadmapPlanApi | null>(null);
-  const [loyaltyPoints, setLoyaltyPoints] = useState(1247);
-  const [loyaltyTier, setLoyaltyTier] = useState('gold');
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyTier, setLoyaltyTier] = useState('bronze');
+  const [loyaltySpend90d, setLoyaltySpend90d] = useState(0);
+  const [loyaltyNextTier, setLoyaltyNextTier] = useState<string | null>(null);
+  const [loyaltyNextTierThreshold, setLoyaltyNextTierThreshold] = useState<number | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -1859,13 +1875,26 @@ export default function ForYouPage() {
         }
 
         if (loyaltyResult.status === 'fulfilled') {
-          const points = toNumber(loyaltyResult.value.points_balance);
+          const lv = loyaltyResult.value;
+          const points = toNumber(lv.points_balance);
           if (points !== undefined) {
             setLoyaltyPoints(Math.max(0, Math.round(points)));
           }
-
-          if (typeof loyaltyResult.value.tier === 'string' && loyaltyResult.value.tier.trim()) {
-            setLoyaltyTier(loyaltyResult.value.tier.toLowerCase());
+          if (typeof lv.tier === 'string' && lv.tier.trim()) {
+            setLoyaltyTier(lv.tier.toLowerCase());
+          }
+          if (typeof lv.spend_90d === 'number') {
+            setLoyaltySpend90d(lv.spend_90d);
+          }
+          if (typeof lv.next_tier === 'string' && lv.next_tier.trim()) {
+            setLoyaltyNextTier(lv.next_tier);
+          } else {
+            setLoyaltyNextTier(null);
+          }
+          if (typeof lv.next_tier_threshold === 'number') {
+            setLoyaltyNextTierThreshold(lv.next_tier_threshold);
+          } else {
+            setLoyaltyNextTierThreshold(null);
           }
         }
 
@@ -2122,7 +2151,7 @@ export default function ForYouPage() {
   if (showAutoOnboarding) {
     return (
       <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-[800px] mx-auto px-6 py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           {shouldShowEmailVerificationNotice && user?.email ? (
             <EmailVerificationNotice
               email={user.email}
@@ -2145,7 +2174,7 @@ export default function ForYouPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         {shouldShowEmailVerificationNotice && user?.email ? (
           <EmailVerificationNotice
             email={user.email}
@@ -2236,7 +2265,7 @@ export default function ForYouPage() {
               </div>
 
               {recommendations.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {recommendations.map(p => (
                     <EnhancedRecCard
                       key={p.id}
@@ -2263,7 +2292,13 @@ export default function ForYouPage() {
          {/* ─── Sidebar ─────────────────────────────────────────── */}
 <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
             {/* Loyalty Progress */}
-                        <LoyaltyProgressMini points={loyaltyPoints} tier={loyaltyTier} />
+                        <LoyaltyProgressMini
+                          points={loyaltyPoints}
+                          tier={loyaltyTier}
+                          spend90d={loyaltySpend90d}
+                          nextTierThreshold={loyaltyNextTierThreshold}
+                          nextTierName={loyaltyNextTier}
+                        />
  
   {/* Active Offer */}
   <div className="p-5 bg-white rounded-2xl border border-[#EAE6EF]">

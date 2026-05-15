@@ -164,7 +164,7 @@ export default function WishlistPage() {
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="app-page-container py-8">
           <div className="flex items-center gap-3 mb-2">
             <Heart className="w-8 h-8 text-pink-500" />
             <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
@@ -177,7 +177,7 @@ export default function WishlistPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="app-page-container py-8">
         {error && (
           <div className="mb-6 p-4 rounded-xl border border-[#FECACA] bg-[#FEF2F2]">
             <p className="text-sm text-[#B42318]">{error}</p>

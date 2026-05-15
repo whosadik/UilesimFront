@@ -211,7 +211,7 @@ export default function PromotionDetailPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs
             items={[

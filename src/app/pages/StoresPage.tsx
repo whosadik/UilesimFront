@@ -21,7 +21,7 @@ export default function StoresPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
-      <div className="mx-auto max-w-[1160px] px-6 py-8 lg:px-[140px] lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: storesMessages.breadcrumb }]} />
         </div>

@@ -781,7 +781,7 @@ export default function ProductPage() {
   if (isLoading && !product) {
     return (
       <div className="page-with-navbar-offset min-h-screen">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           <LoadingSpinner size="lg" text={copy.loading} />
         </div>
       </div>
@@ -791,7 +791,7 @@ export default function ProductPage() {
   if (!product) {
     return (
       <div className="page-with-navbar-offset min-h-screen">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           <div className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] p-6">
             <p className="text-sm text-[#B42318]">{error ?? copy.unavailable}</p>
             <button
@@ -817,7 +817,7 @@ export default function ProductPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         {error && (
           <div className="mb-6 rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-4">
             <p className="text-sm text-[#B42318]">{error}</p>

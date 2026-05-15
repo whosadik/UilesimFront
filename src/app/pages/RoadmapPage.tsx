@@ -486,7 +486,7 @@ function RoadmapPageContent() {
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="app-page-container py-8">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <Map className="w-7 h-7 text-gray-700 flex-shrink-0" />
@@ -541,7 +541,7 @@ function RoadmapPageContent() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="app-page-container py-8">
         <div className="mb-6">
           <AlertBanner
             variant="info"

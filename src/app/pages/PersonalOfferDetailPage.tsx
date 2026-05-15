@@ -437,7 +437,7 @@ export default function PersonalOfferDetailPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs
             items={[

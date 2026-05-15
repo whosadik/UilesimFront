@@ -722,7 +722,7 @@ export default function CheckoutPage() {
   if (isDataLoading) {
     return (
       <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF] text-sm text-[#6B7280]">
             {copy.loading}
           </div>
@@ -734,7 +734,7 @@ export default function CheckoutPage() {
   if (!result) {
     return (
       <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           <div className="p-6 rounded-2xl bg-white border border-[#EAE6EF]">
             <h1 className="text-2xl font-semibold text-[#111827] mb-2">
               {copy.emptyTitle}
@@ -767,7 +767,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-[700px] mx-auto px-6 py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         <div className="text-center mb-8">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center">
             <CheckCircle className="w-10 h-10 text-emerald-600" />

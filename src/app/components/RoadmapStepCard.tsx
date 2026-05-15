@@ -90,7 +90,10 @@ function toPercent(value: unknown): number | undefined {
     return undefined;
   }
 
-  return numeric <= 1 ? Math.round(numeric * 100) : Math.round(numeric);
+  if (numeric > 1) {
+    return 100;
+  }
+  return Math.max(0, Math.round(numeric * 100));
 }
 
 function normalizeStatus(status?: StepStatus): UiStatus {

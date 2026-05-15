@@ -401,7 +401,7 @@ export default function OwnedProductsPage() {
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="app-page-container py-8">
           <div className="flex items-center gap-3 mb-4">
             <Package className="w-8 h-8 text-gray-700" />
             <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
@@ -427,7 +427,7 @@ export default function OwnedProductsPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="app-page-container py-8">
         {error ? (
           <ErrorState
             title={copy.errorTitle}
@@ -573,6 +573,24 @@ export default function OwnedProductsPage() {
                           </div>
                         )}
                       </div>
+
+                      <button
+                        onClick={() => handleToggleActive(product.id, product.is_active)}
+                        disabled={isPending}
+                        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {product.is_active ? (
+                          <>
+                            <ToggleRight className="w-5 h-5 text-green-600" />
+                            {isPending ? copy.updatingStatus : copy.markCompleted}
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="w-5 h-5 text-gray-400" />
+                            {isPending ? copy.updatingStatus : copy.activateAgain}
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>

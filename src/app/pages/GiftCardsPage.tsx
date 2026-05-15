@@ -191,7 +191,7 @@ export default function GiftCardsPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-[920px] px-6 py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         <div className="mb-6">
           <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.title }]} />
         </div>

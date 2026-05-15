@@ -569,7 +569,7 @@ export default function TransactionsPage() {
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="app-page-container py-8">
           <div className="flex items-center gap-3 mb-4">
             <Receipt className="w-8 h-8 text-gray-700" />
             <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
@@ -598,7 +598,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="app-page-container py-8">
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Button
             variant={filterType === "all" ? "primary" : "secondary"}

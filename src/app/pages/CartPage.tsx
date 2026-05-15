@@ -1229,7 +1229,7 @@ export default function CartPage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-8">
+      <div className="app-page-container py-6 lg:py-8">
         <div className="mb-4">
           <Breadcrumbs items={[{ label: messages.common.home, href: '/' }, { label: copy.breadcrumb }]} />
         </div>

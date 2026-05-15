@@ -315,7 +315,7 @@ export function ProfileGate({
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="app-page-container py-8">
           <div className="flex items-center gap-3 mb-2">
             <Sparkles className="w-8 h-8 text-[#FF4DB8]" />
             <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
@@ -324,7 +324,7 @@ export function ProfileGate({
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="app-page-container py-8">
         <ProfileWizard
           options={wizardOptions}
           initialData={wizardInitialData}

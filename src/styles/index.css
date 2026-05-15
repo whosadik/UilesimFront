@@ -42,6 +42,25 @@ html {
   min-height: calc(100vh - var(--app-navbar-offset));
 }
 
+.app-page-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .app-page-container {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-page-container {
+    padding-inline: 30px;
+  }
+}
+
 /* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;

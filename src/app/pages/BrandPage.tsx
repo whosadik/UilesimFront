@@ -153,7 +153,7 @@ export default function BrandPage() {
       <div className="relative border-b border-[#FF4DB8]/20 bg-gradient-to-br from-[#FFE1F2] to-pink-50 py-12 lg:py-16">
         <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-[#FF4DB8]/10 blur-3xl" />
 
-        <div className="relative mx-auto max-w-[1160px] px-6 lg:px-[140px]">
+        <div className="app-page-container relative">
           <Breadcrumbs
             items={[
               { label: messages.common.home, href: '/' },
@@ -189,7 +189,7 @@ export default function BrandPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1160px] px-6 py-8 lg:px-[140px] lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
         {isLoading ? (
           <LoadingSpinner size="lg" text={copy.loading} />
         ) : error ? (

@@ -944,7 +944,7 @@ export default function ProfilePage() {
   if (isAuthLoading || isPageLoading) {
     return (
       <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           <LoadingSpinner size="lg" />
         </div>
       </div>
@@ -954,7 +954,7 @@ export default function ProfilePage() {
   if (loadError) {
     return (
       <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+        <div className="app-page-container py-8 lg:py-12">
           <ErrorState onRetry={() => setRetryKey((prev) => prev + 1)} />
         </div>
       </div>
@@ -963,7 +963,7 @@ export default function ProfilePage() {
 
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8 lg:py-12">
+      <div className="app-page-container py-8 lg:py-12">
 
         {/* Breadcrumbs + заголовок */}
         <div className="mb-6">

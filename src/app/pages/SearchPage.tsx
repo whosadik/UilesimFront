@@ -263,7 +263,7 @@ export default function SearchPage() {
   return (
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="app-page-container py-6">
           <form onSubmit={handleSearch} className="relative mx-auto max-w-2xl">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -289,7 +289,7 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="app-page-container py-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <LoadingSpinner size="lg" text={copy.loading} />
