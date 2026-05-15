@@ -21,6 +21,7 @@ import {
   type RoadmapLanguage,
 } from '../../shared/roadmap/presentation';
 import { formatCatalogCategoryLabel } from '../../shared/catalog/presentation';
+import { RoadmapRewardModal } from '../components/RoadmapRewardModal';
 
 type TierName = 'bronze' | 'silver' | 'gold';
 
@@ -547,6 +548,7 @@ export default function CheckoutPage() {
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [nextOfferHint, setNextOfferHint] = useState<NextOfferHint | null>(null);
   const [roadmapNextStep, setRoadmapNextStep] = useState<CheckoutRoadmapNextStep | null>(null);
+  const [roadmapRewardPoints, setRoadmapRewardPoints] = useState<number | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -668,6 +670,16 @@ export default function CheckoutPage() {
               ? parseNextOfferHint(offerResult.value)
               : null,
           );
+
+          // Show roadmap reward modal only on a fresh checkout submission
+          // (stateCommit present). On refresh / replay via getLastCheckout we
+          // intentionally suppress it so the user doesn't see it twice.
+          if (stateCommit) {
+            const awarded = toNumber(checkoutPayload.roadmap_awarded_points);
+            if (awarded !== undefined && awarded > 0) {
+              setRoadmapRewardPoints(Math.round(awarded));
+            }
+          }
         }
       } catch (error) {
         if (cancelled) {
@@ -766,6 +778,12 @@ export default function CheckoutPage() {
   }
 
   return (
+    <>
+    <RoadmapRewardModal
+      open={roadmapRewardPoints !== null && roadmapRewardPoints > 0}
+      points={roadmapRewardPoints ?? 0}
+      onClose={() => setRoadmapRewardPoints(null)}
+    />
     <div className="page-with-navbar-offset min-h-screen bg-gradient-to-b from-white to-gray-50">
       <div className="app-page-container py-8 lg:py-12">
         <div className="text-center mb-8">
@@ -1021,6 +1039,7 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

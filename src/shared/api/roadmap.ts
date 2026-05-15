@@ -111,9 +111,12 @@ export function clickRoadmapStep(stepId: string | number): Promise<{ ok?: boolea
 export function updateRoadmapStep(
   stepId: string | number,
   status: RoadmapStepStatusApi,
-): Promise<{ ok?: boolean; step?: RoadmapStepApi }> {
-  return apiFetch<{ ok?: boolean; step?: RoadmapStepApi }>(`/api/me/roadmap/steps/${stepId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  });
+): Promise<{ ok?: boolean; step?: RoadmapStepApi; awarded_points?: number }> {
+  return apiFetch<{ ok?: boolean; step?: RoadmapStepApi; awarded_points?: number }>(
+    `/api/me/roadmap/steps/${stepId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    },
+  );
 }

@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router";
 import { Map, RefreshCw, Sparkles, Star } from "lucide-react";
 import { RoadmapStepCard, type RoadmapStep } from "../components/RoadmapStepCard";
+import { RoadmapRewardModal } from "../components/RoadmapRewardModal";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Button } from "../components/Button";
@@ -315,6 +316,7 @@ function RoadmapPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingStepId, setPendingStepId] = useState<number | null>(null);
+  const [rewardPoints, setRewardPoints] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [steps, setSteps] = useState<UiRoadmapStep[]>([]);
@@ -401,14 +403,19 @@ function RoadmapPageContent() {
     setPendingStepId(step.apiStepId);
 
     try {
-      await updateRoadmapStep(step.apiStepId, nextStatus);
+      const response = await updateRoadmapStep(step.apiStepId, nextStatus);
       const nextPlan = await getRoadmap(planCategory ?? undefined);
       applyPlan(nextPlan);
-      toast.success(
-        nextStatus === "completed"
-          ? copy.stepCompleted
-          : copy.stepSkipped,
-      );
+      const awarded = typeof response?.awarded_points === "number" ? response.awarded_points : 0;
+      if (nextStatus === "completed" && awarded > 0) {
+        setRewardPoints(awarded);
+      } else {
+        toast.success(
+          nextStatus === "completed"
+            ? copy.stepCompleted
+            : copy.stepSkipped,
+        );
+      }
     } catch (updateError) {
       if (updateError instanceof ApiError && (updateError.status === 401 || updateError.status === 403)) {
         navigate("/login", { replace: true, state: { from: location.pathname } });
@@ -487,6 +494,12 @@ function RoadmapPageContent() {
   const isFullyCompleted = totalSteps > 0 && completedCount >= totalSteps;
 
   return (
+    <>
+    <RoadmapRewardModal
+      open={rewardPoints !== null && rewardPoints > 0}
+      points={rewardPoints ?? 0}
+      onClose={() => setRewardPoints(null)}
+    />
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="app-page-container py-8">
@@ -668,6 +681,7 @@ function RoadmapPageContent() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
