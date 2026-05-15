@@ -44,7 +44,9 @@ const roadmapStepCardCopy = {
     fallbackStep: "Шаг ухода",
     fallbackDescription: "Персональный шаг roadmap.",
     current: "Текущий",
-    match: (value: number) => `${value}% совпадение`,
+    matchIdeal: "Идеально подходит",
+    matchGood: "Подходит",
+    matchPartial: "Частично подходит",
     alreadyOwned: "Уже есть",
     openProduct: "Посмотреть товар",
     stepDetails: "Подробнее о шаге",
@@ -53,7 +55,9 @@ const roadmapStepCardCopy = {
     fallbackStep: "Күтім қадамы",
     fallbackDescription: "Жеке roadmap қадамы.",
     current: "Ағымдағы",
-    match: (value: number) => `${value}% сәйкестік`,
+    matchIdeal: "Тамаша сәйкес келеді",
+    matchGood: "Сәйкес келеді",
+    matchPartial: "Жартылай сәйкес",
     alreadyOwned: "Бар",
     openProduct: "Тауарды ашу",
     stepDetails: "Қадам туралы толығырақ",
@@ -62,12 +66,37 @@ const roadmapStepCardCopy = {
     fallbackStep: "Care step",
     fallbackDescription: "Personal roadmap step.",
     current: "Current",
-    match: (value: number) => `${value}% match`,
+    matchIdeal: "Perfect match",
+    matchGood: "Good match",
+    matchPartial: "Partial match",
     alreadyOwned: "Already owned",
     openProduct: "View product",
     stepDetails: "More about this step",
   },
 } as const;
+
+type MatchTier = "ideal" | "good" | "partial" | null;
+
+function matchTier(percent: number | undefined): MatchTier {
+  if (percent === undefined) return null;
+  if (percent >= 80) return "ideal";
+  if (percent >= 60) return "good";
+  if (percent >= 40) return "partial";
+  return null;
+}
+
+function matchLabel(copy: (typeof roadmapStepCardCopy)[keyof typeof roadmapStepCardCopy], tier: MatchTier): string | null {
+  if (tier === "ideal") return copy.matchIdeal;
+  if (tier === "good") return copy.matchGood;
+  if (tier === "partial") return copy.matchPartial;
+  return null;
+}
+
+const MATCH_TIER_CLASSES: Record<Exclude<MatchTier, null>, string> = {
+  ideal: "bg-purple-50 text-purple-700",
+  good: "bg-blue-50 text-blue-700",
+  partial: "bg-gray-100 text-gray-700",
+};
 
 function toNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -90,10 +119,8 @@ function toPercent(value: unknown): number | undefined {
     return undefined;
   }
 
-  if (numeric > 1) {
-    return 100;
-  }
-  return Math.max(0, Math.round(numeric * 100));
+  const percent = numeric <= 1 ? numeric * 100 : numeric;
+  return Math.max(0, Math.min(100, Math.round(percent)));
 }
 
 function normalizeStatus(status?: StepStatus): UiStatus {
@@ -192,11 +219,16 @@ export function RoadmapStepCard({ step, onProductClick, onStepClick }: RoadmapSt
                       {price.toLocaleString(locale)} ₸
                     </p>
                   )}
-                  {recommendationScore !== undefined && recommendationScore > 0 && (
-                    <Badge variant="secondary" className="text-xs bg-purple-50 text-purple-700">
-                      {copy.match(recommendationScore)}
-                    </Badge>
-                  )}
+                  {(() => {
+                    const tier = matchTier(recommendationScore);
+                    const label = matchLabel(copy, tier);
+                    if (!tier || !label) return null;
+                    return (
+                      <Badge variant="secondary" className={`text-xs ${MATCH_TIER_CLASSES[tier]}`}>
+                        {label}
+                      </Badge>
+                    );
+                  })()}
                   {isCompleted && (
                     <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
                       {copy.alreadyOwned}

@@ -296,7 +296,10 @@ function buildUiSteps(plan: RoadmapPlanApi, language: RoadmapLanguage): UiRoadma
           }
         : null,
       status: mapRoadmapStatusToUiStatus(apiStatus, isCurrent),
-      recommendation_score: toPercent(apiStep.score),
+      recommendation_score:
+        typeof apiStep.match_percent === "number"
+          ? apiStep.match_percent
+          : toPercent(apiStep.score),
       price: productPrice,
       is_owned: apiStatus === "owned" || apiStatus === "completed",
     };

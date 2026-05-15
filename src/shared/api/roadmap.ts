@@ -47,6 +47,7 @@ export type RoadmapStepApi = RoadmapStepSnapshotApi & {
   suggestions?: unknown[];
   score?: number | null;
   confidence?: number | null;
+  match_percent?: number | null;
 };
 
 export type RoadmapStepStatusApi =
