@@ -209,8 +209,9 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-4">
                     {p.in_stock ? (
-                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
-                        Да
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
+                        <span>Да</span>
+                        <span className="text-green-600/70">· {p.stock_quantity}</span>
                       </span>
                     ) : (
                       <span className="inline-flex px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 border border-gray-200">

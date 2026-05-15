@@ -1,6 +1,5 @@
-import { Check, Sparkles, Info } from "lucide-react";
+import { ChevronRight, Sparkles, Info } from "lucide-react";
 import { Badge } from "./Badge";
-import { Button } from "./Button";
 import { useI18n } from "../../shared/i18n/LanguageContext";
 
 type UiStatus = "pending" | "completed" | "current";
@@ -142,10 +141,10 @@ export function RoadmapStepCard({ step, onProductClick, onStepClick }: RoadmapSt
   const recommendedProduct = step.recommended_product ?? null;
 
   const stepId = String(step.id);
-  const stepNumber = step.step_number ?? step.step_index ?? 1;
 
+  const isSkipped = step.status === "skipped";
   const normalizedStatus = normalizeStatus(step.status);
-  const isCompleted = normalizedStatus === "completed" || step.is_owned === true;
+  const isCompleted = !isSkipped && (normalizedStatus === "completed" || step.is_owned === true);
   const isCurrent = normalizedStatus === "current" && !isCompleted;
 
   const title =
@@ -172,82 +171,83 @@ export function RoadmapStepCard({ step, onProductClick, onStepClick }: RoadmapSt
 
   return (
     <div
-      className={`relative p-6 bg-white rounded-lg border transition-all ${
-        isCompleted
-          ? "border-green-200 bg-green-50/30"
-          : isCurrent
-            ? "border-pink-200 shadow-sm"
-            : "border-gray-200"
+      className={`relative p-5 sm:p-6 bg-white rounded-t-xl border border-b-0 transition-all ${
+        isSkipped
+          ? "border-amber-200 bg-amber-50/20"
+          : isCompleted
+            ? "border-green-200 bg-green-50/30"
+            : isCurrent
+              ? "border-pink-300 shadow-sm shadow-pink-100/60"
+              : "border-gray-200"
       }`}
     >
-      <div className="absolute -top-3 -left-3 w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-full text-sm font-semibold shadow-sm">
-        {isCompleted ? <Check className="w-4 h-4" /> : stepNumber}
-      </div>
-
-      {isCurrent && (
-        <div className="absolute -top-3 -right-3">
-          <Badge variant="secondary" className="bg-pink-500 text-white border-none">
-            <Sparkles className="w-3 h-3 mr-1" />
-            {copy.current}
-          </Badge>
-        </div>
-      )}
-
       <div className="space-y-3">
-        <div>
-          <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>
-          <p className="text-sm text-gray-600">{description}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>
+            <p className="text-sm text-gray-600">{description}</p>
+          </div>
+          {isCurrent && (
+            <Badge
+              variant="secondary"
+              className="bg-pink-500 text-white border-none flex-shrink-0 whitespace-nowrap"
+            >
+              <Sparkles className="w-3 h-3 mr-1" />
+              {copy.current}
+            </Badge>
+          )}
         </div>
 
         {productId && productName && (
-          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <div className="flex items-start gap-3">
-              {productImage && (
-                <div className="flex-shrink-0 w-12 h-12 bg-white rounded-md border border-gray-200 overflow-hidden">
-                  <img
-                    src={productImage}
-                    alt={productName}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2">{productName}</p>
-                <div className="flex items-center gap-2">
-                  {price !== undefined && (
-                    <p className="text-sm font-semibold text-gray-900">
-                      {price.toLocaleString(locale)} ₸
-                    </p>
-                  )}
-                  {(() => {
-                    const tier = matchTier(recommendationScore);
-                    const label = matchLabel(copy, tier);
-                    if (!tier || !label) return null;
-                    return (
-                      <Badge variant="secondary" className={`text-xs ${MATCH_TIER_CLASSES[tier]}`}>
-                        {label}
-                      </Badge>
-                    );
-                  })()}
-                  {isCompleted && (
-                    <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
-                      {copy.alreadyOwned}
+          <button
+            type="button"
+            onClick={() => !isCompleted && onProductClick?.(productId)}
+            disabled={isCompleted}
+            aria-label={!isCompleted ? `${copy.openProduct}: ${productName}` : productName}
+            className={`w-full text-left p-2 rounded-lg border bg-gray-50 border-gray-100 inline-flex items-center gap-2.5 transition-colors group ${
+              isCompleted ? "cursor-default" : "hover:bg-white hover:border-gray-200"
+            }`}
+          >
+            {productImage ? (
+              <div className="flex-shrink-0 w-11 h-11 bg-white rounded-md border border-gray-200 overflow-hidden">
+                <img
+                  src={productImage}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex-shrink-0 w-11 h-11 bg-white rounded-md border border-gray-200" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{productName}</p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {price !== undefined && (
+                  <p className="text-sm font-semibold text-gray-900">
+                    {price.toLocaleString(locale)} ₸
+                  </p>
+                )}
+                {(() => {
+                  const tier = matchTier(recommendationScore);
+                  const label = matchLabel(copy, tier);
+                  if (!tier || !label) return null;
+                  return (
+                    <Badge variant="secondary" className={`text-[10px] py-0 ${MATCH_TIER_CLASSES[tier]}`}>
+                      {label}
                     </Badge>
-                  )}
-                </div>
+                  );
+                })()}
+                {isCompleted && (
+                  <Badge variant="secondary" className="text-[10px] py-0 bg-green-50 text-green-700">
+                    {copy.alreadyOwned}
+                  </Badge>
+                )}
               </div>
             </div>
             {!isCompleted && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="w-full mt-3"
-                onClick={() => onProductClick?.(productId)}
-              >
-                {copy.openProduct}
-              </Button>
+              <ChevronRight className="flex-shrink-0 w-4 h-4 text-gray-400 group-hover:text-[#FF4DB8] transition-colors" />
             )}
-          </div>
+          </button>
         )}
 
         {!productId && !isCompleted && (

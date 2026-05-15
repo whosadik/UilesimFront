@@ -35,6 +35,7 @@ export interface AdminProduct {
   step: string;
   strength: string;
   in_stock: boolean;
+  stock_quantity: number;
   image: string | null;
   image_url: string;
   image_url_display: string;

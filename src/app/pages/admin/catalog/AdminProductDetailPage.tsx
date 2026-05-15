@@ -46,7 +46,7 @@ interface FormState {
   currency: string;
   category: string;
   product_type: string;
-  in_stock: boolean;
+  stock_quantity: string;
   step: string;
   strength: string;
   image_url: string;
@@ -72,7 +72,7 @@ const EMPTY_FORM: FormState = {
   currency: 'KZT',
   category: 'skincare',
   product_type: '',
-  in_stock: true,
+  stock_quantity: '0',
   step: '',
   strength: 'low',
   image_url: '',
@@ -116,7 +116,7 @@ function productToForm(p: AdminProduct): FormState {
     currency: p.currency || 'KZT',
     category: p.category,
     product_type: p.product_type || '',
-    in_stock: p.in_stock,
+    stock_quantity: String(p.stock_quantity ?? 0),
     step: p.step || '',
     strength: p.strength || 'low',
     image_url: p.image_url || '',
@@ -256,7 +256,7 @@ export default function AdminProductDetailPage() {
       currency: form.currency,
       category: form.category,
       product_type: form.product_type,
-      in_stock: form.in_stock,
+      stock_quantity: Math.max(0, Math.floor(Number(form.stock_quantity) || 0)),
       step: form.step,
       strength: form.strength,
       image_url: form.image_url,
@@ -473,17 +473,52 @@ export default function AdminProductDetailPage() {
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
               />
             </div>
-            <div className="flex items-center gap-2 mt-6">
-              <input
-                type="checkbox"
-                id="in_stock"
-                checked={form.in_stock}
-                onChange={(e) => setForm({ ...form, in_stock: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <label htmlFor="in_stock" className="text-sm text-gray-700">
-                В наличии
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Остаток на складе
               </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = Math.max(0, Math.floor(Number(form.stock_quantity) || 0));
+                    setForm({ ...form, stock_quantity: String(Math.max(0, current - 1)) });
+                  }}
+                  className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  aria-label="Уменьшить на 1"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  step={1}
+                  value={form.stock_quantity}
+                  onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })}
+                  onBlur={(e) => {
+                    const normalized = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                    setForm({ ...form, stock_quantity: String(normalized) });
+                  }}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = Math.max(0, Math.floor(Number(form.stock_quantity) || 0));
+                    setForm({ ...form, stock_quantity: String(current + 1) });
+                  }}
+                  className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  aria-label="Увеличить на 1"
+                >
+                  +
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1.5">
+                {Number(form.stock_quantity) > 0
+                  ? `В наличии · показывается покупателям`
+                  : 'Нет в наличии · скрыто из выдачи'}
+              </p>
             </div>
           </div>
         </section>

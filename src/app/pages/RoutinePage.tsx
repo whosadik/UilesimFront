@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Clock, Sparkles, CheckCircle, AlertCircle, History } from "lucide-react";
+import { ChevronRight, Clock, Sparkles, CheckCircle, AlertCircle, History, Sun, Moon } from "lucide-react";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
@@ -627,17 +627,18 @@ function RoutinePageContent() {
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="app-page-container py-8">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <Clock className="w-8 h-8 text-gray-700" />
+                <Clock className="w-7 h-7 text-gray-700 flex-shrink-0" />
                 <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
               </div>
               <p className="text-gray-600">{copy.subtitle}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 flex-shrink-0">
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => navigate("/me/routine/history")}
                 disabled={isGenerating || isValidating}
               >
@@ -646,6 +647,7 @@ function RoutinePageContent() {
               </Button>
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={handleValidate}
                 disabled={!routine || isValidating || isGenerating}
               >
@@ -661,7 +663,7 @@ function RoutinePageContent() {
                   </>
                 )}
               </Button>
-              <Button variant="primary" onClick={handleGenerate} disabled={isGenerating}>
+              <Button variant="primary" size="sm" onClick={handleGenerate} disabled={isGenerating}>
                 {isGenerating ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
@@ -680,6 +682,7 @@ function RoutinePageContent() {
       </div>
 
       <div className="app-page-container py-8">
+        <div className="max-w-3xl mx-auto">
         {validationResult && (
           <div className="mb-6 space-y-4">
             <AlertBanner
@@ -796,100 +799,131 @@ function RoutinePageContent() {
           />
         ) : (
           <>
-            <div className="flex gap-2 mb-6">
-              <Button
-                variant={selectedTime === "morning" ? "primary" : "secondary"}
+            {/* Segmented control + total time */}
+            <div className="mb-6 p-1.5 bg-white rounded-2xl border border-gray-200 flex items-center gap-1">
+              <button
+                type="button"
                 onClick={() => setSelectedTime("morning")}
-                className="flex-1"
+                className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-medium transition-colors ${
+                  selectedTime === "morning"
+                    ? "bg-[#FF4DB8] text-white shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
               >
+                <Sun className="w-4 h-4" />
                 {copy.morning}
-              </Button>
-              <Button
-                variant={selectedTime === "evening" ? "primary" : "secondary"}
+              </button>
+              <button
+                type="button"
                 onClick={() => setSelectedTime("evening")}
-                className="flex-1"
+                className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-medium transition-colors ${
+                  selectedTime === "evening"
+                    ? "bg-[#FF4DB8] text-white shadow-sm"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
               >
+                <Moon className="w-4 h-4" />
                 {copy.evening}
-              </Button>
+              </button>
             </div>
 
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100 mb-6">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">{copy.totalTime}</span>
-                <Badge variant="secondary" className="bg-white text-gray-900">
-                  <Clock className="w-3.5 h-3.5 mr-1" />
-                  {copy.minutes(totalTime)}
-                </Badge>
-              </div>
+            <div className="flex items-center justify-between gap-3 mb-5 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {copy.totalTime}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                <Clock className="w-3.5 h-3.5 text-gray-500" />
+                {copy.minutes(totalTime)}
+              </span>
             </div>
 
-            <div className="space-y-4">
-              {currentSteps.map((step, index) => (
-                <div
-                  key={index}
-                  className="p-5 bg-white rounded-xl border border-gray-200 hover:shadow-sm transition-all"
-                >
-                  <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-900 text-white rounded-full font-semibold">
-                      {step.step_number}
+            <ol className="relative list-none p-0 m-0 space-y-3">
+              {currentSteps.map((step, index) => {
+                const isLast = index === currentSteps.length - 1;
+                return (
+                  <li
+                    key={index}
+                    className="relative grid grid-cols-[40px_1fr] sm:grid-cols-[44px_1fr] gap-3 sm:gap-4"
+                  >
+                    {/* Timeline column */}
+                    <div className="relative flex flex-col items-center">
+                      <div className="relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-gray-900 text-white font-semibold text-sm">
+                        {step.step_number}
+                      </div>
+                      {!isLast && (
+                        <div className="flex-1 w-0.5 mt-1 bg-gray-200" aria-hidden />
+                      )}
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900">{step.action}</h3>
-                        {step.duration && (
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-                            {step.duration}
-                          </Badge>
+                    {/* Content */}
+                    <div className="min-w-0 pb-1">
+                      <div className="p-4 sm:p-5 bg-white rounded-xl border border-gray-200 transition-shadow hover:shadow-sm">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <h3 className="font-semibold text-gray-900 leading-tight">
+                            {step.action}
+                          </h3>
+                          {step.duration && (
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-700 flex-shrink-0">
+                              {step.duration}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {step.product_id && step.product_name && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/product/${step.product_id}`)}
+                            aria-label={`${copy.details}: ${step.product_name}`}
+                            className="w-full text-left p-2 rounded-lg border bg-gray-50 border-gray-100 inline-flex items-center gap-2.5 transition-colors hover:bg-white hover:border-gray-200 group"
+                          >
+                            {step.product_image ? (
+                              <div className="flex-shrink-0 w-11 h-11 bg-white rounded-md border border-gray-200 overflow-hidden">
+                                <img
+                                  src={step.product_image}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex-shrink-0 w-11 h-11 bg-white rounded-md border border-gray-200" />
+                            )}
+                            <p className="flex-1 min-w-0 text-sm font-medium text-gray-900 truncate">
+                              {step.product_name}
+                            </p>
+                            <ChevronRight className="flex-shrink-0 w-4 h-4 text-gray-400 group-hover:text-[#FF4DB8] transition-colors" />
+                          </button>
+                        )}
+
+                        {step.notes && (
+                          <div className="flex items-start gap-2 mt-3 text-xs text-gray-600 leading-relaxed">
+                            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-blue-500" />
+                            <p>{step.notes}</p>
+                          </div>
                         )}
                       </div>
-
-                      {step.product_id && step.product_name && (
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-2">
-                          {step.product_image && (
-                            <div className="w-12 h-12 bg-white rounded-md overflow-hidden border border-gray-200">
-                              <img
-                                src={step.product_image}
-                                alt={step.product_name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <p className="text-sm font-medium text-gray-900 flex-1">
-                            {step.product_name}
-                          </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/product/${step.product_id}`)}
-                          >
-                            {copy.details}
-                          </Button>
-                        </div>
-                      )}
-
-                      {step.notes && (
-                        <div className="flex items-start gap-2 text-sm text-gray-600">
-                          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500" />
-                          <p>{step.notes}</p>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </li>
+                );
+              })}
+            </ol>
 
-            <div className="mt-8 p-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-100">
-              <h3 className="font-semibold text-gray-900 mb-3"> {copy.tips}</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
+            <div className="mt-8 p-5 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-3">
+                <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
+                {copy.tips}
+              </h3>
+              <ul className="space-y-1.5 text-sm text-gray-700">
                 {tips.map((tip, index) => (
-                  <li key={index}>• {tip}</li>
+                  <li key={index} className="flex gap-2">
+                    <span className="text-[#FF4DB8]">•</span>
+                    <span className="flex-1">{tip}</span>
+                  </li>
                 ))}
               </ul>
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

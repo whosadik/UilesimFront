@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Map, RefreshCw, Sparkles, Star } from "lucide-react";
+import { Check, Flag, Map, RefreshCw, Sparkles, Star } from "lucide-react";
 import { RoadmapStepCard, type RoadmapStep } from "../components/RoadmapStepCard";
 import { RoadmapRewardModal } from "../components/RoadmapRewardModal";
 import { EmptyState } from "../components/EmptyState";
@@ -57,6 +57,7 @@ const roadmapPageCopy = {
     subtitle: "Пошаговый план построения рутины на основе вашего профиля.",
     progress: "Прогресс рутины",
     stepsLabel: (done: number, total: number) => `${done}/${total} шагов`,
+    stepsLabelShort: "шагов",
     points: "Баллы за Roadmap",
     pointsRemaining: (value: number) => `До полного завершения осталось ${value} баллов`,
     banner: "Roadmap формируется из ваших предпочтений и истории покупок.",
@@ -65,10 +66,11 @@ const roadmapPageCopy = {
     errorDescription: "Произошла ошибка при загрузке. Попробуйте еще раз.",
     whyLabel: "Почему",
     improvesLabel: "Улучшает",
+    benefitLabel: "Эффект",
     pointsShort: "б.",
+    pointsHint: "при покупке",
     saving: "Сохраняем...",
     skip: "Пропустить",
-    done: "Выполнено",
     skippedNoPoints: "Шаг пропущен, баллы не начислены",
     stepClosedByOwned: "Шаг уже закрыт вашим текущим продуктом",
     pointsGranted: (value: number) => `+${value} баллов начислено`,
@@ -78,6 +80,7 @@ const roadmapPageCopy = {
     emptyTitle: "Roadmap не найден",
     emptyDescription: "Заполните профиль, чтобы получить персональные рекомендации.",
     fillProfile: "Заполнить профиль",
+    finishLabel: "Цель: завершить рутину",
   },
   kk: {
     loadError: "Roadmap жүктеу мүмкін болмады",
@@ -93,6 +96,7 @@ const roadmapPageCopy = {
     subtitle: "Профильге негізделген рутинаны құрудың қадамдық жоспары.",
     progress: "Рутина прогресі",
     stepsLabel: (done: number, total: number) => `${done}/${total} қадам`,
+    stepsLabelShort: "қадам",
     points: "Roadmap ұпайлары",
     pointsRemaining: (value: number) => `Толық аяқтауға дейін ${value} ұпай қалды`,
     banner: "Roadmap сіздің қалауларыңыз бен сатып алу тарихыңыздан құралады.",
@@ -101,10 +105,11 @@ const roadmapPageCopy = {
     errorDescription: "Жүктеу кезінде қате шықты. Қайталап көріңіз.",
     whyLabel: "Неге",
     improvesLabel: "Жақсартады",
+    benefitLabel: "Әсері",
     pointsShort: "ұп.",
+    pointsHint: "сатып алғанда",
     saving: "Сақтап жатырмыз...",
     skip: "Өткізу",
-    done: "Орындалды",
     skippedNoPoints: "Қадам өткізілді, ұпай есептелмеді",
     stepClosedByOwned: "Қадам сіздегі ағымдағы өніммен жабылған",
     pointsGranted: (value: number) => `+${value} ұпай есептелді`,
@@ -114,6 +119,7 @@ const roadmapPageCopy = {
     emptyTitle: "Roadmap табылмады",
     emptyDescription: "Жеке ұсыныстар алу үшін профильді толтырыңыз.",
     fillProfile: "Профильді толтыру",
+    finishLabel: "Мақсат: рутинаны аяқтау",
   },
   en: {
     loadError: "Could not load roadmap",
@@ -129,6 +135,7 @@ const roadmapPageCopy = {
     subtitle: "A step-by-step routine plan based on your profile.",
     progress: "Routine progress",
     stepsLabel: (done: number, total: number) => `${done}/${total} steps`,
+    stepsLabelShort: "steps",
     points: "Roadmap points",
     pointsRemaining: (value: number) => `${value} points remaining to complete all steps`,
     banner: "Roadmap is built from your preferences and purchase history.",
@@ -137,10 +144,11 @@ const roadmapPageCopy = {
     errorDescription: "An error occurred while loading. Please try again.",
     whyLabel: "Why",
     improvesLabel: "Improves",
+    benefitLabel: "Effect",
     pointsShort: "pts",
+    pointsHint: "on purchase",
     saving: "Saving...",
     skip: "Skip",
-    done: "Done",
     skippedNoPoints: "Step skipped, no points granted",
     stepClosedByOwned: "Step already closed by your current product",
     pointsGranted: (value: number) => `+${value} points granted`,
@@ -150,6 +158,7 @@ const roadmapPageCopy = {
     emptyTitle: "Roadmap not found",
     emptyDescription: "Complete your profile to get personal recommendations.",
     fillProfile: "Complete profile",
+    finishLabel: "Goal: complete the routine",
   },
 } as const;
 
@@ -296,7 +305,7 @@ function buildUiSteps(plan: RoadmapPlanApi, language: RoadmapLanguage): UiRoadma
             in_stock: recommendedProduct?.in_stock,
           }
         : null,
-      status: mapRoadmapStatusToUiStatus(apiStatus, isCurrent),
+      status: apiStatus === "skipped" ? "skipped" : mapRoadmapStatusToUiStatus(apiStatus, isCurrent),
       recommendation_score:
         typeof apiStep.match_percent === "number"
           ? apiStep.match_percent
@@ -503,62 +512,84 @@ function RoadmapPageContent() {
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="app-page-container py-8">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <Map className="w-7 h-7 text-gray-700 flex-shrink-0" />
-              <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
-            </div>
-            <Button variant="secondary" size="sm" onClick={() => handleRefresh()} disabled={isRefreshing}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-              {copy.refresh}
-            </Button>
-          </div>
-          <p className="text-gray-600 mb-6">{copy.subtitle}</p>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-700">{copy.progress}</span>
-                <span className="text-sm font-bold text-gray-900">
-                  {copy.stepsLabel(completedCount, totalSteps)}
-                </span>
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <Map className="w-7 h-7 text-gray-700 flex-shrink-0" />
+                <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
               </div>
-              <div className="h-2 bg-white rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gray-900 transition-all duration-500 rounded-full"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
+              <Button variant="secondary" size="sm" onClick={() => handleRefresh()} disabled={isRefreshing}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                {copy.refresh}
+              </Button>
             </div>
+            <p className="text-gray-600 mb-6">{copy.subtitle}</p>
 
-            <div className="p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl border border-pink-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-[#FF4DB8]" />
-                  <span className="text-sm font-semibold text-gray-700">{copy.points}</span>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                    {copy.progress}
+                  </span>
+                  <span className="text-xs font-medium text-gray-500">
+                    {Math.round(progressPercent)}%
+                  </span>
                 </div>
-                <span className="text-sm font-bold text-[#FF4DB8]">
-                  {earnedPoints}/{totalPointsAvailable}
-                </span>
+                <div className="flex items-baseline gap-1.5 mb-3">
+                  <span className="text-3xl font-bold text-gray-900 leading-none">
+                    {completedCount}
+                  </span>
+                  <span className="text-base font-medium text-gray-500">
+                    / {totalSteps} {copy.stepsLabelShort}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-white rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gray-900 transition-all duration-500 rounded-full"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2 bg-white rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#FF4DB8] transition-all duration-500 rounded-full"
-                  style={{
-                    width: `${totalPointsAvailable > 0 ? (earnedPoints / totalPointsAvailable) * 100 : 0}%`,
-                  }}
-                />
+
+              <div className="p-5 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
+                    <span className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                      {copy.points}
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium text-[#FF4DB8]">
+                    {totalPointsAvailable > 0
+                      ? Math.round((earnedPoints / totalPointsAvailable) * 100)
+                      : 0}
+                    %
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-1.5 mb-3">
+                  <span className="text-3xl font-bold text-[#FF4DB8] leading-none">
+                    {earnedPoints}
+                  </span>
+                  <span className="text-base font-medium text-pink-400">
+                    / {totalPointsAvailable}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-white rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#FF4DB8] transition-all duration-500 rounded-full"
+                    style={{
+                      width: `${totalPointsAvailable > 0 ? (earnedPoints / totalPointsAvailable) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <p className="text-xs text-[#6B7280] mt-1.5">
-                {copy.pointsRemaining(Math.max(0, totalPointsAvailable - earnedPoints))}
-              </p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="app-page-container py-8">
-        <div className="mb-6">
+        <div className="mb-6 max-w-3xl mx-auto">
           <AlertBanner
             variant="info"
             message={copy.banner}
@@ -576,8 +607,8 @@ function RoadmapPageContent() {
             onRetry={() => setRetryKey((value) => value + 1)}
           />
         ) : steps.length > 0 ? (
-          <div className="space-y-4">
-            {steps.map((step) => {
+          <ol className="relative list-none p-0 m-0 max-w-3xl mx-auto">
+            {steps.map((step, index) => {
               const meta = getRoadmapStepMeta(step.productType, language) ?? DEFAULT_ROADMAP_STEP_META;
               const stepWhy = step.stepWhy ?? meta.why;
               const stepImproves = step.stepImproves ?? meta.improves;
@@ -586,6 +617,8 @@ function RoadmapPageContent() {
               const isPendingUpdate = step.apiStepId !== undefined && pendingStepId === step.apiStepId;
               const isRewarded = step.rawStatus === "completed" || step.rawStatus === "owned";
               const isSkipped = step.rawStatus === "skipped";
+              const isCompleted = isRewarded || isSkipped;
+              const isCurrent = step.status === "current" && !isCompleted;
               const canUpdateStatus =
                 step.apiStepId !== undefined &&
                 !isPendingUpdate &&
@@ -593,84 +626,170 @@ function RoadmapPageContent() {
                 step.rawStatus !== "completed" &&
                 step.rawStatus !== "owned";
 
-              return (
-                <div key={step.id} className="relative">
-                  <RoadmapStepCard
-                    step={step}
-                    onProductClick={handleProductClick}
-                    onStepClick={handleStepClick}
-                  />
+              const isFirst = index === 0;
+              const isLast = index === steps.length - 1;
+              const prevStep = index > 0 ? steps[index - 1] : null;
+              const prevDone = prevStep
+                ? ["completed", "owned", "skipped"].includes(prevStep.rawStatus)
+                : false;
 
-                  {!isRewarded && !isSkipped ? (
+              const stepNumber = step.step_number ?? index + 1;
+
+              const circleClass = isRewarded
+                ? "bg-green-500 border-green-500 text-white shadow-sm shadow-green-200/70"
+                : isSkipped
+                  ? "bg-white border-amber-300 text-amber-600"
+                  : isCurrent
+                    ? "bg-[#FF4DB8] border-[#FF4DB8] text-white shadow-md shadow-pink-200"
+                    : "bg-white border-gray-300 text-gray-500";
+
+              const topLineColor = prevDone ? "bg-green-300" : "bg-gray-200";
+              const bottomLineColor = isRewarded
+                ? "bg-green-300"
+                : isSkipped
+                  ? "bg-gray-200"
+                  : "bg-gray-200";
+
+              return (
+                <li
+                  key={step.id}
+                  className="relative grid grid-cols-[40px_1fr] sm:grid-cols-[48px_1fr] gap-3 sm:gap-5"
+                >
+                  {/* Timeline column */}
+                  <div className="relative flex flex-col items-center">
                     <div
-                      className={`mt-1 mx-1 px-4 py-3 rounded-b-xl border border-t-0 bg-gray-50 border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ${
-                        step.status === "current" ? "border-[#FF4DB8]/20 bg-[#FFE1F2]/30" : ""
-                      }`}
+                      className={`w-0.5 ${isFirst ? "h-2 bg-transparent" : `h-4 ${topLineColor}`}`}
+                      aria-hidden
+                    />
+                    <div
+                      className={`relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border-2 font-semibold text-sm transition-all ${circleClass}`}
                     >
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFE1F2] text-[#FF4DB8] text-[10px] font-medium">
-                          {copy.whyLabel}: {stepWhy}
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280] text-[10px]">
-                          {copy.improvesLabel}: {stepImproves}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-                        <span className="text-xs text-[#6B7280]">{stepBenefit}</span>
-                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-[#FF4DB8]/30">
-                          <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
-                          <span className="text-xs font-semibold text-[#FF4DB8]">+{stepPoints} {copy.pointsShort}</span>
+                      {isRewarded ? (
+                        <Check className="w-5 h-5" strokeWidth={3} />
+                      ) : (
+                        <span>{stepNumber}</span>
+                      )}
+                      {isCurrent && (
+                        <span
+                          className="absolute inset-0 rounded-full animate-ping bg-pink-400/40"
+                          aria-hidden
+                        />
+                      )}
+                    </div>
+                    <div
+                      className={`flex-1 w-0.5 mt-2 ${isLast ? "bg-transparent" : bottomLineColor}`}
+                      aria-hidden
+                    />
+                  </div>
+
+                  {/* Content column */}
+                  <div className="min-w-0 pb-6">
+                    <RoadmapStepCard
+                      step={step}
+                      onProductClick={handleProductClick}
+                      onStepClick={handleStepClick}
+                    />
+
+                    {!isRewarded && !isSkipped ? (
+                      <div
+                        className={`px-4 py-3 rounded-b-xl border ${
+                          isCurrent
+                            ? "border-pink-300 bg-pink-50/40"
+                            : "border-gray-200 bg-gray-50"
+                        }`}
+                      >
+                        <dl className="space-y-1.5">
+                          <div className="flex gap-2 text-xs leading-snug">
+                            <dt className="flex-shrink-0 font-semibold text-[#FF4DB8] w-[68px]">
+                              {copy.whyLabel}
+                            </dt>
+                            <dd className="text-gray-700">{stepWhy}</dd>
+                          </div>
+                          <div className="flex gap-2 text-xs leading-snug">
+                            <dt className="flex-shrink-0 font-semibold text-gray-500 w-[68px]">
+                              {copy.improvesLabel}
+                            </dt>
+                            <dd className="text-gray-700">{stepImproves}</dd>
+                          </div>
+                          <div className="flex gap-2 text-xs leading-snug">
+                            <dt className="flex-shrink-0 font-semibold text-gray-500 w-[68px]">
+                              {copy.benefitLabel}
+                            </dt>
+                            <dd className="text-gray-700">{stepBenefit}</dd>
+                          </div>
+                        </dl>
+                        <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-dashed border-gray-200">
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-[#FF4DB8]/30">
+                            <Sparkles className="w-3 h-3 text-[#FF4DB8]" />
+                            <span className="text-xs font-semibold text-[#FF4DB8]">
+                              +{stepPoints} {copy.pointsShort}
+                            </span>
+                            <span className="text-[10px] text-gray-500 hidden sm:inline">
+                              {copy.pointsHint}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="h-8 px-3 rounded-full border border-gray-200 bg-white text-xs font-medium text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => handleStepStatusChange(step, "skipped")}
+                            disabled={!canUpdateStatus}
+                          >
+                            {isPendingUpdate ? copy.saving : copy.skip}
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 sm:ml-2">
-                        <button
-                          type="button"
-                          className="h-9 px-3 rounded-full border border-[#E5E7EB] bg-white text-xs font-medium text-[#6B7280] transition-colors hover:border-[#D1D5DB] hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => handleStepStatusChange(step, "skipped")}
-                          disabled={!canUpdateStatus}
-                        >
-                          {isPendingUpdate ? copy.saving : copy.skip}
-                        </button>
-                        <button
-                          type="button"
-                          className="h-9 px-3 rounded-full bg-brand-pink-500 text-xs font-medium text-white transition-colors hover:bg-brand-pink-600 disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => handleStepStatusChange(step, "completed")}
-                          disabled={!canUpdateStatus}
-                        >
-                          {isPendingUpdate ? copy.saving : copy.done}
-                        </button>
+                    ) : isSkipped ? (
+                      <div className="px-4 py-2.5 rounded-b-xl border bg-amber-50 border-amber-200 flex items-center gap-2">
+                        <Star className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-xs text-amber-700 font-medium">{copy.skippedNoPoints}</span>
                       </div>
-                    </div>
-                  ) : isSkipped ? (
-                    <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-amber-50 border-amber-100 flex items-center gap-2">
-                      <Star className="w-3.5 h-3.5 text-amber-600" />
-                      <span className="text-xs text-amber-700 font-medium">{copy.skippedNoPoints}</span>
-                    </div>
-                  ) : (
-                    <div className="mt-1 mx-1 px-4 py-2 rounded-b-xl border border-t-0 bg-emerald-50 border-emerald-100 flex items-center gap-2">
-                      <Star className="w-3.5 h-3.5 text-emerald-600" />
-                      <span className="text-xs text-emerald-700 font-medium">
-                        {step.rawStatus === "owned" ? copy.stepClosedByOwned : copy.pointsGranted(stepPoints)}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="px-4 py-2.5 rounded-b-xl border bg-emerald-50 border-green-200 flex items-center gap-2">
+                        <Star className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-xs text-emerald-700 font-medium">
+                          {step.rawStatus === "owned" ? copy.stepClosedByOwned : copy.pointsGranted(stepPoints)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </li>
               );
             })}
 
-            {isFullyCompleted && (
-              <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 text-center">
-                <Sparkles className="w-12 h-12 mx-auto mb-3 text-green-600" />
-                <h3 className="font-semibold text-gray-900 mb-2">{copy.allDoneTitle}</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  {copy.allDoneDescription(totalPointsAvailable)}
-                </p>
-                <Button variant="primary" onClick={() => handleRefresh(true)} disabled={isRefreshing}>
-                  {copy.createNew}
-                </Button>
+            {/* Finish marker */}
+            <li className="relative grid grid-cols-[40px_1fr] sm:grid-cols-[48px_1fr] gap-3 sm:gap-5">
+              <div className="relative flex flex-col items-center">
+                <div className={`w-0.5 h-4 ${isFullyCompleted ? "bg-green-300" : "bg-gray-200"}`} aria-hidden />
+                <div
+                  className={`relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border-2 transition-all ${
+                    isFullyCompleted
+                      ? "bg-green-500 border-green-500 text-white shadow-sm shadow-green-200/70"
+                      : "bg-white border-gray-300 text-gray-400"
+                  }`}
+                >
+                  <Flag className="w-5 h-5" strokeWidth={2.5} />
+                </div>
               </div>
-            )}
-          </div>
+              <div className="min-w-0 pt-1.5 sm:pt-2 pb-2">
+                {isFullyCompleted ? (
+                  <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 text-center">
+                    <Sparkles className="w-10 h-10 mx-auto mb-3 text-green-600" />
+                    <h3 className="font-semibold text-gray-900 mb-2">{copy.allDoneTitle}</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      {copy.allDoneDescription(totalPointsAvailable)}
+                    </p>
+                    <Button variant="primary" onClick={() => handleRefresh(true)} disabled={isRefreshing}>
+                      {copy.createNew}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-gray-500 pt-1">
+                    {copy.finishLabel}
+                  </p>
+                )}
+              </div>
+            </li>
+          </ol>
         ) : (
           <EmptyState
             icon={<Map className="w-12 h-12" />}
