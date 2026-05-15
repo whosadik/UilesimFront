@@ -657,8 +657,8 @@ export default function ProfilePage() {
     const budgetOption = resolvedProfileTaxonomy.budget_options.find(
       (option) => option.value === currentProfile.budget,
     );
-    const budgetMin = typeof budgetOption?.min === 'number' ? budgetOption.min : 500;
-    const budgetMax = typeof budgetOption?.max === 'number' ? budgetOption.max : 10000;
+    const budgetMin = typeof budgetOption?.min === 'number' ? budgetOption.min : 0;
+    const budgetMax = typeof budgetOption?.max === 'number' ? budgetOption.max : 100000;
 
     return {
       skinType: (() => {

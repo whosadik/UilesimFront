@@ -153,8 +153,8 @@ const DEFAULT_DATA: ProfileData = {
   skinType: [],
   goals: [],
   avoidFlags: [],
-  budgetMin: 500,
-  budgetMax: 5000,
+  budgetMin: 0,
+  budgetMax: 20000,
   hairProfile: { type: [], concerns: [] },
   makeupProfile: {},
   fragranceProfile: { notes: [] },
@@ -355,11 +355,11 @@ export function ProfileWizard({ onComplete, onClose, options, initialData }: Pro
           <div className="mx-auto max-w-md space-y-6">
             <Slider.Root
               className="relative flex h-5 w-full touch-none select-none items-center"
-              value={[data.budgetMin || 500, data.budgetMax || 5000]}
+              value={[data.budgetMin ?? 0, data.budgetMax || 20000]}
               onValueChange={([min, max]) => setData({ ...data, budgetMin: min, budgetMax: max })}
-              max={10000}
-              step={100}
-              minStepsBetweenThumbs={5}
+              max={100000}
+              step={1000}
+              minStepsBetweenThumbs={1}
             >
               <Slider.Track className="relative h-1 grow rounded-full bg-[#EAE6EF]">
                 <Slider.Range className="absolute h-full rounded-full bg-[#FF4DB8]" />

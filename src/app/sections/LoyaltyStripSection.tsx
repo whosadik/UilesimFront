@@ -13,12 +13,6 @@ type NormalizedTier = 'bronze' | 'silver' | 'gold';
 
 const TIER_ORDER: NormalizedTier[] = ['bronze', 'silver', 'gold'];
 
-const TIER_THRESHOLDS: Record<NormalizedTier, number> = {
-  bronze: 0,
-  silver: 1500,
-  gold: 5000,
-};
-
 const TIER_ACCENT: Record<NormalizedTier, string> = {
   bronze: 'text-[#A56A42]',
   silver: 'text-[#667085]',
@@ -34,11 +28,6 @@ function normalizeTier(raw: string | null | undefined): NormalizedTier {
   return 'gold';
 }
 
-function nextTier(tier: NormalizedTier): NormalizedTier | null {
-  const idx = TIER_ORDER.indexOf(tier);
-  if (idx === -1 || idx === TIER_ORDER.length - 1) return null;
-  return TIER_ORDER[idx + 1];
-}
 
 export function LoyaltyStripSection() {
   const { messages, language } = useI18n();
@@ -83,9 +72,10 @@ export function LoyaltyStripSection() {
   );
   const points = loyalty?.points_balance ?? 0;
 
-  const next = nextTier(tier);
-  const nextThreshold = next ? TIER_THRESHOLDS[next] : TIER_THRESHOLDS[tier];
-  const remaining = next ? Math.max(0, nextThreshold - points) : 0;
+  const nextTierName = loyalty?.next_tier ?? null;
+  const spendRemaining = loyalty && loyalty.next_tier_threshold !== null && loyalty.next_tier_threshold !== undefined
+    ? Math.max(0, loyalty.next_tier_threshold - (loyalty.spend_90d ?? 0))
+    : 0;
 
   const isAuthed = Boolean(user);
   const firstName = isAuthed
@@ -123,20 +113,20 @@ export function LoyaltyStripSection() {
   const showSkeleton = authLoading || (isAuthed && loyaltyLoading && !loyalty);
   const heroDescription = !isAuthed
     ? copy.subtitleGuest
-    : next
-      ? copy.progressLabel(tierLabels[next], remaining)
+    : nextTierName
+      ? copy.progressLabel(nextTierName, spendRemaining)
       : copy.progressMaxed;
   const statusStripText = !isAuthed
     ? copy.statusStripGuest
-    : next
-      ? copy.statusStripProgress(tierLabels[next], remaining)
+    : nextTierName
+      ? copy.statusStripProgress(nextTierName, spendRemaining)
       : copy.statusStripMax(tierLabels[tier]);
   const profileHref = isAuthed ? '/me' : '/register';
   const primaryCta = isAuthed ? copy.profileButton : copy.joinButton;
 
   return (
     <section id="loyalty" className="py-10 lg:py-14">
-      <div className="mx-auto max-w-[1160px] px-6 lg:px-10">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <div className="reveal animate-fade-up relative isolate overflow-hidden rounded-[28px] border border-white/70 bg-[#FFF3E6] shadow-[0_28px_80px_-36px_rgba(13,18,32,0.36)]">
           <img
             src={loyaltyHeroBackground}
@@ -157,7 +147,7 @@ export function LoyaltyStripSection() {
             aria-hidden
           />
 
-          <div className="relative z-10 flex flex-col gap-5 p-5 sm:p-8 lg:min-h-[620px] lg:p-10">
+          <div className="relative z-10 flex flex-col gap-5 p-6 sm:p-10 lg:min-h-[560px] lg:p-16">
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] lg:gap-8">
               <div className="min-w-0 pt-2">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/75 px-3.5 py-1.5 shadow-[0_10px_28px_-22px_rgba(13,18,32,0.55)] backdrop-blur-md">

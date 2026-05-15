@@ -44,6 +44,9 @@ export type ProfileTaxonomy = {
 export type Loyalty = {
   tier: string | null;
   points_balance: number;
+  spend_90d: number;
+  next_tier: string | null;
+  next_tier_threshold: number | null;
 };
 
 export type FavoriteCategoryExplain = {

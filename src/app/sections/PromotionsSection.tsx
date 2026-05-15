@@ -168,7 +168,7 @@ export function PromotionsSection() {
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-gradient-to-b from-[#FFF8F5] via-white/60 to-transparent"
         aria-hidden
       />
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <CarouselHeader title={messages.home.promotions.title} showViewAll={false} />
 
         {error ? (

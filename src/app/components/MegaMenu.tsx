@@ -142,7 +142,7 @@ export function MegaMenu({
         aria-label={messages.megaMenu.ariaLabel}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px] py-8">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px] py-8">
           <div className="mb-8 flex flex-col gap-4 border-b border-[#EAE6EF] pb-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#FF4DB8]">

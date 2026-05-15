@@ -25,7 +25,7 @@ export function Footer() {
     <footer className="relative mt-12 border-t border-[#EAE6EF] bg-gradient-to-b from-[#FBF7FA] via-white to-[#FFF1F8] pt-12 pb-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FF4DB8]/40 to-transparent" />
 
-      <div className="mx-auto max-w-[1160px] px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="mb-4 flex items-center gap-2">

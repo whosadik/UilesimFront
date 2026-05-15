@@ -15,7 +15,7 @@ export function TrustStripSection() {
 
   return (
     <section className="border-y border-[#EAE6EF] bg-white/70 backdrop-blur-sm">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <ul className="grid grid-cols-2 divide-x divide-[#EAE6EF] sm:grid-cols-4">
           {ITEMS.map(({ key, icon: Icon }) => {
             const item = copy[key];

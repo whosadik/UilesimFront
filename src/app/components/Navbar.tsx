@@ -157,7 +157,7 @@ export function Navbar({
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-md border-b border-[#EAE6EF]">
       <div className="border-b border-[#EAE6EF]/50 hidden md:block">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
           <div className="flex items-center justify-between h-10">
             <div className="flex items-center gap-6 text-xs text-[#6B7280]">
               <Link to="/delivery-returns" className="hover:text-[#FF4DB8] transition-colors">
@@ -193,7 +193,7 @@ export function Navbar({
         </div>
       </div>
 
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link to="/" className="flex items-center gap-3 group flex-shrink-0">
             <img

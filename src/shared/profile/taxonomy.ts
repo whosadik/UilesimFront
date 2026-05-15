@@ -41,9 +41,9 @@ const profileTaxonomyByLanguage: Record<AppLanguage, ProfileTaxonomy> = {
       { value: 'gluten', label: 'Глютен', aliases: ['gluten'] },
     ],
     budget_options: [
-      { value: 'low', label: 'До 2 500 ₸', min: 500, max: 2500, currency: 'KZT' },
-      { value: 'medium', label: '2 500 - 7 500 ₸', min: 2500, max: 7500, currency: 'KZT' },
-      { value: 'high', label: 'От 7 500 ₸', min: 7500, max: null, currency: 'KZT' },
+      { value: 'low', label: 'До 20 000 ₸', min: 0, max: 20000, currency: 'KZT' },
+      { value: 'medium', label: '20 000 – 50 000 ₸', min: 20000, max: 50000, currency: 'KZT' },
+      { value: 'high', label: 'От 50 000 ₸', min: 50000, max: null, currency: 'KZT' },
     ],
     hair_types: [
       { value: 'straight', label: 'Прямые', aliases: ['straight', 'тік'] },
@@ -112,9 +112,9 @@ const profileTaxonomyByLanguage: Record<AppLanguage, ProfileTaxonomy> = {
       { value: 'gluten', label: 'Глютен', aliases: ['gluten'] },
     ],
     budget_options: [
-      { value: 'low', label: '2 500 ₸ дейін', min: 500, max: 2500, currency: 'KZT' },
-      { value: 'medium', label: '2 500 - 7 500 ₸', min: 2500, max: 7500, currency: 'KZT' },
-      { value: 'high', label: '7 500 ₸ бастап', min: 7500, max: null, currency: 'KZT' },
+      { value: 'low', label: '20 000 ₸ дейін', min: 0, max: 20000, currency: 'KZT' },
+      { value: 'medium', label: '20 000 – 50 000 ₸', min: 20000, max: 50000, currency: 'KZT' },
+      { value: 'high', label: '50 000 ₸ бастап', min: 50000, max: null, currency: 'KZT' },
     ],
     hair_types: [
       { value: 'straight', label: 'Тік', aliases: ['straight', 'прямые'] },
@@ -183,9 +183,9 @@ const profileTaxonomyByLanguage: Record<AppLanguage, ProfileTaxonomy> = {
       { value: 'gluten', label: 'Gluten', aliases: ['глютен'] },
     ],
     budget_options: [
-      { value: 'low', label: 'Up to 2,500 ₸', min: 500, max: 2500, currency: 'KZT' },
-      { value: 'medium', label: '2,500 - 7,500 ₸', min: 2500, max: 7500, currency: 'KZT' },
-      { value: 'high', label: 'From 7,500 ₸', min: 7500, max: null, currency: 'KZT' },
+      { value: 'low', label: 'Up to 20,000 ₸', min: 0, max: 20000, currency: 'KZT' },
+      { value: 'medium', label: '20,000 – 50,000 ₸', min: 20000, max: 50000, currency: 'KZT' },
+      { value: 'high', label: 'From 50,000 ₸', min: 50000, max: null, currency: 'KZT' },
     ],
     hair_types: [
       { value: 'straight', label: 'Straight', aliases: ['прямые', 'тік'] },

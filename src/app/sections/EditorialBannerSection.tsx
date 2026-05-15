@@ -15,7 +15,7 @@ export function EditorialBannerSection() {
 
   return (
     <section className="py-12 lg:py-16">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <div className="relative overflow-hidden rounded-3xl bg-[#111827] text-white shadow-[0_20px_60px_-30px_rgba(17,24,39,0.6)]">
           <div
             className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,77,184,0.35),transparent_55%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.15),transparent_60%)]"

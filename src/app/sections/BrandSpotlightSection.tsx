@@ -209,32 +209,15 @@ function ProductPreviewCard({ product }: { product: BrandProduct }) {
   };
 
   return (
-    <article className="group flex min-h-[430px] flex-col overflow-hidden rounded-[18px] border border-[#F1E3EE] bg-white shadow-[0_18px_50px_-38px_rgba(17,24,39,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FFB6DD] hover:shadow-[0_24px_70px_-42px_rgba(255,77,184,0.65)]">
-      <div className="relative h-[220px] overflow-hidden bg-[linear-gradient(180deg,#FFF9FD_0%,#FFF4FA_56%,#FDFDFD_100%)]">
-        <div
-          aria-hidden
-          className="absolute inset-x-8 bottom-5 h-14 rounded-full bg-[#FF4DB8]/10 blur-2xl"
-        />
-
+    <article className="group flex flex-1 overflow-hidden rounded-[18px] border border-[#F1E3EE] bg-white shadow-[0_8px_28px_-18px_rgba(17,24,39,0.35)] transition-all duration-300 hover:border-[#FFB6DD] hover:shadow-[0_12px_40px_-20px_rgba(255,77,184,0.5)]">
+      <div className="relative w-[130px] shrink-0 overflow-hidden bg-[linear-gradient(135deg,#FFF9FD_0%,#FFF4FA_100%)]">
         {product.isNew || product.discount ? (
-          <span className="absolute left-4 top-4 z-20 rounded-full border border-[#FF9ED0]/75 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#FF4DB8] backdrop-blur">
+          <span className="absolute left-2 top-2 z-20 rounded-full border border-[#FF9ED0]/75 bg-white/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#FF4DB8]">
             {product.discount ? `-${product.discount}%` : 'NEW'}
           </span>
         ) : null}
 
-        <button
-          type="button"
-          onClick={handleWishlistToggle}
-          disabled={isWishlistPending}
-          aria-label="Toggle wishlist"
-          className="absolute right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#6B7280] shadow-[0_8px_20px_-12px_rgba(17,24,39,0.6)] backdrop-blur transition-all hover:scale-105 hover:text-[#FF4DB8] disabled:opacity-60"
-        >
-          <Heart
-            className={`h-4 w-4 ${isWishlisted ? 'fill-[#FF4DB8] text-[#FF4DB8]' : ''}`}
-          />
-        </button>
-
-        <button type="button" onClick={openProduct} className="relative z-10 block h-full w-full text-left">
+        <button type="button" onClick={openProduct} className="block h-full w-full">
           <img
             src={product.image}
             alt={product.name}
@@ -242,51 +225,59 @@ function ProductPreviewCard({ product }: { product: BrandProduct }) {
             onError={(event) => {
               event.currentTarget.src = FALLBACK_IMAGE;
             }}
-            className="relative z-[1] h-full w-full object-contain p-7 transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-contain p-3 transition-transform duration-500 group-hover:scale-105"
           />
         </button>
       </div>
 
-      <button type="button" onClick={openProduct} className="flex flex-1 flex-col p-4 text-left">
-        <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
-          {product.brand}
-        </p>
-        <h3 className="mt-1 min-h-[40px] line-clamp-2 text-[15px] font-semibold leading-snug text-[#111827]">
-          {product.name}
-        </h3>
-        <p className="mt-1 min-h-[34px] line-clamp-2 text-xs leading-5 text-[#6B7280]">
-          {product.category}
-        </p>
+      <div className="flex min-w-0 flex-1 flex-col p-4">
+        <div className="flex items-start gap-2">
+          <button type="button" onClick={openProduct} className="min-w-0 flex-1 text-left">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
+              {product.brand}
+            </p>
+            <h3 className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-snug text-[#111827]">
+              {product.name}
+            </h3>
+          </button>
 
-        <div className="mt-4">
-          <p className="text-xl font-bold tracking-tight text-[#111827]">
+          <button
+            type="button"
+            onClick={handleWishlistToggle}
+            disabled={isWishlistPending}
+            aria-label="Toggle wishlist"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#F1E3EE] bg-white text-[#6B7280] transition-all hover:border-[#FFB6DD] hover:text-[#FF4DB8] disabled:opacity-60"
+          >
+            <Heart className={`h-3.5 w-3.5 ${isWishlisted ? 'fill-[#FF4DB8] text-[#FF4DB8]' : ''}`} />
+          </button>
+        </div>
+
+        <div className="mt-auto pt-3">
+          <p className="text-base font-bold tracking-tight text-[#111827]">
             {formatPrice(product.price)}
           </p>
           {product.originalPrice && product.originalPrice > product.price ? (
-            <p className="mt-0.5 text-xs text-[#9CA3AF] line-through">
+            <p className="text-[11px] text-[#9CA3AF] line-through">
               {formatPrice(product.originalPrice)}
             </p>
           ) : null}
+          {pointsEarned > 0 ? (
+            <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-[#FF4DB8]">
+              <Sparkles className="h-3 w-3" />
+              +{pointsEarned.toLocaleString('ru-RU')} {messages.productCard.pointsForPurchase}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={isOutOfStock || isCartPending}
+            onClick={handleAddToCart}
+            className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF4DB8] text-[13px] font-bold text-white shadow-[0_10px_24px_-12px_rgba(255,77,184,0.8)] transition-all hover:bg-[#F02FA5] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#EEF0F4] disabled:text-[#6B7280] disabled:shadow-none"
+          >
+            <ShoppingCart className="h-3.5 w-3.5" />
+            {isOutOfStock ? messages.productCard.unavailable : messages.productCard.addToCart}
+          </button>
         </div>
-
-        {pointsEarned > 0 ? (
-          <p className="mt-3 flex items-center gap-1 text-xs font-medium text-[#FF4DB8]">
-            <Sparkles className="h-3.5 w-3.5" />
-            +{pointsEarned.toLocaleString('ru-RU')} {messages.productCard.pointsForPurchase}
-          </p>
-        ) : null}
-      </button>
-
-      <div className="px-4 pb-4">
-        <button
-          type="button"
-          disabled={isOutOfStock || isCartPending}
-          onClick={handleAddToCart}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#FF4DB8] px-4 text-sm font-bold text-white shadow-[0_14px_34px_-18px_rgba(255,77,184,0.9)] transition-all hover:bg-[#F02FA5] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-[#EEF0F4] disabled:text-[#6B7280] disabled:shadow-none"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          {isOutOfStock ? messages.productCard.unavailable : messages.productCard.addToCart}
-        </button>
       </div>
     </article>
   );
@@ -294,17 +285,15 @@ function ProductPreviewCard({ product }: { product: BrandProduct }) {
 
 function ProductPreviewSkeleton() {
   return (
-    <div className="min-h-[430px] overflow-hidden rounded-[18px] border border-[#F1E3EE] bg-white animate-pulse">
-      <div className="h-[220px] bg-[#F5EEF4]" />
-      <div className="space-y-3 p-4">
-        <div className="h-3 w-20 rounded bg-gray-200" />
+    <div className="flex flex-1 animate-pulse overflow-hidden rounded-[18px] border border-[#F1E3EE] bg-white">
+      <div className="w-[130px] shrink-0 bg-[#F5EEF4]" />
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="h-2.5 w-16 rounded bg-gray-200" />
         <div className="h-4 w-full rounded bg-gray-200" />
-        <div className="h-4 w-4/5 rounded bg-gray-200" />
-        <div className="h-5 w-24 rounded bg-gray-200" />
-        <div className="h-3 w-32 rounded bg-gray-200" />
-      </div>
-      <div className="px-4 pb-4">
-        <div className="h-10 rounded-xl bg-gray-200" />
+        <div className="h-4 w-3/4 rounded bg-gray-200" />
+        <div className="mt-auto h-5 w-24 rounded bg-gray-200" />
+        <div className="h-3 w-28 rounded bg-gray-200" />
+        <div className="h-9 rounded-xl bg-gray-200" />
       </div>
     </div>
   );
@@ -448,7 +437,7 @@ export function BrandSpotlightSection() {
           
         </div>
 
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[604px_minmax(0,1fr)]">
+        <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[604px_minmax(0,1fr)]">
           <div className="relative min-h-[492px] overflow-hidden rounded-[22px] border border-[#EEDBE9] bg-[#FFF1F8] shadow-[0_28px_90px_-58px_rgba(17,24,39,0.55)]">
             <div
               aria-hidden
@@ -522,19 +511,10 @@ export function BrandSpotlightSection() {
             </div>
           </div>
 
-          <div id="brand-recommended-products" className="pt-2">
-            <div className="mb-5 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#FF4DB8]" />
-              <h4 className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#6B7280]">
-                {messages.home.brandSpotlight.featuredProducts}
-              </h4>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
-              {isLoading
-                ? [...Array(3)].map((_, index) => <ProductPreviewSkeleton key={index} />)
-                : products.map((product) => <ProductPreviewCard key={product.id} product={product} />)}
-            </div>
+          <div id="brand-recommended-products" className="flex flex-col gap-3 pt-2">
+            {isLoading
+              ? [...Array(3)].map((_, index) => <ProductPreviewSkeleton key={index} />)
+              : products.map((product) => <ProductPreviewCard key={product.id} product={product} />)}
           </div>
         </div>
       </div>

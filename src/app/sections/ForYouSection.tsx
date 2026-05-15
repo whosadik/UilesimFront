@@ -31,7 +31,7 @@ export function ForYouSection({
 
   return (
     <section className="py-12">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <CarouselHeader
           title={messages.home.forYou.title}
           subtitle={messages.home.forYou.subtitle}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FilterBar } from '../components/FilterBar';
 import { ProductGrid, type Product } from '../components/ProductGrid';
 import { Button } from '../components/Button';
@@ -89,15 +89,29 @@ export function ProductFeedSection() {
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [inStock, setInStock] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('popular');
+
   useEffect(() => {
     let cancelled = false;
 
     const loadProducts = async () => {
       setIsLoading(true);
       setError(null);
+      setProducts([]);
+      setNextPage(null);
 
       try {
-        const response = await listProducts({ page: 1, page_size: PRODUCT_FEED_PAGE_SIZE });
+        const params: Record<string, string | number | boolean | undefined> = { page: 1, page_size: PRODUCT_FEED_PAGE_SIZE };
+        if (activeCategory && activeCategory !== 'all') {
+          params.category = activeCategory;
+        }
+        if (inStock) {
+          params.in_stock = 'true';
+        }
+        const response = await listProducts(params);
         const payload = toPagedPayload(response);
         const mapped = payload.results.map((item, index) =>
           mapApiProduct(item as ApiProduct, index, fallbackProductPrefix),
@@ -136,7 +150,7 @@ export function ProductFeedSection() {
     return () => {
       cancelled = true;
     };
-  }, [fallbackProductPrefix, messages.home.productFeed.errorTitle, retryKey]);
+  }, [activeCategory, fallbackProductPrefix, inStock, messages.home.productFeed.errorTitle, retryKey]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || nextPage === null) {
@@ -146,7 +160,14 @@ export function ProductFeedSection() {
     setIsLoadingMore(true);
 
     try {
-      const response = await listProducts({ page: nextPage, page_size: PRODUCT_FEED_PAGE_SIZE });
+      const params: Record<string, unknown> = { page: nextPage, page_size: PRODUCT_FEED_PAGE_SIZE };
+      if (activeCategory && activeCategory !== 'all') {
+        params.category = activeCategory;
+      }
+      if (inStock) {
+        params.in_stock = 'true';
+      }
+      const response = await listProducts(params);
       const payload = toPagedPayload(response);
       const currentLength = products.length;
       const mapped = payload.results.map((item, index) =>
@@ -168,14 +189,56 @@ export function ProductFeedSection() {
     }
   };
 
+  const displayedProducts = useMemo(() => {
+    let result = products;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter(
+        (p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q),
+      );
+    }
+
+    const sorted = [...result];
+    switch (sortBy) {
+      case 'new':
+        sorted.sort((a, b) => Number(Boolean(b.isNew)) - Number(Boolean(a.isNew)));
+        break;
+      case 'price_asc':
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_desc':
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case 'popular':
+      default:
+        sorted.sort((a, b) => (b.pointsEarned ?? 0) - (a.pointsEarned ?? 0));
+        break;
+    }
+
+    return sorted;
+  }, [products, searchQuery, sortBy]);
+
+  const filterBar = (
+    <FilterBar
+      activeCategory={activeCategory}
+      inStock={inStock}
+      searchValue={searchQuery}
+      onCategoryChange={(cat) => { setActiveCategory(cat); }}
+      onInStockChange={(val) => { setInStock(val); }}
+      onSearchChange={(val) => { setSearchQuery(val); }}
+      onSortChange={(val) => { setSortBy(val); }}
+    />
+  );
+
   if (error) {
     return (
       <section className="py-12 bg-gray-50/50">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
             {messages.home.productFeed.title}
           </h2>
-          <FilterBar />
+          {filterBar}
           <ErrorState
             title={messages.home.productFeed.errorTitle}
             description={messages.home.productFeed.errorDescription}
@@ -186,14 +249,14 @@ export function ProductFeedSection() {
     );
   }
 
-  if (!isLoading && products.length === 0) {
+  if (!isLoading && displayedProducts.length === 0) {
     return (
       <section className="py-12 bg-gray-50/50">
-        <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
             {messages.home.productFeed.title}
           </h2>
-          <FilterBar />
+          {filterBar}
           <EmptyState
             title={messages.home.productFeed.emptyTitle}
             description={messages.home.productFeed.emptyDescription}
@@ -209,14 +272,14 @@ export function ProductFeedSection() {
 
   return (
     <section className="py-12 bg-gray-50/50">
-      <div className="max-w-[1160px] mx-auto px-6 lg:px-[140px]">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">
           {messages.home.productFeed.title}
         </h2>
 
-        <FilterBar />
+        {filterBar}
 
-        <ProductGrid products={products} columns={4} loading={isLoading} />
+        <ProductGrid products={displayedProducts} columns={4} loading={isLoading} />
 
         {isLoadingMore && (
           <div className="mt-6">
@@ -226,7 +289,7 @@ export function ProductFeedSection() {
 
         <div className="flex flex-col items-center gap-4 mt-8">
           <div className="text-sm text-gray-600">
-            {messages.home.productFeed.showing(products.length, totalCount || products.length)}
+            {messages.home.productFeed.showing(displayedProducts.length, totalCount || displayedProducts.length)}
           </div>
           {nextPage !== null ? (
             <Button onClick={handleLoadMore} variant="ghost" disabled={isLoadingMore}>
