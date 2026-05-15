@@ -1,6 +1,6 @@
-﻿import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
-import { Receipt, Calendar, ChevronDown } from "lucide-react";
+﻿import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import { Receipt, Calendar, ChevronDown, Check } from "lucide-react";
 import { TransactionRow, Transaction } from "../components/TransactionRow";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
@@ -22,7 +22,6 @@ import {
   type Transaction as ApiTransaction,
   type TransactionItem as ApiTransactionItem,
 } from "../../shared/api/transactions";
-import type { RoadmapStepSnapshotApi } from "../../shared/api/roadmap";
 
 /**
  * DEV NOTES:
@@ -57,6 +56,11 @@ const transactionsPageCopy = {
     filterRedeem: "Списания",
     filterRefund: "Возвраты",
     period: "Период",
+    periodAll: "Всё время",
+    period7d: "7 дней",
+    period30d: "30 дней",
+    period90d: "3 месяца",
+    period1y: "Год",
     loadMore: "Загрузить ещё",
     emptyTitle: "Нет транзакций",
     emptyDescription: "Здесь будет отображаться история ваших покупок и начислений баллов.",
@@ -113,6 +117,11 @@ const transactionsPageCopy = {
     filterRedeem: "Шегерімдер",
     filterRefund: "Қайтарымдар",
     period: "Кезең",
+    periodAll: "Барлық уақыт",
+    period7d: "7 күн",
+    period30d: "30 күн",
+    period90d: "3 ай",
+    period1y: "Жыл",
     loadMore: "Тағы жүктеу",
     emptyTitle: "Транзакциялар жоқ",
     emptyDescription: "Мұнда сатып алуларыңыз бен ұпай есептелу тарихы көрсетіледі.",
@@ -169,6 +178,11 @@ const transactionsPageCopy = {
     filterRedeem: "Redemptions",
     filterRefund: "Refunds",
     period: "Period",
+    periodAll: "All time",
+    period7d: "7 days",
+    period30d: "30 days",
+    period90d: "3 months",
+    period1y: "Year",
     loadMore: "Load more",
     emptyTitle: "No transactions",
     emptyDescription: "Your purchase and points history will appear here.",
@@ -203,6 +217,26 @@ const transactionsPageCopy = {
 } as const;
 
 type TransactionsPageCopy = (typeof transactionsPageCopy)[keyof typeof transactionsPageCopy];
+
+type DateRangeKey = "all" | "7d" | "30d" | "90d" | "1y";
+
+const PAGE_SIZE = 10;
+
+const DATE_RANGE_DAYS: Record<DateRangeKey, number | null> = {
+  all: null,
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "1y": 365,
+};
+
+const dateRangeOptions: { key: DateRangeKey; copyKey: keyof TransactionsPageCopy }[] = [
+  { key: "all", copyKey: "periodAll" },
+  { key: "7d", copyKey: "period7d" },
+  { key: "30d", copyKey: "period30d" },
+  { key: "90d", copyKey: "period90d" },
+  { key: "1y", copyKey: "period1y" },
+];
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -283,11 +317,6 @@ const formatPoints = (value: number, copy: TransactionsPageCopy): string => {
   const rounded = Math.round(value);
   return `${rounded > 0 ? "+" : ""}${rounded} ${copy.pointsShort}`;
 };
-
-const getRoadmapStep = (transaction: ApiTransaction | null): RoadmapStepSnapshotApi | null =>
-  transaction && transaction.next_roadmap_step && isRecord(transaction.next_roadmap_step)
-    ? (transaction.next_roadmap_step as RoadmapStepSnapshotApi)
-    : null;
 
 interface TransactionDetailItem {
   productId: string;
@@ -442,7 +471,27 @@ export default function TransactionsPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRangeKey>("all");
+  const [showPeriodMenu, setShowPeriodMenu] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const periodMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPeriodMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (periodMenuRef.current && !periodMenuRef.current.contains(event.target as Node)) {
+        setShowPeriodMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showPeriodMenu]);
+
+  // Reset display limit when filters change
+  useEffect(() => {
+    setDisplayLimit(PAGE_SIZE);
+  }, [filterType, dateRange]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -520,18 +569,34 @@ export default function TransactionsPage() {
     }
   };
 
-  const filteredTransactions =
-    filterType === "all"
-      ? transactions
-      : transactions.filter((transaction) => transaction.type === filterType);
+  const dateRangeCutoff = (() => {
+    const days = DATE_RANGE_DAYS[dateRange];
+    if (days === null) return null;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    cutoff.setHours(0, 0, 0, 0);
+    return cutoff.getTime();
+  })();
+
+  const filteredTransactions = transactions.filter((transaction) => {
+    if (filterType !== "all" && transaction.type !== filterType) return false;
+    if (dateRangeCutoff !== null) {
+      const ts = new Date(transaction.date).getTime();
+      if (Number.isNaN(ts) || ts < dateRangeCutoff) return false;
+    }
+    return true;
+  });
+
+  const visibleTransactions = filteredTransactions.slice(0, displayLimit);
+  const hasMore = displayLimit < filteredTransactions.length;
+
+  const activeDateRangeLabel =
+    dateRange === "all"
+      ? copy.period
+      : (copy[dateRangeOptions.find((opt) => opt.key === dateRange)!.copyKey] as string);
 
   const totalPointsNet = transactions.reduce((sum, transaction) => sum + transaction.points_change, 0);
   const currentMonthPointsNet = getCurrentMonthPoints(transactions);
-  const roadmapStep = getRoadmapStep(selectedTransactionDetail);
-  const roadmapProduct =
-    roadmapStep && roadmapStep.recommended_product && isRecord(roadmapStep.recommended_product)
-      ? roadmapStep.recommended_product
-      : null;
   const detailGrossAmount = toNullableNumber(selectedTransactionDetail?.gross_total);
   const detailDiscountAmount = toNullableNumber(selectedTransactionDetail?.discount_amount);
   const detailNetAmount =
@@ -570,84 +635,109 @@ export default function TransactionsPage() {
     <div className="page-with-navbar-offset min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100">
         <div className="app-page-container py-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Receipt className="w-8 h-8 text-gray-700" />
-            <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
-          </div>
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center gap-3 mb-5">
+              <Receipt className="w-7 h-7 text-gray-700 flex-shrink-0" />
+              <h1 className="text-3xl font-semibold text-gray-900">{copy.title}</h1>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">{copy.totalTransactions}</p>
-              <p className="text-2xl font-semibold text-gray-900">{transactions.length}</p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">{copy.totalPointsNet}</p>
-              <p className={`text-2xl font-semibold ${totalPointsNet >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {totalPointsNet > 0 ? "+" : ""}
-                {totalPointsNet}
-              </p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">{copy.monthPointsNet}</p>
-              <p className={`text-2xl font-semibold ${currentMonthPointsNet >= 0 ? "text-gray-900" : "text-red-600"}`}>
-                {currentMonthPointsNet > 0 ? "+" : ""}
-                {currentMonthPointsNet}
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                  {copy.totalTransactions}
+                </p>
+                <p className="text-2xl font-bold text-gray-900 leading-none">{transactions.length}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                  {copy.totalPointsNet}
+                </p>
+                <p className={`text-2xl font-bold leading-none ${totalPointsNet > 0 ? "text-green-600" : totalPointsNet < 0 ? "text-red-600" : "text-gray-900"}`}>
+                  {totalPointsNet > 0 ? "+" : ""}
+                  {totalPointsNet}
+                </p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                  {copy.monthPointsNet}
+                </p>
+                <p className={`text-2xl font-bold leading-none ${currentMonthPointsNet > 0 ? "text-green-600" : currentMonthPointsNet < 0 ? "text-red-600" : "text-gray-900"}`}>
+                  {currentMonthPointsNet > 0 ? "+" : ""}
+                  {currentMonthPointsNet}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="app-page-container py-8">
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <Button
-            variant={filterType === "all" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setFilterType("all")}
-          >
-            {copy.filterAll}
-          </Button>
-          <Button
-            variant={filterType === "purchase" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setFilterType("purchase")}
-          >
-            {copy.filterPurchase}
-          </Button>
-          <Button
-            variant={filterType === "reward" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setFilterType("reward")}
-          >
-            {copy.filterReward}
-          </Button>
-          <Button
-            variant={filterType === "redeem" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setFilterType("redeem")}
-          >
-            {copy.filterRedeem}
-          </Button>
-          <Button
-            variant={filterType === "refund" ? "primary" : "secondary"}
-            size="sm"
-            onClick={() => setFilterType("refund")}
-          >
-            {copy.filterRefund}
-          </Button>
+        <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          {[
+            { key: "all", label: copy.filterAll },
+            { key: "purchase", label: copy.filterPurchase },
+            { key: "reward", label: copy.filterReward },
+            { key: "redeem", label: copy.filterRedeem },
+            { key: "refund", label: copy.filterRefund },
+          ].map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setFilterType(option.key)}
+              className={`h-9 px-3.5 rounded-full text-xs font-medium transition-colors ${
+                filterType === option.key
+                  ? "bg-[#FF4DB8] text-white"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:text-gray-900"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
 
-          <div className="ml-auto">
-            <Button variant="secondary" size="sm">
-              <Calendar className="w-4 h-4 mr-2" />
-              {copy.period}
-              <ChevronDown className="w-4 h-4 ml-2" />
-            </Button>
+          <div className="ml-auto relative" ref={periodMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowPeriodMenu((value) => !value)}
+              className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium transition-colors ${
+                dateRange !== "all"
+                  ? "bg-[#FFE1F2] text-[#FF4DB8] border border-[#FF4DB8]/30"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:text-gray-900"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              {activeDateRangeLabel}
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPeriodMenu ? "rotate-180" : ""}`} />
+            </button>
+            {showPeriodMenu && (
+              <div className="absolute right-0 top-full mt-1.5 z-10 min-w-[160px] py-1 bg-white border border-gray-200 rounded-xl shadow-lg">
+                {dateRangeOptions.map((option) => {
+                  const isActive = dateRange === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setDateRange(option.key);
+                        setShowPeriodMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-left transition-colors ${
+                        isActive ? "text-[#FF4DB8] font-medium" : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span>{copy[option.copyKey] as string}</span>
+                      {isActive && <Check className="w-3.5 h-3.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
         {filteredTransactions.length > 0 ? (
           <div className="space-y-3">
-            {filteredTransactions.map((transaction) => (
+            {visibleTransactions.map((transaction) => (
               <TransactionRow
                 key={transaction.id}
                 transaction={transaction}
@@ -655,9 +745,16 @@ export default function TransactionsPage() {
               />
             ))}
 
-            <div className="pt-6 text-center">
-              <Button variant="secondary">{copy.loadMore}</Button>
-            </div>
+            {hasMore && (
+              <div className="pt-6 text-center">
+                <Button
+                  variant="secondary"
+                  onClick={() => setDisplayLimit((value) => value + PAGE_SIZE)}
+                >
+                  {copy.loadMore}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <EmptyState
@@ -666,6 +763,7 @@ export default function TransactionsPage() {
             description={copy.emptyDescription}
           />
         )}
+        </div>
       </div>
 
       <Dialog
@@ -679,7 +777,7 @@ export default function TransactionsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{copy.detailTitle}</DialogTitle>
           </DialogHeader>
@@ -838,76 +936,6 @@ export default function TransactionsPage() {
                     </div>
                   )}
 
-                  {roadmapStep && (
-                    <div className="rounded-lg border border-[#EAE6EF] bg-[#FFF8FC] p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-[#111827]">
-                            {copy.nextRoadmapStep}
-                          </p>
-                          <p className="text-xs text-[#6B7280] mt-1">
-                            {roadmapStep.title ?? copy.personalStep}
-                            {roadmapStep.step_index ? ` | ${copy.stepIndex(roadmapStep.step_index)}` : ""}
-                          </p>
-                        </div>
-                        <Link
-                          to="/me/roadmap"
-                          className="text-xs font-medium text-[#FF4DB8] hover:underline"
-                        >
-                          {copy.openRoadmap}
-                        </Link>
-                      </div>
-
-                      {typeof roadmapStep.description === "string" && roadmapStep.description.trim() && (
-                        <p className="mt-3 text-sm text-[#4B5563]">{roadmapStep.description}</p>
-                      )}
-
-                      {roadmapProduct && (
-                        <div className="mt-3 flex items-center gap-3 rounded-lg border border-white bg-white p-3">
-                          {typeof roadmapProduct.image_url === "string" && roadmapProduct.image_url ? (
-                            <img
-                              src={roadmapProduct.image_url}
-                              alt={typeof roadmapProduct.name === "string" ? roadmapProduct.name : copy.roadmapProductFallback}
-                              className="h-14 w-14 rounded-lg object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
-                              {typeof roadmapProduct.name === "string" && roadmapProduct.name
-                                ? roadmapProduct.name.slice(0, 1).toUpperCase()
-                                : "P"}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            {typeof roadmapProduct.id === "number" ? (
-                              <Link
-                                to={`/product/${roadmapProduct.id}`}
-                                className="text-sm font-medium text-[#111827] hover:text-[#FF4DB8] line-clamp-2"
-                              >
-                                {typeof roadmapProduct.name === "string" && roadmapProduct.name.trim()
-                                  ? roadmapProduct.name
-                                  : copy.productFallback(String(roadmapProduct.id))}
-                              </Link>
-                            ) : (
-                              <p className="text-sm font-medium text-[#111827] line-clamp-2">
-                                {typeof roadmapProduct.name === "string" && roadmapProduct.name.trim()
-                                  ? roadmapProduct.name
-                                  : copy.roadmapProductFallback}
-                              </p>
-                            )}
-                            <p className="text-xs text-[#6B7280] mt-1">
-                              {typeof roadmapProduct.brand === "string" && roadmapProduct.brand.trim()
-                                ? roadmapProduct.brand
-                                : "Uilesim"}
-                              {toNullableNumber(roadmapProduct.price) !== null
-                                ? ` | ${formatMoney(roadmapProduct.price, locale, copy)}`
-                                : ""}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {detailItems.length > 0 && (
                     <div>
                       <p className="text-sm text-gray-600 mb-2">{copy.itemsTitle}</p>
@@ -936,7 +964,7 @@ export default function TransactionsPage() {
                                 </p>
                               </div>
                             </div>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 whitespace-nowrap flex-shrink-0">
                               {copy.quantityPrice(item.quantity, formatMoney(item.unitPrice, locale, copy))}
                             </p>
                           </div>

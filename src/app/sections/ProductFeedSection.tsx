@@ -65,6 +65,26 @@ function mapApiProduct(
   };
 }
 
+function sortProductList(list: Product[], sortBy: string): Product[] {
+  const sorted = [...list];
+  switch (sortBy) {
+    case 'new':
+      sorted.sort((a, b) => Number(Boolean(b.isNew)) - Number(Boolean(a.isNew)));
+      break;
+    case 'price_asc':
+      sorted.sort((a, b) => a.price - b.price);
+      break;
+    case 'price_desc':
+      sorted.sort((a, b) => b.price - a.price);
+      break;
+    case 'popular':
+    default:
+      sorted.sort((a, b) => (b.pointsEarned ?? 0) - (a.pointsEarned ?? 0));
+      break;
+  }
+  return sorted;
+}
+
 function toPagedPayload(payload: Product[] | ProductListResponse): ProductListResponse {
   if (Array.isArray(payload)) {
     return {
@@ -118,7 +138,7 @@ export function ProductFeedSection() {
         );
 
         if (!cancelled) {
-          setProducts(mapped);
+          setProducts(sortProductList(mapped, sortBy));
           setTotalCount(typeof payload.count === 'number' ? payload.count : mapped.length);
           setNextPage(payload.next ? 2 : null);
         }
@@ -150,7 +170,7 @@ export function ProductFeedSection() {
     return () => {
       cancelled = true;
     };
-  }, [activeCategory, fallbackProductPrefix, inStock, messages.home.productFeed.errorTitle, retryKey]);
+  }, [activeCategory, fallbackProductPrefix, inStock, messages.home.productFeed.errorTitle, retryKey, sortBy]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || nextPage === null) {
@@ -174,7 +194,8 @@ export function ProductFeedSection() {
         mapApiProduct(item as ApiProduct, currentLength + index, fallbackProductPrefix),
       );
 
-      setProducts((current) => [...current, ...mapped]);
+      const sortedBatch = sortProductList(mapped, sortBy);
+      setProducts((current) => [...current, ...sortedBatch]);
       setTotalCount(typeof payload.count === 'number' ? payload.count : currentLength + mapped.length);
       setNextPage(payload.next ? nextPage + 1 : null);
     } catch (loadError) {
@@ -190,34 +211,14 @@ export function ProductFeedSection() {
   };
 
   const displayedProducts = useMemo(() => {
-    let result = products;
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q),
-      );
+    if (!searchQuery.trim()) {
+      return products;
     }
-
-    const sorted = [...result];
-    switch (sortBy) {
-      case 'new':
-        sorted.sort((a, b) => Number(Boolean(b.isNew)) - Number(Boolean(a.isNew)));
-        break;
-      case 'price_asc':
-        sorted.sort((a, b) => a.price - b.price);
-        break;
-      case 'price_desc':
-        sorted.sort((a, b) => b.price - a.price);
-        break;
-      case 'popular':
-      default:
-        sorted.sort((a, b) => (b.pointsEarned ?? 0) - (a.pointsEarned ?? 0));
-        break;
-    }
-
-    return sorted;
-  }, [products, searchQuery, sortBy]);
+    const q = searchQuery.trim().toLowerCase();
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q),
+    );
+  }, [products, searchQuery]);
 
   const filterBar = (
     <FilterBar

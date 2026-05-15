@@ -1,6 +1,16 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Package, ToggleLeft, ToggleRight, Calendar, Edit2, Check, X } from "lucide-react";
+import { Package, CheckCircle2, RotateCcw, Calendar, Edit2, Check, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Button } from "../components/Button";
@@ -71,8 +81,13 @@ const ownedProductsPageCopy = {
     cancel: "Отмена",
     noNotes: "Нет заметок",
     updatingStatus: "Обновляем статус...",
-    markCompleted: "Отметить как завершенный",
+    markCompleted: "Отметить как закончившееся",
     activateAgain: "Активировать снова",
+    finishConfirmTitle: "Отметить товар как закончившийся?",
+    finishConfirmDescription:
+      "Товар будет отмечен как закончившийся в вашем профиле. Мы сможем рекомендовать повторную покупку или похожую замену.",
+    finishConfirmAction: "Отметить",
+    finishConfirmCancel: "Отмена",
     emptyTitle: "Нет товаров",
     emptyDescription: "Здесь будут отображаться товары, которые вы купили на платформе.",
     toCatalog: "Перейти в каталог",
@@ -113,6 +128,11 @@ const ownedProductsPageCopy = {
     updatingStatus: "Күй жаңартылып жатыр...",
     markCompleted: "Аяқталған деп белгілеу",
     activateAgain: "Қайта белсендіру",
+    finishConfirmTitle: "Тауарды аяқталды деп белгілейсіз бе?",
+    finishConfirmDescription:
+      "Тауар сіздің профиліңізде аяқталған деп белгіленеді. Біз сізге қайта сатып алуды немесе ұқсас баламаны ұсына аламыз.",
+    finishConfirmAction: "Белгілеу",
+    finishConfirmCancel: "Болдырмау",
     emptyTitle: "Тауар жоқ",
     emptyDescription: "Мұнда платформада сатып алған тауарларыңыз көрсетіледі.",
     toCatalog: "Каталогқа өту",
@@ -151,8 +171,13 @@ const ownedProductsPageCopy = {
     cancel: "Cancel",
     noNotes: "No notes",
     updatingStatus: "Updating status...",
-    markCompleted: "Mark as completed",
+    markCompleted: "Mark as finished",
     activateAgain: "Activate again",
+    finishConfirmTitle: "Mark this product as finished?",
+    finishConfirmDescription:
+      "The product will be marked as finished in your profile. We'll be able to recommend a repurchase or a similar alternative.",
+    finishConfirmAction: "Mark as finished",
+    finishConfirmCancel: "Cancel",
     emptyTitle: "No products",
     emptyDescription: "Products you bought on the platform will appear here.",
     toCatalog: "Go to catalog",
@@ -255,6 +280,7 @@ export default function OwnedProductsPage() {
   const [editFinishDate, setEditFinishDate] = useState("");
   const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
   const [pendingNotesId, setPendingNotesId] = useState<string | null>(null);
+  const [confirmFinishProductId, setConfirmFinishProductId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -575,18 +601,29 @@ export default function OwnedProductsPage() {
                       </div>
 
                       <button
-                        onClick={() => handleToggleActive(product.id, product.is_active)}
+                        type="button"
+                        onClick={() => {
+                          if (product.is_active) {
+                            setConfirmFinishProductId(product.id);
+                          } else {
+                            void handleToggleActive(product.id, product.is_active);
+                          }
+                        }}
                         disabled={isPending}
-                        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-xs font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                          product.is_active
+                            ? "bg-white border-gray-200 text-gray-700 hover:border-green-300 hover:text-green-700 hover:bg-green-50"
+                            : "bg-[#FF4DB8] border-transparent text-white hover:bg-[#e83fa6]"
+                        }`}
                       >
                         {product.is_active ? (
                           <>
-                            <ToggleRight className="w-5 h-5 text-green-600" />
+                            <CheckCircle2 className="w-4 h-4" />
                             {isPending ? copy.updatingStatus : copy.markCompleted}
                           </>
                         ) : (
                           <>
-                            <ToggleLeft className="w-5 h-5 text-gray-400" />
+                            <RotateCcw className="w-4 h-4" />
                             {isPending ? copy.updatingStatus : copy.activateAgain}
                           </>
                         )}
@@ -609,6 +646,35 @@ export default function OwnedProductsPage() {
           />
         )}
       </div>
+
+      <AlertDialog
+        open={confirmFinishProductId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmFinishProductId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{copy.finishConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.finishConfirmDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{copy.finishConfirmCancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const productId = confirmFinishProductId;
+                setConfirmFinishProductId(null);
+                if (productId) {
+                  void handleToggleActive(productId, true);
+                }
+              }}
+              className="bg-[#FF4DB8] text-white hover:bg-[#e83fa6]"
+            >
+              {copy.finishConfirmAction}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

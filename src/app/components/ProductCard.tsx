@@ -454,11 +454,6 @@ export function ProductCard({
             />
           </button>
 
-          <div className="absolute inset-0 hidden items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100 lg:flex">
-            <button className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-[#111827] transition-colors hover:bg-gray-50">
-              {messages.productCard.quickView}
-            </button>
-          </div>
         </div>
 
         <div className="p-4">
