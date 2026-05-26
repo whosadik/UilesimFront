@@ -22,6 +22,10 @@ import {
   type Transaction as ApiTransaction,
   type TransactionItem as ApiTransactionItem,
 } from "../../shared/api/transactions";
+import {
+  listLoyaltyHistory,
+  type LoyaltyLedgerEntry,
+} from "../../shared/api/loyaltyHistory";
 
 /**
  * DEV NOTES:
@@ -394,6 +398,25 @@ const mapApiTransactionToRow = (
   };
 };
 
+const LEDGER_ROW_ID_PREFIX = "ledger-";
+
+const isLedgerRowId = (id: string): boolean => id.startsWith(LEDGER_ROW_ID_PREFIX);
+
+const mapLedgerEntryToRow = (entry: LoyaltyLedgerEntry): Transaction => {
+  const delta = Number.isFinite(entry.points_delta) ? Math.round(entry.points_delta) : 0;
+  const type: Transaction["type"] = delta >= 0 ? "reward" : "redeem";
+  return {
+    id: `${LEDGER_ROW_ID_PREFIX}${entry.id}`,
+    transaction_id: entry.reference || `LEDGER-${entry.id}`,
+    type,
+    amount: 0,
+    points_change: delta,
+    description: entry.description,
+    date: entry.created_at,
+    status: "completed",
+  };
+};
+
 const mapApiItems = (
   items: ApiTransactionItem[] | undefined,
   copy: TransactionsPageCopy,
@@ -510,12 +533,40 @@ export default function TransactionsPage() {
       setError(null);
 
       try {
-        const apiTransactions = await listTransactions();
+        const [apiTransactions, ledger] = await Promise.all([
+          listTransactions(),
+          listLoyaltyHistory({ page_size: 100 }).catch(() => ({
+            entries: [],
+            points_balance: 0,
+            count: 0,
+            hasNext: false,
+          })),
+        ]);
         if (cancelled) {
           return;
         }
 
-        setTransactions(apiTransactions.map((transaction, index) => mapApiTransactionToRow(transaction, index, copy)));
+        const purchaseRows = apiTransactions.map((transaction, index) =>
+          mapApiTransactionToRow(transaction, index, copy),
+        );
+
+        // Ledger entries that originate from purchase transactions are already
+        // represented by the purchase row; show only standalone loyalty events
+        // (profile bonus, roadmap step bonus, manual redeem, offers, gift cards…).
+        const ledgerRows = ledger.entries
+          .filter((entry) => entry.kind !== "txn_earn" && entry.kind !== "txn_redeem")
+          .map(mapLedgerEntryToRow);
+
+        const merged = [...purchaseRows, ...ledgerRows].sort((a, b) => {
+          const ta = new Date(a.date).getTime();
+          const tb = new Date(b.date).getTime();
+          if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+          if (Number.isNaN(ta)) return 1;
+          if (Number.isNaN(tb)) return -1;
+          return tb - ta;
+        });
+
+        setTransactions(merged);
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -547,8 +598,14 @@ export default function TransactionsPage() {
     setSelectedTransactionDetail(null);
     setDetailItems([]);
     setDetailError(null);
-    setIsDetailLoading(true);
     setShowDetailDialog(true);
+
+    if (isLedgerRowId(transaction.id)) {
+      setIsDetailLoading(false);
+      return;
+    }
+
+    setIsDetailLoading(true);
 
     try {
       const detail = await getTransactionById(transaction.id);
