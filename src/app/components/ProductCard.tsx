@@ -21,6 +21,9 @@ type ProductCardModel = {
   price: number | string;
   originalPrice?: number | string;
   original_price?: number | string;
+  old_price?: number | string;
+  price_old?: number | string;
+  compare_at_price?: number | string;
   discount?: number | string;
   inStock?: boolean;
   in_stock?: boolean;
@@ -37,6 +40,7 @@ type ProductCardModel = {
   category?: string;
   whyRecommended?: string;
   why_recommended?: string;
+  raw_meta?: Record<string, unknown>;
 };
 
 export interface ProductCardProps {
@@ -60,6 +64,16 @@ const toNumber = (value: unknown): number | undefined => {
     }
   }
 
+  return undefined;
+};
+
+const firstNumber = (...values: unknown[]): number | undefined => {
+  for (const value of values) {
+    const numeric = toNumber(value);
+    if (numeric !== undefined) {
+      return numeric;
+    }
+  }
   return undefined;
 };
 
@@ -136,9 +150,23 @@ export function ProductCard({
 
   const price = Math.max(0, Math.round(toNumber(product.price) ?? 0));
   const formattedPrice = formatPrice(price, language);
-  const originalPriceRaw = toNumber(product.originalPrice ?? product.original_price);
+  const rawMeta = product.raw_meta && typeof product.raw_meta === 'object' ? product.raw_meta : {};
+  const originalPriceRaw = firstNumber(
+    product.originalPrice,
+    product.original_price,
+    product.old_price,
+    product.price_old,
+    product.compare_at_price,
+    rawMeta.original_price,
+    rawMeta.old_price,
+    rawMeta.price_old,
+    rawMeta.rrp,
+    rawMeta.compare_at_price,
+  );
   const originalPrice =
-    originalPriceRaw !== undefined ? Math.max(0, Math.round(originalPriceRaw)) : undefined;
+    originalPriceRaw !== undefined && originalPriceRaw > price
+      ? Math.max(0, Math.round(originalPriceRaw))
+      : undefined;
   const formattedOriginalPrice = originalPrice !== undefined ? formatPrice(originalPrice, language) : undefined;
 
   let discount = toNumber(product.discount);

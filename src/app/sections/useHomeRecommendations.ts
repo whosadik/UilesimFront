@@ -15,6 +15,8 @@ export type HomeRecommendationProduct = {
   brand: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  discount?: number;
   category?: string;
   inStock?: boolean;
   recommendationScore?: number;
@@ -53,6 +55,16 @@ function toNumber(value: unknown): number | undefined {
     }
   }
 
+  return undefined;
+}
+
+function firstNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    const numeric = toNumber(value);
+    if (numeric !== undefined) {
+      return numeric;
+    }
+  }
   return undefined;
 }
 
@@ -95,6 +107,29 @@ function mapRecommendationProduct(
   }
 
   const scorePercent = recommendationScoreToPercent(item.score, item.components);
+  const rawMeta = isRecord(product.raw_meta) ? product.raw_meta : {};
+  const price = toNumber(product.price) ?? 0;
+  const originalPriceRaw = firstNumber(
+    product.original_price,
+    product.originalPrice,
+    product.old_price,
+    product.price_old,
+    product.compare_at_price,
+    rawMeta.original_price,
+    rawMeta.old_price,
+    rawMeta.price_old,
+    rawMeta.rrp,
+    rawMeta.compare_at_price,
+  );
+  const originalPrice =
+    originalPriceRaw !== undefined && originalPriceRaw > price ? originalPriceRaw : undefined;
+  const explicitDiscount = firstNumber(product.discount, product.discount_percent, rawMeta.discount);
+  const discount =
+    explicitDiscount !== undefined && explicitDiscount > 0
+      ? Math.round(explicitDiscount)
+      : originalPrice
+        ? Math.round(((originalPrice - price) / originalPrice) * 100)
+        : undefined;
 
   return {
     id: String(product.id),
@@ -104,7 +139,9 @@ function mapRecommendationProduct(
       FALLBACK_IMAGE,
     brand: typeof product.brand === 'string' ? product.brand : 'Uilesim',
     name: typeof product.name === 'string' ? product.name : fallbackProductLabel(String(product.id)),
-    price: toNumber(product.price) ?? 0,
+    price,
+    originalPrice,
+    discount,
     category: typeof product.category === 'string' ? product.category : undefined,
     inStock: product.in_stock === undefined ? true : Boolean(product.in_stock),
     recommendationScore: scorePercent,

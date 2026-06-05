@@ -41,6 +41,16 @@ function toNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+function firstNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    const numeric = toNumber(value);
+    if (numeric !== undefined) {
+      return numeric;
+    }
+  }
+  return undefined;
+}
+
 function mapApiProduct(
   item: ApiProduct,
   index: number,
@@ -50,12 +60,27 @@ function mapApiProduct(
   const name = typeof item.name === 'string' && item.name.trim() ? item.name : `${fallbackProductPrefix} #${id}`;
   const brand = typeof item.brand === 'string' && item.brand.trim() ? item.brand : 'Uilesim';
   const price = toNumber(item.price) ?? 0;
-  const originalPrice = toNumber(item.original_price);
+  const rawMeta = item.raw_meta && typeof item.raw_meta === 'object' ? item.raw_meta as Record<string, unknown> : {};
+  const originalPriceRaw = firstNumber(
+    item.original_price,
+    item.originalPrice,
+    item.old_price,
+    item.price_old,
+    item.compare_at_price,
+    rawMeta.original_price,
+    rawMeta.old_price,
+    rawMeta.price_old,
+    rawMeta.rrp,
+    rawMeta.compare_at_price,
+  );
+  const originalPrice = originalPriceRaw !== undefined && originalPriceRaw > price ? originalPriceRaw : undefined;
+  const explicitDiscount = firstNumber(item.discount, item.discount_percent, rawMeta.discount);
   const discount =
-    toNumber(item.discount) ??
-    (originalPrice && originalPrice > price
-      ? Math.round(((originalPrice - price) / originalPrice) * 100)
-      : undefined);
+    explicitDiscount !== undefined && explicitDiscount > 0
+      ? Math.round(explicitDiscount)
+      : originalPrice
+        ? Math.round(((originalPrice - price) / originalPrice) * 100)
+        : undefined;
 
   return {
     id,
