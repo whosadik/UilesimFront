@@ -645,6 +645,7 @@ type PersonalOfferCard = {
   title: string;
   description: string;
   highlight: string;
+  imageUrl?: string;
   expiresAt: Date | null;
 };
 
@@ -704,6 +705,7 @@ const buildPersonalOfferCard = (
 
   const target = isRecord(value.target) ? value.target : {};
   const reason = isRecord(value.reason) ? value.reason : {};
+  const presentation = isRecord(value.presentation) ? value.presentation : {};
 
   const offerType = firstString(offer.type);
   const offerName = firstString(offer.name);
@@ -768,6 +770,7 @@ const buildPersonalOfferCard = (
     title,
     description,
     highlight,
+    imageUrl: firstString(presentation.image_url, presentation.imageUrl, value.image_url, value.imageUrl),
     expiresAt: expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : null,
   };
 };
@@ -2344,6 +2347,25 @@ export default function ForYouPage() {
       >
         {copy.offerDetails}
         <ArrowRight className="w-3.5 h-3.5" />
+      </Link>
+    )}
+
+    {personalOffer?.imageUrl && (
+      <Link
+        to={personalOffer.assignmentId ? `/promotions/offers/${personalOffer.assignmentId}` : '/promotions'}
+        onClick={() => {
+          if (!personalOffer.assignmentId) return;
+          void clickOffer(personalOffer.assignmentId, { source: 'for_you_offer_image_banner' })
+            .catch(() => undefined);
+        }}
+        className="group relative -mx-5 -mb-5 mt-4 block h-32 overflow-hidden rounded-b-2xl border-t border-[#FDDCEF] bg-[#FFF0F8]"
+        aria-label={personalOffer.title}
+      >
+        <img
+          src={personalOffer.imageUrl}
+          alt=""
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        />
       </Link>
     )}
   </div>
