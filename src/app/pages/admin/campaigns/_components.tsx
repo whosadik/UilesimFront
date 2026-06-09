@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Info, Search, X } from 'lucide-react';
 import { type BrandSummary, listBrands } from '../../../../shared/api/brands';
 import { type Product, type ProductListResponse, listProducts } from '../../../../shared/api/catalog';
+import { useI18n } from '../../../../shared/i18n/LanguageContext';
 import { type PickerKind, sameBrand, toggleBrand, toggleNumber } from './_helpers';
+import { campaignCopy, formatCampaignMoney } from './campaignI18n';
 
-export function Hint({ children }: { children: React.ReactNode }) {
+export function Hint({ children }: { children: ReactNode }) {
   return (
     <p className="flex items-start gap-1.5 text-xs text-gray-500 leading-relaxed">
       <Info className="w-3 h-3 mt-0.5 flex-shrink-0 text-gray-400" />
@@ -22,6 +24,9 @@ export function SelectedChips({
   emptyLabel: string;
   onRemove: (key: string) => void;
 }) {
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
+
   if (items.length === 0) {
     return <p className="text-sm text-gray-400 italic">{emptyLabel}</p>;
   }
@@ -38,7 +43,7 @@ export function SelectedChips({
             type="button"
             onClick={() => onRemove(item.key)}
             className="rounded-full text-gray-400 hover:text-gray-700"
-            title="Убрать"
+            title={copy.common.remove}
           >
             <X className="h-3 w-3" />
           </button>
@@ -61,7 +66,7 @@ export function SelectionField({
   buttonLabel: string;
   items: Array<{ key: string; label: string }>;
   emptyLabel: string;
-  hint?: React.ReactNode;
+  hint?: ReactNode;
   onOpen: () => void;
   onRemove: (key: string) => void;
 }) {
@@ -107,6 +112,8 @@ export function SelectionPickerModal({
   onApplyProductIds: (productIds: number[]) => void;
   onClose: () => void;
 }) {
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
   const isBrands = kind === 'brands';
   const [search, setSearch] = useState('');
   const [brandRows, setBrandRows] = useState<BrandSummary[]>([]);
@@ -134,7 +141,7 @@ export function SelectionPickerModal({
         if (!cancelled) setBrandRows(rows);
       })
       .catch((error) => {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить бренды.');
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : copy.picker.loadBrandsError);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -143,7 +150,7 @@ export function SelectionPickerModal({
     return () => {
       cancelled = true;
     };
-  }, [isBrands]);
+  }, [copy.picker.loadBrandsError, isBrands]);
 
   useEffect(() => {
     if (isBrands) return;
@@ -157,7 +164,7 @@ export function SelectionPickerModal({
           if (!cancelled) setProductRows(unwrapProducts(payload));
         })
         .catch((error) => {
-          if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить товары.');
+          if (!cancelled) setLoadError(error instanceof Error ? error.message : copy.picker.loadProductsError);
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -168,7 +175,7 @@ export function SelectionPickerModal({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [isBrands, search]);
+  }, [copy.picker.loadProductsError, isBrands, search]);
 
   const visibleBrands = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -185,8 +192,8 @@ export function SelectionPickerModal({
     onClose();
   };
 
-  const title = isBrands ? 'Выбор брендов' : 'Выбор товаров';
-  const placeholder = isBrands ? 'Поиск бренда' : 'Поиск товара, бренда или ID';
+  const title = isBrands ? copy.picker.brandsTitle : copy.picker.productsTitle;
+  const placeholder = isBrands ? copy.picker.searchBrand : copy.picker.searchProduct;
   const selectedCount = isBrands ? draftBrands.length : draftProductIds.length;
 
   return (
@@ -195,13 +202,13 @@ export function SelectionPickerModal({
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-5">
           <div>
             <h3 className="font-semibold text-gray-900">{title}</h3>
-            <p className="mt-1 text-xs text-gray-500">Выбрано: {selectedCount}</p>
+            <p className="mt-1 text-xs text-gray-500">{copy.common.selected(selectedCount)}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
-            title="Закрыть"
+            title={copy.common.close}
           >
             <X className="h-4 w-4" />
           </button>
@@ -224,10 +231,10 @@ export function SelectionPickerModal({
           {loadError ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{loadError}</div>
           ) : loading ? (
-            <div className="text-sm text-gray-500">Загружаем...</div>
+            <div className="text-sm text-gray-500">{copy.common.loading}</div>
           ) : isBrands ? (
             visibleBrands.length === 0 ? (
-              <div className="text-sm text-gray-500">Бренды не найдены.</div>
+              <div className="text-sm text-gray-500">{copy.picker.noBrands}</div>
             ) : (
               <div className="divide-y divide-gray-50 rounded-lg border border-gray-100">
                 {visibleBrands.map((brand) => {
@@ -248,7 +255,9 @@ export function SelectionPickerModal({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-gray-900">{brand.name}</span>
-                        <span className="block text-xs text-gray-500">{brand.product_count} товаров</span>
+                        <span className="block text-xs text-gray-500">
+                          {copy.picker.productCount(Number(brand.product_count ?? 0))}
+                        </span>
                       </span>
                     </label>
                   );
@@ -256,12 +265,15 @@ export function SelectionPickerModal({
               </div>
             )
           ) : productRows.length === 0 ? (
-            <div className="text-sm text-gray-500">Товары не найдены.</div>
+            <div className="text-sm text-gray-500">{copy.picker.noProducts}</div>
           ) : (
             <div className="divide-y divide-gray-50 rounded-lg border border-gray-100">
               {productRows.map((product) => {
                 const checked = draftProductIds.includes(product.id);
-                const price = product.price !== undefined && product.price !== null ? `${product.price} ₸` : 'Цена не указана';
+                const price =
+                  product.price !== undefined && product.price !== null
+                    ? formatCampaignMoney(Number(product.price), language)
+                    : copy.picker.noPrice;
                 return (
                   <label
                     key={product.id}
@@ -283,7 +295,7 @@ export function SelectionPickerModal({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-gray-900">{product.name}</span>
                       <span className="block truncate text-xs text-gray-500">
-                        ID {product.id} · {product.brand || 'Без бренда'} · {product.category || '—'} · {price}
+                        ID {product.id} · {product.brand || copy.picker.noBrand} · {product.category || copy.picker.noCategory} · {price}
                       </span>
                     </span>
                   </label>
@@ -299,7 +311,7 @@ export function SelectionPickerModal({
             onClick={() => (isBrands ? setDraftBrands([]) : setDraftProductIds([]))}
             className="text-sm text-gray-500 underline hover:text-gray-700"
           >
-            Очистить выбор
+            {copy.common.clearSelection}
           </button>
           <div className="flex items-center gap-2">
             <button
@@ -307,14 +319,14 @@ export function SelectionPickerModal({
               onClick={onClose}
               className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Отмена
+              {copy.common.cancel}
             </button>
             <button
               type="button"
               onClick={apply}
               className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800"
             >
-              Применить
+              {copy.common.apply}
             </button>
           </div>
         </div>
@@ -338,9 +350,12 @@ export function BannerUploader({
   onUrlChange: (url: string) => void;
   onPickFile: (file: File) => void;
 }) {
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
+
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-xs text-gray-500 font-medium">Баннер</label>
+      <label className="text-xs text-gray-500 font-medium">{copy.common.banner}</label>
       <input
         type="url"
         value={bannerUrl}
@@ -367,18 +382,16 @@ export function BannerUploader({
               if (file) onPickFile(file);
             }}
           />
-          {uploading ? 'Загружаем...' : 'Загрузить файл'}
+          {uploading ? copy.common.uploading : copy.common.uploadFile}
         </label>
-        {disabled && disabledHint ? (
-          <span className="text-xs text-gray-400">{disabledHint}</span>
-        ) : null}
+        {disabled && disabledHint ? <span className="text-xs text-gray-400">{disabledHint}</span> : null}
         {bannerUrl && (
           <button
             type="button"
             onClick={() => onUrlChange('')}
             className="text-xs text-gray-500 hover:text-gray-700 underline"
           >
-            Очистить
+            {copy.common.clear}
           </button>
         )}
       </div>
@@ -386,7 +399,7 @@ export function BannerUploader({
         <div className="mt-1 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 max-w-xs">
           <img
             src={bannerUrl}
-            alt="Банер"
+            alt={copy.common.bannerAlt}
             className="w-full h-32 object-cover"
             onError={(event) => {
               (event.currentTarget as HTMLImageElement).style.display = 'none';
@@ -394,7 +407,7 @@ export function BannerUploader({
           />
         </div>
       )}
-      <p className="text-xs text-gray-400">PNG / JPEG / WebP / GIF, до 5 МБ.</p>
+      <p className="text-xs text-gray-400">{copy.common.bannerRequirements}</p>
     </div>
   );
 }
@@ -412,6 +425,9 @@ export function SpendBar({ spend, budget }: { spend: number; budget: number }) {
 }
 
 export function StatusBadge({ active }: { active: boolean }) {
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
+
   return (
     <span
       className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${
@@ -420,7 +436,7 @@ export function StatusBadge({ active }: { active: boolean }) {
           : 'bg-amber-50 text-amber-700 border-amber-200'
       }`}
     >
-      {active ? 'Активна' : 'На паузе'}
+      {active ? copy.common.active : copy.common.inactive}
     </span>
   );
 }

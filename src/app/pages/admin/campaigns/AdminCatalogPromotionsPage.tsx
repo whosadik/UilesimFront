@@ -5,8 +5,10 @@ import { toast } from 'sonner';
 import { useAuth } from '../../../../shared/auth/AuthContext';
 import { ApiError } from '../../../../shared/api/ApiError';
 import { listCampaigns } from '../../../../shared/api/adminCampaigns';
-import { SpendBar, StatusBadge } from './_components';
-import { formatMoney } from './_helpers';
+import { useI18n } from '../../../../shared/i18n/LanguageContext';
+import { formatCatalogCategoryLabel } from '../../../../shared/catalog/presentation';
+import { SpendBar } from './_components';
+import { adminCopy, formatAdminMoney } from '../adminI18n';
 
 type Row = {
   id: string;
@@ -20,10 +22,26 @@ type Row = {
   offersCount: number;
 };
 
+function StatusPill({ active, activeLabel, pausedLabel }: { active: boolean; activeLabel: string; pausedLabel: string }) {
+  return (
+    <span
+      className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${
+        active
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          : 'bg-amber-50 text-amber-700 border-amber-200'
+      }`}
+    >
+      {active ? activeLabel : pausedLabel}
+    </span>
+  );
+}
+
 export default function AdminCatalogPromotionsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { language } = useI18n();
+  const copy = adminCopy[language];
   const [status, setStatus] = useState<'all' | 'active' | 'paused'>('all');
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,18 +66,24 @@ export default function AdminCatalogPromotionsPage() {
 
         if (cancelled) return;
 
-        const mapped: Row[] = results.map((item) => {
-          const cats = Array.isArray(item.allowed_categories) ? item.allowed_categories : [];
+        setRows(results.map((item) => {
+          const categories = Array.isArray(item.allowed_categories) ? item.allowed_categories : [];
           const brands = Array.isArray(item.allowed_brands) ? item.allowed_brands : [];
           const productIds = Array.isArray(item.allowed_product_ids) ? item.allowed_product_ids : [];
 
-          let scopeLabel = 'Все товары';
+          let scopeLabel = copy.campaigns.allProducts;
           if (productIds.length > 0) {
-            scopeLabel = `Товары: ${productIds.length}`;
+            scopeLabel = copy.campaigns.productsScope(productIds.length);
           } else if (brands.length > 0) {
-            scopeLabel = brands.length === 1 ? `Бренд: ${brands[0]}` : `Бренды: ${brands.length}`;
-          } else if (cats.length > 0) {
-            scopeLabel = cats.length === 1 ? `Категория: ${cats[0]}` : `Категории: ${cats.length}`;
+            scopeLabel = brands.length === 1
+              ? copy.campaigns.brandScope(String(brands[0]))
+              : copy.campaigns.brandsScope(brands.length);
+          } else if (categories.length > 0) {
+            const firstCategory = String(categories[0]);
+            const categoryLabel = formatCatalogCategoryLabel(firstCategory, language) ?? firstCategory;
+            scopeLabel = categories.length === 1
+              ? copy.campaigns.categoryScope(categoryLabel)
+              : copy.campaigns.categoriesScope(categories.length);
           }
 
           return {
@@ -73,9 +97,7 @@ export default function AdminCatalogPromotionsPage() {
             scopeLabel,
             offersCount: Number(item.offers_count ?? 0),
           };
-        });
-
-        setRows(mapped);
+        }));
       } catch (error) {
         if (cancelled) return;
 
@@ -93,7 +115,10 @@ export default function AdminCatalogPromotionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, status, user]);
+  }, [copy.campaigns, isAuthLoading, language, location.pathname, navigate, status, user]);
+
+  const statusLabel = (value: typeof status) =>
+    value === 'all' ? copy.campaigns.all : value === 'active' ? copy.campaigns.active : copy.campaigns.paused;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -103,8 +128,8 @@ export default function AdminCatalogPromotionsPage() {
             <ShoppingBag className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-semibold text-gray-900 text-xl">Акции на каталог</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{rows.length} акций</p>
+            <h1 className="font-semibold text-gray-900 text-xl">{copy.campaigns.catalogTitle}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{copy.campaigns.catalogSubtitle}</p>
           </div>
         </div>
         <Link
@@ -112,28 +137,23 @@ export default function AdminCatalogPromotionsPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Создать акцию
+          {copy.campaigns.createPromotion}
         </Link>
-      </div>
-
-      <div className="bg-pink-50 border border-pink-200 rounded-lg p-3 mb-4 text-xs text-pink-900 leading-relaxed">
-        <b>Акция на каталог</b> — это общая скидка, бонус или подарок, который применяется к любому покупателю, если в
-        корзине есть подходящие товары (по бренду, категории или списку SKU). Без персонализации.
       </div>
 
       <div className="flex items-center gap-3 mb-4">
         <Filter className="w-4 h-4 text-gray-400" />
-        {(['all', 'active', 'paused'] as const).map((s) => (
+        {(['all', 'active', 'paused'] as const).map((item) => (
           <button
-            key={s}
-            onClick={() => setStatus(s)}
+            key={item}
+            onClick={() => setStatus(item)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              status === s
+              status === item
                 ? 'bg-gray-900 text-white'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
-            {s === 'all' ? 'Все' : s === 'active' ? 'Активные' : 'На паузе'}
+            {statusLabel(item)}
           </button>
         ))}
       </div>
@@ -142,60 +162,56 @@ export default function AdminCatalogPromotionsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Название</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Статус</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Период</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">На что</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Бюджет / неделя</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 w-48">Расход</th>
-              <th className="px-4 py-3"></th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">{copy.campaigns.name}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.campaigns.status}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.campaigns.period}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.campaigns.scope}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.campaigns.weeklyBudget}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 w-48">{copy.campaigns.spend}</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
               <tr>
-                <td className="px-5 py-6 text-sm text-gray-500" colSpan={7}>
-                  Загружаем…
-                </td>
+                <td className="px-5 py-6 text-sm text-gray-500" colSpan={7}>{copy.common.loading}</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="px-5 py-6 text-sm text-gray-500" colSpan={7}>
-                  Акций нет. Создайте первую — она появится тут.
-                </td>
+                <td className="px-5 py-6 text-sm text-gray-500" colSpan={7}>{copy.campaigns.catalogEmpty}</td>
               </tr>
             ) : (
-              rows.map((c) => (
-                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+              rows.map((row) => (
+                <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-4">
-                    <p className="font-medium text-gray-900">{c.name}</p>
-                    {c.offersCount === 0 && (
+                    <p className="font-medium text-gray-900">{row.name}</p>
+                    {row.offersCount === 0 && (
                       <span className="inline-flex items-center gap-1 mt-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
-                        Нет скидки
+                        {copy.campaigns.noDiscount}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-4">
-                    <StatusBadge active={c.active} />
+                    <StatusPill active={row.active} activeLabel={copy.campaigns.active} pausedLabel={copy.campaigns.paused} />
                   </td>
-                  <td className="px-4 py-4 text-xs text-gray-600">
-                    {c.start} → {c.end}
-                  </td>
-                  <td className="px-4 py-4 text-xs text-gray-700">{c.scopeLabel}</td>
+                  <td className="px-4 py-4 text-xs text-gray-600">{row.start} → {row.end}</td>
+                  <td className="px-4 py-4 text-xs text-gray-700">{row.scopeLabel}</td>
                   <td className="px-4 py-4">
-                    <p className="text-gray-900 font-medium">{c.budget > 0 ? formatMoney(c.budget) : '—'}</p>
-                    <p className="text-xs text-gray-500">потрачено: {formatMoney(c.spend)}</p>
+                    <p className="text-gray-900 font-medium">
+                      {row.budget > 0 ? formatAdminMoney(row.budget, language) : '—'}
+                    </p>
+                    <p className="text-xs text-gray-500">{copy.campaigns.spent} {formatAdminMoney(row.spend, language)}</p>
                   </td>
                   <td className="px-4 py-4 w-48">
-                    {c.budget > 0 ? (
-                      <SpendBar spend={c.spend} budget={c.budget} />
+                    {row.budget > 0 ? (
+                      <SpendBar spend={row.spend} budget={row.budget} />
                     ) : (
-                      <span className="text-xs text-gray-400">Без лимита</span>
+                      <span className="text-xs text-gray-400">{copy.campaigns.noLimit}</span>
                     )}
                   </td>
                   <td className="px-4 py-4">
                     <Link
-                      to={`/admin/campaigns/catalog/${c.id}`}
+                      to={`/admin/campaigns/catalog/${row.id}`}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
                     >
                       <ChevronRight className="w-4 h-4" />

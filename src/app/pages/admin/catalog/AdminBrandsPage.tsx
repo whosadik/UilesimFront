@@ -5,11 +5,15 @@ import { toast } from 'sonner';
 import { useAuth } from '../../../../shared/auth/AuthContext';
 import { ApiError } from '../../../../shared/api/ApiError';
 import { listAdminBrands, type AdminBrand } from '../../../../shared/api/adminCatalog';
+import { useI18n } from '../../../../shared/i18n/LanguageContext';
+import { adminCopy } from '../adminI18n';
 
 export default function AdminBrandsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { language } = useI18n();
+  const copy = adminCopy[language];
   const [brands, setBrands] = useState<AdminBrand[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -47,7 +51,7 @@ export default function AdminBrandsPage() {
     const q = search.trim().toLowerCase();
     if (!q) return brands;
     return brands.filter(
-      (b) => b.name.toLowerCase().includes(q) || b.slug.toLowerCase().includes(q),
+      (brand) => brand.name.toLowerCase().includes(q) || brand.slug.toLowerCase().includes(q),
     );
   }, [brands, search]);
 
@@ -59,8 +63,8 @@ export default function AdminBrandsPage() {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-semibold text-gray-900 text-xl">Бренды</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{brands.length} брендов</p>
+            <h1 className="font-semibold text-gray-900 text-xl">{copy.catalog.brands}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{copy.catalog.brandCount(brands.length)}</p>
           </div>
         </div>
         <Link
@@ -68,7 +72,7 @@ export default function AdminBrandsPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Создать бренд
+          {copy.catalog.createBrand}
         </Link>
       </div>
 
@@ -77,8 +81,8 @@ export default function AdminBrandsPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Поиск по названию или slug…"
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={copy.catalog.searchBrands}
           className="pl-9 pr-4 h-9 text-sm bg-white border border-gray-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-gray-900/10"
         />
       </div>
@@ -87,58 +91,58 @@ export default function AdminBrandsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 w-16">Лого</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Название</th>
+              <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 w-16">Logo</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.catalog.name}</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Slug</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Товары</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Статус</th>
-              <th className="px-4 py-3"></th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.catalog.products}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.campaigns.status}</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
               <tr>
                 <td className="px-5 py-6 text-sm text-gray-500" colSpan={6}>
-                  Загружаем…
+                  {copy.common.loading}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
                 <td className="px-5 py-6 text-sm text-gray-500" colSpan={6}>
-                  Брендов не найдено.
+                  {copy.catalog.brandsEmpty}
                 </td>
               </tr>
             ) : (
-              filtered.map((b) => (
+              filtered.map((brand) => (
                 <tr
-                  key={b.id}
+                  key={brand.id}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/admin/catalog/brands/${b.id}`)}
+                  onClick={() => navigate(`/admin/catalog/brands/${brand.id}`)}
                 >
                   <td className="px-5 py-4">
-                    {b.logo_image_url ? (
+                    {brand.logo_image_url ? (
                       <img
-                        src={b.logo_image_url}
-                        alt={b.name}
+                        src={brand.logo_image_url}
+                        alt={brand.name}
                         className="w-10 h-10 object-contain rounded-lg border border-gray-100"
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-600">
-                        {b.name.slice(0, 1).toUpperCase()}
+                        {brand.name.slice(0, 1).toUpperCase()}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-4 font-medium text-gray-900">{b.name}</td>
-                  <td className="px-4 py-4 text-xs text-gray-500 font-mono">{b.slug}</td>
-                  <td className="px-4 py-4 text-gray-700">{b.product_count}</td>
+                  <td className="px-4 py-4 font-medium text-gray-900">{brand.name}</td>
+                  <td className="px-4 py-4 text-xs text-gray-500 font-mono">{brand.slug}</td>
+                  <td className="px-4 py-4 text-gray-700">{brand.product_count}</td>
                   <td className="px-4 py-4">
-                    {b.is_active ? (
+                    {brand.is_active ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-200">
-                        Активен
+                        Active
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600 border border-gray-200">
-                        Скрыт
+                        Hidden
                       </span>
                     )}
                   </td>

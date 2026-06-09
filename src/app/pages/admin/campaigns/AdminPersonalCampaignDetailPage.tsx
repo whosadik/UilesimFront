@@ -19,6 +19,7 @@ import {
   listOffers,
   patchOffer,
 } from '../../../../shared/api/adminOffers';
+import { useI18n } from '../../../../shared/i18n/LanguageContext';
 import {
   DEFAULT_PERSONAL_FORM,
   buildPersonalPayload,
@@ -34,6 +35,7 @@ import {
   draftToPayload,
   offerToDraft,
 } from './_offers';
+import { campaignCopy } from './campaignI18n';
 
 const SYSTEM_NAMES = [
   'fragrance_crosssell',
@@ -50,6 +52,8 @@ export default function AdminPersonalCampaignDetailPage() {
   const location = useLocation();
   const { id } = useParams();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
 
   const [form, setForm] = useState<PersonalCampaignForm>(DEFAULT_PERSONAL_FORM);
   const [saving, setSaving] = useState(false);
@@ -102,7 +106,7 @@ export default function AdminPersonalCampaignDetailPage() {
           return;
         }
 
-        toast.error(error instanceof Error ? error.message : 'Не удалось загрузить кампанию.');
+        toast.error(error instanceof Error ? error.message : copy.common.campaignLoadError);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -111,17 +115,17 @@ export default function AdminPersonalCampaignDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthLoading, isNew, location.pathname, navigate, user]);
+  }, [copy.common.campaignLoadError, id, isAuthLoading, isNew, location.pathname, navigate, user]);
 
   const updateField = <K extends keyof PersonalCampaignForm>(key: K, value: PersonalCampaignForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
   const validate = () => {
-    if (!form.name.trim()) return 'Укажите название кампании.';
-    if (!form.budget.trim() || Number.isNaN(Number(form.budget))) return 'Бюджет должен быть числом.';
-    if (!form.priority.trim() || Number.isNaN(Number(form.priority))) return 'Приоритет должен быть числом.';
-    if (form.start && form.end && form.end < form.start) return 'Дата окончания раньше даты начала.';
+    if (!form.name.trim()) return copy.validation.campaignNameRequired;
+    if (!form.budget.trim() || Number.isNaN(Number(form.budget))) return copy.validation.budgetNumber;
+    if (!form.priority.trim() || Number.isNaN(Number(form.priority))) return copy.validation.priorityNumber;
+    if (form.start && form.end && form.end < form.start) return copy.validation.endBeforeStart;
     return '';
   };
 
@@ -139,7 +143,7 @@ export default function AdminPersonalCampaignDetailPage() {
       if (isNew) {
         const created = await createCampaign(buildPersonalPayload(form));
         const createdForm = parsePersonalCampaign(created as Record<string, unknown>);
-        toast.success('Кампания создана.');
+        toast.success(copy.common.campaignCreated);
         if (createdForm.id && createdForm.id !== 'new') {
           navigate(`/admin/campaigns/personal/${createdForm.id}`, { replace: true });
         }
@@ -148,14 +152,14 @@ export default function AdminPersonalCampaignDetailPage() {
 
       const updated = await patchCampaign(id!, buildPersonalPayload(form));
       setForm(parsePersonalCampaign(updated as Record<string, unknown>, String(id)));
-      toast.success('Сохранено.');
+      toast.success(copy.common.saved);
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
 
-      const message = error instanceof Error ? error.message : 'Не удалось сохранить.';
+      const message = error instanceof Error ? error.message : copy.common.saveError;
       setValidationError(message);
       toast.error(message);
     } finally {
@@ -165,7 +169,7 @@ export default function AdminPersonalCampaignDetailPage() {
 
   const handlePublish = async () => {
     if (isNew) {
-      toast.error('Сначала сохраните кампанию.');
+      toast.error(copy.common.saveCampaignFirst);
       return;
     }
 
@@ -175,13 +179,13 @@ export default function AdminPersonalCampaignDetailPage() {
     try {
       const response = await publishCampaign(id!);
       setForm(parsePersonalCampaign(response as Record<string, unknown>, String(id)));
-      toast.success('Кампания запущена.');
+      toast.success(copy.common.campaignPublished);
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         navigate('/login', { replace: true, state: { from: location.pathname } });
         return;
       }
-      const message = error instanceof Error ? error.message : 'Не удалось запустить кампанию.';
+      const message = error instanceof Error ? error.message : copy.common.campaignPublishError;
       setValidationError(message);
       toast.error(message);
     } finally {
@@ -202,11 +206,11 @@ export default function AdminPersonalCampaignDetailPage() {
   const handleSaveOffer = async () => {
     if (!offerDraft || !campaignIdNum) return;
     if (!offerDraft.name.trim()) {
-      toast.error('Укажите название оффера.');
+      toast.error(copy.validation.offerNameRequired);
       return;
     }
     if (offerDraft.target_scope === 'brand' && offerDraft.allowed_brands.length === 0) {
-      toast.error('Для scope «На бренд» укажите хотя бы один бренд.');
+      toast.error(copy.validation.offerBrandRequired);
       return;
     }
 
@@ -215,10 +219,10 @@ export default function AdminPersonalCampaignDetailPage() {
       const payload = draftToPayload(offerDraft, campaignIdNum);
       if (offerDraft.id) {
         await patchOffer(offerDraft.id, payload);
-        toast.success('Оффер обновлён.');
+        toast.success(copy.offers.updated);
       } else {
         await createOffer(payload);
-        toast.success('Оффер создан.');
+        toast.success(copy.offers.created);
       }
       setOfferDraft(null);
       await refreshOffers();
@@ -230,10 +234,10 @@ export default function AdminPersonalCampaignDetailPage() {
   };
 
   const handleDeleteOffer = async (offer: Offer) => {
-    if (!confirm(`Удалить оффер «${offer.name}»? Он будет деактивирован.`)) return;
+    if (!confirm(copy.offers.deleteConfirm(offer.name))) return;
     try {
       await deleteOffer(offer.id);
-      toast.success('Оффер удалён.');
+      toast.success(copy.offers.deleted);
       await refreshOffers();
     } catch (error) {
       if (error instanceof Error) toast.error(error.message);
@@ -242,7 +246,7 @@ export default function AdminPersonalCampaignDetailPage() {
 
   const handleBannerFile = async (file: File) => {
     if (!campaignIdNum) {
-      toast.error('Сохраните кампанию перед загрузкой файла.');
+      toast.error(copy.common.saveCampaignFirst);
       return;
     }
     setBannerUploading(true);
@@ -254,7 +258,7 @@ export default function AdminPersonalCampaignDetailPage() {
           : (res as unknown as Campaign);
       const nextUrl = typeof updated?.banner_url === 'string' ? updated.banner_url : '';
       updateField('bannerUrl', nextUrl);
-      toast.success('Баннер загружен.');
+      toast.success(copy.common.bannerUploaded);
     } catch (error) {
       if (error instanceof Error) toast.error(error.message);
     } finally {
@@ -273,9 +277,9 @@ export default function AdminPersonalCampaignDetailPage() {
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-gray-900 text-xl truncate">
-            {form.name || (isNew ? 'Новая персональная кампания' : `Кампания ${id}`)}
+            {form.name || (isNew ? copy.personal.newTitle : copy.common.campaignTitle(id!))}
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">{isNew ? 'Черновик' : `ID: ${id}`}</p>
+          <p className="text-sm text-gray-500 mt-0.5">{isNew ? copy.common.draft : copy.common.id(id!)}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -284,7 +288,7 @@ export default function AdminPersonalCampaignDetailPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" />
-            {saving ? 'Сохраняю…' : 'Сохранить'}
+            {saving ? copy.common.saving : copy.common.save}
           </button>
           <button
             onClick={handlePublish}
@@ -292,16 +296,16 @@ export default function AdminPersonalCampaignDetailPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
           >
             <Send className="w-3.5 h-3.5" />
-            Запустить
+            {copy.common.publish}
           </button>
         </div>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-blue-900 leading-relaxed">
-        <p className="font-medium mb-1">Как работает персональная кампания</p>
+        <p className="font-medium mb-1">{copy.personal.introTitle}</p>
         <p>
-          Кампания участвует в индивидуальной выдаче офферов через <code>next-offer</code>. Сама кампания — это{' '}
-          <b>бюджет + сроки + приоритет</b>. Конкретные скидки/бонусы и их таргетинг живут в блоке «Офферы» ниже.
+          {copy.personal.introPrefix} <code>next-offer</code>. {copy.personal.introAfterCode}{' '}
+          <b>{copy.personal.introStrong}</b>. {copy.personal.introSuffix}
         </p>
       </div>
 
@@ -314,109 +318,109 @@ export default function AdminPersonalCampaignDetailPage() {
 
       <div className="flex flex-col gap-4">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Основное</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">{copy.personal.mainTitle}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1 sm:col-span-2">
-              <label className="text-xs text-gray-500 font-medium">Название</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.common.name}</label>
               <input
                 value={form.name}
                 onChange={(event) => updateField('name', event.target.value)}
                 className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                placeholder="например, fragrance_crosssell"
+                placeholder={copy.personal.namePlaceholder}
               />
               <div className="text-xs text-gray-500 leading-relaxed">
-                Внутреннее имя. Системные имена{' '}
+                {copy.personal.internalNameHint}{' '}
                 <span className="inline-flex flex-wrap gap-1">
-                  {SYSTEM_NAMES.map((n) => (
-                    <code key={n} className="px-1 rounded bg-gray-100">
-                      {n}
+                  {SYSTEM_NAMES.map((name) => (
+                    <code key={name} className="px-1 rounded bg-gray-100">
+                      {name}
                     </code>
                   ))}
                 </span>{' '}
-                имеют приоритетный роутинг в алгоритме next-offer.
+                {copy.personal.internalNameHintAfter}
               </div>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Статус</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.common.status}</label>
               <select
                 value={form.status}
                 onChange={(event) => updateField('status', event.target.value as PersonalCampaignForm['status'])}
                 className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white"
               >
-                <option value="draft">Черновик</option>
-                <option value="active">Активна</option>
+                <option value="draft">{copy.common.draft}</option>
+                <option value="active">{copy.common.active}</option>
               </select>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Приоритет</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.personal.priority}</label>
               <input
                 type="number"
                 value={form.priority}
                 onChange={(event) => updateField('priority', event.target.value)}
                 className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
               />
-              <p className="text-xs text-gray-500">Меньше число = выше приоритет среди кампаний.</p>
+              <p className="text-xs text-gray-500">{copy.personal.priorityHint}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Сроки и бюджет</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">{copy.personal.datesBudgetTitle}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Дата начала</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.common.startDate}</label>
               <input
                 type="date"
                 value={form.start}
                 onChange={(event) => updateField('start', event.target.value)}
                 className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none"
               />
-              <p className="text-xs text-gray-500">Пусто = без ограничения.</p>
+              <p className="text-xs text-gray-500">{copy.common.emptyDateHint}</p>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Дата окончания</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.common.endDate}</label>
               <input
                 type="date"
                 value={form.end}
                 onChange={(event) => updateField('end', event.target.value)}
                 className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none"
               />
-              <p className="text-xs text-gray-500">Пусто = без ограничения.</p>
+              <p className="text-xs text-gray-500">{copy.common.emptyDateHint}</p>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Недельный бюджет (₸)</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.common.weeklyBudgetKzt}</label>
               <input
                 type="number"
                 value={form.budget}
                 onChange={(event) => updateField('budget', event.target.value)}
                 className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
               />
-              <p className="text-xs text-gray-500">Сбрасывается каждый понедельник.</p>
+              <p className="text-xs text-gray-500">{copy.personal.budgetHint}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="font-semibold text-gray-900 mb-1">Креатив</h2>
-          <p className="text-xs text-gray-500 mb-4">Опционально. Используется для оформления карточки оффера в приложении.</p>
+          <h2 className="font-semibold text-gray-900 mb-1">{copy.personal.creativeTitle}</h2>
+          <p className="text-xs text-gray-500 mb-4">{copy.personal.creativeHint}</p>
           <div className="space-y-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Текст промо</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.common.promoText}</label>
               <textarea
                 value={form.promoText}
                 onChange={(event) => updateField('promoText', event.target.value)}
                 rows={2}
                 className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 resize-none"
-                placeholder="Выбираем для вас…"
+                placeholder={copy.personal.promoPlaceholder}
               />
             </div>
             <BannerUploader
               bannerUrl={form.bannerUrl}
               uploading={bannerUploading}
               disabled={isNew}
-              disabledHint="Сохраните кампанию, чтобы загрузить файл."
+              disabledHint={copy.common.saveBeforeCampaignBanner}
               onUrlChange={(url) => updateField('bannerUrl', url)}
               onPickFile={(file) => void handleBannerFile(file)}
             />
@@ -426,7 +430,7 @@ export default function AdminPersonalCampaignDetailPage() {
         <OffersSection
           offers={offers}
           disabled={isNew}
-          disabledHint="Сохраните кампанию, чтобы добавить офферы."
+          disabledHint={copy.personal.saveBeforeOffers}
           onAdd={() => setOfferDraft({ ...EMPTY_OFFER })}
           onEdit={(offer) => setOfferDraft(offerToDraft(offer))}
           onDelete={handleDeleteOffer}

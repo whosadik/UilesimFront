@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CarouselHeader } from '../components/CarouselHeader';
 import { ProductCarousel } from '../components/ProductCarousel';
-import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { listProducts, type ProductListResponse } from '../../shared/api/catalog';
 import { ApiError } from '../../shared/api/ApiError';
@@ -161,6 +160,10 @@ export function NewArrivalsSection() {
     };
   }, [fallbackProductPrefix, messages.home.newArrivals.errorTitle, retryKey]);
 
+  if (!isLoading && !error && products.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-12">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-[30px]">
@@ -176,15 +179,6 @@ export function NewArrivalsSection() {
             title={messages.home.newArrivals.errorTitle}
             description={messages.home.newArrivals.errorDescription}
             onRetry={() => setRetryKey((value) => value + 1)}
-          />
-        ) : !isLoading && products.length === 0 ? (
-          <EmptyState
-            title={messages.home.newArrivals.emptyTitle}
-            description={messages.home.newArrivals.emptyDescription}
-            action={{
-              label: messages.common.refresh,
-              onClick: () => setRetryKey((value) => value + 1),
-            }}
           />
         ) : (
           <ProductCarousel products={products} loading={isLoading} />

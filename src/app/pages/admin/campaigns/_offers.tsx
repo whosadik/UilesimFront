@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Offer, OfferType, TargetScope } from '../../../../shared/api/adminOffers';
+import { useI18n } from '../../../../shared/i18n/LanguageContext';
 import {
-  CATEGORY_OPTIONS,
-  OFFER_TYPE_LABEL,
-  STEP_OPTIONS,
-  TARGET_SCOPE_LABEL,
   asArrayOfNumbers,
   asArrayOfStrings,
   removeBrand,
@@ -13,6 +10,12 @@ import {
   type PickerKind,
 } from './_helpers';
 import { Hint, SelectionField, SelectionPickerModal } from './_components';
+import {
+  campaignCopy,
+  formatCampaignMoney,
+  getCampaignCategoryOptions,
+  getCampaignProductTypeOptions,
+} from './campaignI18n';
 
 export type OfferDraft = {
   id?: number;
@@ -100,14 +103,15 @@ export function OffersSection({
   onEdit: (offer: Offer) => void;
   onDelete: (offer: Offer) => void;
 }) {
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <div className="flex items-center justify-between mb-1">
         <div>
-          <h2 className="font-semibold text-gray-900">Офферы</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Каждый оффер — конкретная скидка/бонус с собственным таргетингом. Пользователю выдаётся <b>один</b> из них.
-          </p>
+          <h2 className="font-semibold text-gray-900">{copy.offers.title}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{copy.offers.subtitle}</p>
         </div>
         <button
           onClick={onAdd}
@@ -115,42 +119,42 @@ export function OffersSection({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-medium hover:bg-gray-800 transition-colors disabled:opacity-40"
         >
           <Plus className="w-3.5 h-3.5" />
-          Добавить оффер
+          {copy.offers.add}
         </button>
       </div>
 
       {disabled ? (
-        <div className="mt-4 text-sm text-gray-500 italic">{disabledHint ?? 'Сохраните кампанию, чтобы добавить офферы.'}</div>
+        <div className="mt-4 text-sm text-gray-500 italic">{disabledHint ?? copy.personal.saveBeforeOffers}</div>
       ) : offers.length === 0 ? (
-        <div className="mt-4 text-sm text-gray-500 italic">Офферов пока нет.</div>
+        <div className="mt-4 text-sm text-gray-500 italic">{copy.offers.empty}</div>
       ) : (
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                <th className="py-2 font-medium">Название</th>
-                <th className="py-2 font-medium">Тип</th>
-                <th className="py-2 font-medium">Значение</th>
-                <th className="py-2 font-medium">Куда</th>
-                <th className="py-2 font-medium">Est. cost</th>
-                <th className="py-2 font-medium">Статус</th>
-                <th className="py-2"></th>
+                <th className="py-2 font-medium">{copy.offers.tableName}</th>
+                <th className="py-2 font-medium">{copy.offers.tableType}</th>
+                <th className="py-2 font-medium">{copy.offers.tableValue}</th>
+                <th className="py-2 font-medium">{copy.offers.tableScope}</th>
+                <th className="py-2 font-medium">{copy.offers.tableCost}</th>
+                <th className="py-2 font-medium">{copy.offers.tableStatus}</th>
+                <th className="py-2" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {offers.map((offer) => (
                 <tr key={offer.id} className="hover:bg-gray-50">
                   <td className="py-2.5 font-medium text-gray-900">{offer.name}</td>
-                  <td className="py-2.5 text-gray-700">{OFFER_TYPE_LABEL[offer.offer_type]}</td>
+                  <td className="py-2.5 text-gray-700">{copy.offerTypes[offer.offer_type]}</td>
                   <td className="py-2.5 text-gray-700">
                     {offer.offer_type === 'discount'
                       ? `${offer.value}%`
                       : offer.offer_type === 'points_multiplier'
-                        ? `×${offer.value}`
+                        ? `x${offer.value}`
                         : String(offer.value)}
                   </td>
-                  <td className="py-2.5 text-gray-700">{TARGET_SCOPE_LABEL[offer.target_scope]}</td>
-                  <td className="py-2.5 text-gray-700">{offer.estimated_cost} ₸</td>
+                  <td className="py-2.5 text-gray-700">{copy.targetScopes[offer.target_scope].label}</td>
+                  <td className="py-2.5 text-gray-700">{formatCampaignMoney(Number(offer.estimated_cost ?? 0), language)}</td>
                   <td className="py-2.5">
                     <span
                       className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${
@@ -159,7 +163,7 @@ export function OffersSection({
                           : 'bg-gray-100 text-gray-500 border-gray-200'
                       }`}
                     >
-                      {offer.is_active ? 'Активен' : 'Неактивен'}
+                      {offer.is_active ? copy.common.active : copy.common.inactive}
                     </span>
                   </td>
                   <td className="py-2.5 text-right">
@@ -167,14 +171,14 @@ export function OffersSection({
                       <button
                         onClick={() => onEdit(offer)}
                         className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                        title="Редактировать"
+                        title={copy.common.edit}
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => onDelete(offer)}
                         className="p-1.5 rounded-md text-gray-500 hover:bg-red-50 hover:text-red-600"
-                        title="Удалить"
+                        title={copy.common.delete}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -203,6 +207,10 @@ export function OfferEditorModal({
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const { language } = useI18n();
+  const copy = campaignCopy[language];
+  const categoryOptions = getCampaignCategoryOptions(language);
+  const productTypeOptions = getCampaignProductTypeOptions(language);
   const [selectorKind, setSelectorKind] = useState<PickerKind | null>(null);
 
   const update = <K extends keyof OfferDraft>(key: K, value: OfferDraft[K]) => {
@@ -225,36 +233,40 @@ export function OfferEditorModal({
     <div className="fixed inset-0 z-50 bg-gray-900/40 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl w-full max-w-xl my-10 shadow-xl">
         <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">{draft.id ? 'Редактировать оффер' : 'Новый оффер'}</h3>
+          <h3 className="font-semibold text-gray-900">{draft.id ? copy.offers.editTitle : copy.offers.newTitle}</h3>
         </div>
 
         <div className="p-5 space-y-4">
           <div>
-            <label className="text-xs text-gray-500 font-medium">Название</label>
+            <label className="text-xs text-gray-500 font-medium">{copy.common.name}</label>
             <input
               value={draft.name}
               onChange={(e) => update('name', e.target.value)}
               className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-              placeholder="например, 10% на парфюм"
+              placeholder={copy.offers.namePlaceholder}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500 font-medium">Тип</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.offers.type}</label>
               <select
                 value={draft.offer_type}
                 onChange={(e) => update('offer_type', e.target.value as OfferType)}
                 className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white"
               >
-                <option value="discount">Скидка (%)</option>
-                <option value="points_multiplier">Множитель баллов (×N)</option>
-                <option value="gift">Подарок</option>
+                <option value="discount">{copy.offerTypes.discount}</option>
+                <option value="points_multiplier">{copy.offerTypes.points_multiplier}</option>
+                <option value="gift">{copy.offerTypes.gift}</option>
               </select>
             </div>
             <div>
               <label className="text-xs text-gray-500 font-medium">
-                {draft.offer_type === 'discount' ? 'Процент скидки' : draft.offer_type === 'points_multiplier' ? 'Множитель' : 'Значение'}
+                {draft.offer_type === 'discount'
+                  ? copy.offers.discountValue
+                  : draft.offer_type === 'points_multiplier'
+                    ? copy.offers.multiplierValue
+                    : copy.offers.giftValue}
               </label>
               <input
                 type="number"
@@ -266,39 +278,39 @@ export function OfferEditorModal({
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium">На что применяется (scope)</label>
+            <label className="text-xs text-gray-500 font-medium">{copy.offers.scope}</label>
             <select
               value={draft.target_scope}
               onChange={(e) => update('target_scope', e.target.value as TargetScope)}
               className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white"
             >
-              <option value="cart">На всю корзину</option>
-              <option value="category">На категорию</option>
-              <option value="brand">На бренд</option>
-              <option value="product_type">На тип товара</option>
-              <option value="product_id">На конкретные товары</option>
+              <option value="cart">{copy.targetScopes.cart.label}</option>
+              <option value="category">{copy.targetScopes.category.label}</option>
+              <option value="brand">{copy.targetScopes.brand.label}</option>
+              <option value="product_type">{copy.targetScopes.product_type.label}</option>
+              <option value="product_id">{copy.targetScopes.product_id.label}</option>
             </select>
-            <Hint>Scope определяет, как скидка применяется в чекауте. Для brand/product_id укажите бренды или ID товаров ниже.</Hint>
+            <Hint>{copy.offers.scopeHint}</Hint>
           </div>
 
           {showBrandPicker ? (
             <SelectionField
-              label="Бренды"
-              buttonLabel="Выбрать бренды"
+              label={copy.offers.brands}
+              buttonLabel={copy.offers.selectBrands}
               items={draft.allowed_brands.map((brand) => ({ key: brand, label: brand }))}
-              emptyLabel="Бренды не выбраны"
+              emptyLabel={copy.offers.brandsEmpty}
               onOpen={() => setSelectorKind('brands')}
               onRemove={(brand) => update('allowed_brands', removeBrand(draft.allowed_brands, brand))}
-              hint="Для scope «На бренд» выберите хотя бы один бренд."
+              hint={copy.offers.brandHint}
             />
           ) : null}
 
           {showProductIdsPicker ? (
             <SelectionField
-              label="Товары"
-              buttonLabel="Выбрать товары"
+              label={copy.offers.products}
+              buttonLabel={copy.offers.selectProducts}
               items={draft.allowed_product_ids.map((productId) => ({ key: String(productId), label: `ID ${productId}` }))}
-              emptyLabel="Товары не выбраны"
+              emptyLabel={copy.offers.productsEmpty}
               onOpen={() => setSelectorKind('products')}
               onRemove={(productId) =>
                 update(
@@ -306,23 +318,23 @@ export function OfferEditorModal({
                   draft.allowed_product_ids.filter((item) => item !== Number(productId)),
                 )
               }
-              hint="Если оставить пустым, система сможет подобрать товар по категории/типу."
+              hint={copy.offers.productsHint}
             />
           ) : null}
 
           {showCategoryPicker ? (
             <div>
-              <label className="text-xs text-gray-500 font-medium">Разрешённые категории</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.offers.categories}</label>
               <div className="mt-1 flex flex-wrap gap-2">
-                {CATEGORY_OPTIONS.map((o) => (
-                  <label key={o.value} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-sm">
+                {categoryOptions.map((option) => (
+                  <label key={option.value} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-sm">
                     <input
                       type="checkbox"
-                      checked={draft.allowed_categories.includes(o.value)}
-                      onChange={() => toggleCat(o.value)}
+                      checked={draft.allowed_categories.includes(option.value)}
+                      onChange={() => toggleCat(option.value)}
                       className="w-4 h-4 rounded accent-gray-900"
                     />
-                    <span>{o.label}</span>
+                    <span>{option.label}</span>
                   </label>
                 ))}
               </div>
@@ -331,17 +343,17 @@ export function OfferEditorModal({
 
           {showProductTypePicker ? (
             <div>
-              <label className="text-xs text-gray-500 font-medium">Разрешённые типы товаров</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.offers.productTypes}</label>
               <div className="mt-1 flex flex-wrap gap-2">
-                {STEP_OPTIONS.map((o) => (
-                  <label key={o.value} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-sm">
+                {productTypeOptions.map((option) => (
+                  <label key={option.value} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-sm">
                     <input
                       type="checkbox"
-                      checked={draft.allowed_product_types.includes(o.value)}
-                      onChange={() => togglePT(o.value)}
+                      checked={draft.allowed_product_types.includes(option.value)}
+                      onChange={() => togglePT(option.value)}
                       className="w-4 h-4 rounded accent-gray-900"
                     />
-                    <span>{o.label}</span>
+                    <span>{option.label}</span>
                   </label>
                 ))}
               </div>
@@ -350,46 +362,46 @@ export function OfferEditorModal({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-gray-500 font-medium">Est. cost (₸)</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.offers.estimatedCost}</label>
               <input
                 type="number"
                 value={draft.estimated_cost}
                 onChange={(e) => update('estimated_cost', e.target.value)}
                 className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg"
               />
-              <Hint>Сколько списывается из бюджета кампании при выдаче.</Hint>
+              <Hint>{copy.offers.estimatedCostHint}</Hint>
             </div>
             <div>
-              <label className="text-xs text-gray-500 font-medium">Cooldown (дней)</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.offers.cooldown}</label>
               <input
                 type="number"
                 value={draft.cooldown_days}
                 onChange={(e) => update('cooldown_days', e.target.value)}
                 className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg"
               />
-              <Hint>Не выдавать тот же оффер этому пользователю N дней после погашения.</Hint>
+              <Hint>{copy.offers.cooldownHint}</Hint>
             </div>
             <div>
-              <label className="text-xs text-gray-500 font-medium">Срок жизни (дней)</label>
+              <label className="text-xs text-gray-500 font-medium">{copy.offers.expires}</label>
               <input
                 type="number"
                 value={draft.expires_in_days}
                 onChange={(e) => update('expires_in_days', e.target.value)}
                 className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg"
               />
-              <Hint>Через сколько дней назначение сгорит, если не погашено.</Hint>
+              <Hint>{copy.offers.expiresHint}</Hint>
             </div>
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium">Мин. сумма покупок за 90 дней (₸)</label>
+            <label className="text-xs text-gray-500 font-medium">{copy.offers.minSpend90d}</label>
             <input
               type="number"
               value={draft.min_total_spend_90d}
               onChange={(e) => update('min_total_spend_90d', e.target.value)}
               className="mt-1 w-full h-9 px-3 text-sm border border-gray-200 rounded-lg"
             />
-            <Hint>Оффер увидят только пользователи с суммой покупок за последние 90 дней не ниже этого порога.</Hint>
+            <Hint>{copy.offers.minSpend90dHint}</Hint>
           </div>
 
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -399,7 +411,7 @@ export function OfferEditorModal({
               onChange={(e) => update('is_active', e.target.checked)}
               className="w-4 h-4 rounded accent-gray-900"
             />
-            <span>Активен</span>
+            <span>{copy.offers.active}</span>
           </label>
         </div>
 
@@ -408,14 +420,14 @@ export function OfferEditorModal({
             onClick={onCancel}
             className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
           >
-            Отмена
+            {copy.common.cancel}
           </button>
           <button
             onClick={onSave}
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800 disabled:opacity-50"
           >
-            {saving ? 'Сохраняю…' : 'Сохранить'}
+            {saving ? copy.common.saving : copy.common.save}
           </button>
         </div>
       </div>

@@ -8,8 +8,10 @@ import {
   buildAdminAuditExportCsvUrl,
   getAdminAudit,
 } from '../../../shared/api/adminTools';
+import { useI18n } from '../../../shared/i18n/LanguageContext';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { adminCopy, formatAdminDateTime } from './adminI18n';
 
 type AuditEntry = {
   id: string;
@@ -36,18 +38,12 @@ const actionColors: Record<string, string> = {
 };
 
 function getActionColor(action: string) {
-  const verb =
-    action.split('.')[1] ||
-    action.split('_')[0] ||
-    '';
+  const verb = action.split('.')[1] || action.split('_')[0] || '';
   return actionColors[verb] || 'bg-gray-100 text-gray-600';
 }
 
 const toIsoFromDate = (date: string, endOfDay = false): string | undefined => {
-  if (!date) {
-    return undefined;
-  }
-
+  if (!date) return undefined;
   return endOfDay ? `${date}T23:59:59Z` : `${date}T00:00:00Z`;
 };
 
@@ -65,6 +61,8 @@ export default function AdminAuditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { language } = useI18n();
+  const copy = adminCopy[language];
 
   const [search, setSearch] = useState('');
   const [actorId, setActorId] = useState('');
@@ -94,9 +92,7 @@ export default function AdminAuditPage() {
   );
 
   useEffect(() => {
-    if (isAuthLoading) {
-      return;
-    }
+    if (isAuthLoading) return;
 
     if (!user) {
       navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -111,9 +107,7 @@ export default function AdminAuditPage() {
 
       try {
         const response = await getAdminAudit(queryParams);
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         const mapped = Array.isArray(response.results)
           ? response.results.map(mapAuditItemToEntry)
@@ -122,15 +116,11 @@ export default function AdminAuditPage() {
         setEntries(mapped);
         setTotalCount(Number(response.count) || 0);
         setSelected((current) => {
-          if (!current) {
-            return null;
-          }
+          if (!current) return null;
           return mapped.find((item) => item.id === current.id) || null;
         });
       } catch (error) {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -139,11 +129,9 @@ export default function AdminAuditPage() {
 
         setEntries([]);
         setTotalCount(0);
-        setLoadError('Не удалось загрузить журнал аудита. Попробуйте ещё раз.');
+        setLoadError(copy.audit.loadError);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     };
 
@@ -152,19 +140,16 @@ export default function AdminAuditPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, queryParams, reloadKey, user]);
+  }, [copy.audit.loadError, isAuthLoading, location.pathname, navigate, queryParams, reloadKey, user]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
+    if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
   const handleExport = () => {
-    const url = buildAdminAuditExportCsvUrl(queryParams);
-    window.location.href = url;
+    window.location.href = buildAdminAuditExportCsvUrl(queryParams);
   };
 
   const onPageSizeChange = (value: number) => {
@@ -177,21 +162,21 @@ export default function AdminAuditPage() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-semibold text-gray-900 text-xl">Audit Log</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{totalCount} записей</p>
+            <h1 className="font-semibold text-gray-900 text-xl">{copy.audit.title}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{copy.audit.records(totalCount)}</p>
           </div>
           <button
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            export.csv
+            {copy.common.exportCsv}
           </button>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
           <div className="flex flex-col gap-1 flex-1 min-w-36">
-            <label className="text-xs text-gray-500">Поиск по entity_id</label>
+            <label className="text-xs text-gray-500">{copy.audit.searchEntity}</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
@@ -218,7 +203,7 @@ export default function AdminAuditPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">Тип сущности</label>
+            <label className="text-xs text-gray-500">{copy.audit.entityType}</label>
             <select
               value={entityType}
               onChange={(event) => {
@@ -227,7 +212,7 @@ export default function AdminAuditPage() {
               }}
               className="h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white"
             >
-              <option value="">Все типы</option>
+              <option value="">{copy.audit.allTypes}</option>
               <option>Campaign</option>
               <option>Cache</option>
               <option>Offer</option>
@@ -239,7 +224,7 @@ export default function AdminAuditPage() {
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">Дата от</label>
+            <label className="text-xs text-gray-500">{copy.audit.dateFrom}</label>
             <input
               type="date"
               value={dateFrom}
@@ -251,7 +236,7 @@ export default function AdminAuditPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">Дата до</label>
+            <label className="text-xs text-gray-500">{copy.audit.dateTo}</label>
             <input
               type="date"
               value={dateTo}
@@ -266,12 +251,12 @@ export default function AdminAuditPage() {
 
         {isLoading ? (
           <div className="rounded-xl border border-gray-200 bg-white py-16">
-            <LoadingSpinner text="Загружаем журнал аудита..." />
+            <LoadingSpinner text={copy.audit.loading} />
           </div>
         ) : loadError ? (
           <div className="rounded-xl border border-gray-200 bg-white">
             <ErrorState
-              title="Не удалось загрузить журнал аудита"
+              title={copy.audit.errorTitle}
               description={loadError}
               onRetry={() => setReloadKey((value) => value + 1)}
             />
@@ -282,10 +267,10 @@ export default function AdminAuditPage() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">ID</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Actor</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Action</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Entity</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Timestamp</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.audit.actor}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.audit.action}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.audit.entity}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.audit.timestamp}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -307,13 +292,13 @@ export default function AdminAuditPage() {
                         <span className="text-gray-700">{entry.entity_type}</span>
                         <span className="ml-1.5 text-xs text-gray-400 font-mono">{entry.entity_id}</span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{new Date(entry.timestamp).toLocaleString('ru')}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{formatAdminDateTime(entry.timestamp, language)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-500">
-                      По заданным фильтрам записей нет.
+                      {copy.audit.noRows}
                     </td>
                   </tr>
                 )}
@@ -322,7 +307,7 @@ export default function AdminAuditPage() {
 
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
               <div className="flex items-center gap-2 text-xs text-gray-500">
-                Показывать:
+                {copy.audit.show}
                 <select
                   value={pageSize}
                   onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -332,7 +317,7 @@ export default function AdminAuditPage() {
                   <option value={25}>25</option>
                   <option value={50}>50</option>
                 </select>
-                записей
+                {copy.audit.rows}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -342,7 +327,7 @@ export default function AdminAuditPage() {
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-xs text-gray-600">Стр. {page} / {totalPages}</span>
+                <span className="text-xs text-gray-600">{copy.common.page(page, totalPages)}</span>
                 <button
                   onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
                   disabled={page >= totalPages}
@@ -363,18 +348,22 @@ export default function AdminAuditPage() {
               <p className="font-semibold text-gray-900 text-sm">{selected.action}</p>
               <p className="text-xs text-gray-500 font-mono mt-0.5">{selected.id}</p>
             </div>
-            <button onClick={() => setSelected(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
+            <button
+              onClick={() => setSelected(null)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400"
+              title={copy.common.close}
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="p-4 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <p className="text-gray-400 mb-0.5">Actor</p>
+                <p className="text-gray-400 mb-0.5">{copy.audit.actor}</p>
                 <p className="text-gray-800 font-medium">{selected.actor}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Entity</p>
+                <p className="text-gray-400 mb-0.5">{copy.audit.entity}</p>
                 <p className="text-gray-800 font-medium">{selected.entity_type}</p>
               </div>
               <div>
@@ -382,12 +371,12 @@ export default function AdminAuditPage() {
                 <p className="text-gray-800 font-mono">{selected.entity_id}</p>
               </div>
               <div>
-                <p className="text-gray-400 mb-0.5">Time</p>
-                <p className="text-gray-800">{new Date(selected.timestamp).toLocaleString('ru')}</p>
+                <p className="text-gray-400 mb-0.5">{copy.audit.time}</p>
+                <p className="text-gray-800">{formatAdminDateTime(selected.timestamp, language)}</p>
               </div>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-2">Details (JSON)</p>
+              <p className="text-xs text-gray-400 mb-2">{copy.audit.details}</p>
               <pre className="bg-gray-950 text-emerald-400 text-xs p-3 rounded-lg overflow-auto max-h-64 font-mono leading-relaxed">
                 {JSON.stringify(selected.details, null, 2)}
               </pre>

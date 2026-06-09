@@ -4,8 +4,10 @@ import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../../shared/auth/AuthContext';
 import { ApiError } from '../../../shared/api/ApiError';
 import { getAdminRecsMetrics } from '../../../shared/api/adminMetrics';
+import { useI18n } from '../../../shared/i18n/LanguageContext';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { adminCopy } from './adminI18n';
 
 interface Experiment {
   id: number;
@@ -29,25 +31,17 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
 const toNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
     const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
+    if (Number.isFinite(parsed)) return parsed;
   }
-
   return null;
 };
 
 const toPercent = (value: unknown): string => {
   const num = toNumber(value);
-  if (num === null) {
-    return '—';
-  }
+  if (num === null) return '—';
   return `${(num * 100).toFixed(2).replace(/\.00$/, '')}%`;
 };
 
@@ -58,6 +52,8 @@ export default function AdminExperimentsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { language } = useI18n();
+  const copy = adminCopy[language];
 
   const [experimentList, setExperimentList] = useState<Experiment[]>([]);
   const [selected, setSelected] = useState<Experiment | null>(null);
@@ -66,9 +62,7 @@ export default function AdminExperimentsPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (isAuthLoading) {
-      return;
-    }
+    if (isAuthLoading) return;
 
     if (!user) {
       navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -83,9 +77,7 @@ export default function AdminExperimentsPage() {
 
       try {
         const response = await getAdminRecsMetrics();
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         const payload = asRecord(response) ?? {};
         const experimentsMap = asRecord(payload.experiments) ?? {};
@@ -107,32 +99,25 @@ export default function AdminExperimentsPage() {
             };
           });
 
-          const trafficPct = formatTraffic(totalImpressions, totalImpressions);
-          const defaultName = `Эксперимент ${index + 1}`;
-
           return {
             id: index + 1,
-            name: String(row.experiment_id ?? experimentId ?? defaultName),
+            name: String(row.experiment_id ?? experimentId ?? copy.experiments.defaultName(index + 1)),
             status: 'running',
-            traffic_pct: trafficPct,
+            traffic_pct: formatTraffic(totalImpressions, totalImpressions),
             started_at: '—',
-            description: 'Метрики эксперимента рекомендаций',
+            description: copy.experiments.defaultDescription,
             variants,
-            guardrails: ['CTR выше базовой версии', 'Конверсия не ниже контрольной группы'],
+            guardrails: [copy.experiments.guardrailCtr, copy.experiments.guardrailCr],
           } as Experiment;
         });
 
         setExperimentList(mapped);
         setSelected((current) => {
-          if (!current) {
-            return null;
-          }
+          if (!current) return null;
           return mapped.find((item) => item.id === current.id) ?? null;
         });
       } catch (error) {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
@@ -140,11 +125,9 @@ export default function AdminExperimentsPage() {
         }
 
         setExperimentList([]);
-        setLoadError('Не удалось загрузить эксперименты рекомендаций. Попробуйте ещё раз.');
+        setLoadError(copy.experiments.loadError);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     };
 
@@ -153,7 +136,7 @@ export default function AdminExperimentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthLoading, location.pathname, navigate, reloadKey, user]);
+  }, [copy.experiments, isAuthLoading, location.pathname, navigate, reloadKey, user]);
 
   const hasData = useMemo(() => experimentList.length > 0, [experimentList.length]);
 
@@ -162,37 +145,37 @@ export default function AdminExperimentsPage() {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-semibold text-gray-900 text-xl">Recs Experiments</h1>
-            <p className="text-sm text-gray-500 mt-0.5">A/B эксперименты рекомендательной системы</p>
+            <h1 className="font-semibold text-gray-900 text-xl">{copy.experiments.title}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{copy.experiments.subtitle}</p>
           </div>
         </div>
 
         {isLoading ? (
           <div className="rounded-xl border border-gray-200 bg-white py-16">
-            <LoadingSpinner text="Загружаем эксперименты..." />
+            <LoadingSpinner text={copy.experiments.loading} />
           </div>
         ) : loadError ? (
           <div className="rounded-xl border border-gray-200 bg-white">
             <ErrorState
-              title="Не удалось загрузить эксперименты"
+              title={copy.experiments.errorTitle}
               description={loadError}
               onRetry={() => setReloadKey((value) => value + 1)}
             />
           </div>
         ) : !hasData ? (
           <div className="rounded-xl border border-[#EAE6EF] bg-white p-6 text-sm text-[#6B7280]">
-            Эксперименты пока не найдены.
+            {copy.experiments.empty}
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">Название</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Статус</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">Трафик</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">Запущен</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-gray-500">{copy.experiments.name}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.experiments.status}</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-gray-500">{copy.experiments.traffic}</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500">{copy.experiments.started}</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -238,20 +221,21 @@ export default function AdminExperimentsPage() {
             <button
               onClick={() => setSelected(null)}
               className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400"
+              title={copy.common.close}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="p-4 flex flex-col gap-4">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Статус</p>
+              <p className="text-xs text-gray-500 mb-1">{copy.experiments.status}</p>
               <span className={`inline-flex px-2 py-0.5 text-xs rounded-full border font-medium ${statusColors[selected.status]}`}>
                 {selected.status}
               </span>
             </div>
 
             <div>
-              <p className="text-xs text-gray-500 mb-2">Варианты</p>
+              <p className="text-xs text-gray-500 mb-2">{copy.experiments.variants}</p>
               <div className="flex flex-col gap-2">
                 {selected.variants.length > 0 ? (
                   selected.variants.map((variant) => (
@@ -265,13 +249,13 @@ export default function AdminExperimentsPage() {
                     </div>
                   ))
                 ) : (
-                  <div className="text-xs text-gray-500">Данные по вариантам отсутствуют.</div>
+                  <div className="text-xs text-gray-500">{copy.experiments.noVariants}</div>
                 )}
               </div>
             </div>
 
             <div>
-              <p className="text-xs text-gray-500 mb-2">Guardrails</p>
+              <p className="text-xs text-gray-500 mb-2">{copy.experiments.guardrails}</p>
               <ul className="flex flex-col gap-1">
                 {selected.guardrails.map((guardrail) => (
                   <li key={guardrail} className="flex items-start gap-2 text-xs text-gray-700">
