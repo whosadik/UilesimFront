@@ -185,6 +185,10 @@ const cartPageCopy = {
     offerCategoryScope: (value: string) => `Оффер действует на категорию «${value}».`,
     offerTypeScope: (value: string) => `Оффер действует на товары типа «${value}».`,
     offerMatchingProducts: 'Оффер будет применён к подходящим товарам.',
+    offerNotApplicable: 'Оффер не подходит к товарам в этой корзине.',
+    offerChoiceTitle: 'Выберите выгоду',
+    offerBestLabel: 'Лучшая',
+    offerAutoSelect: 'Выбрать автоматически',
     upsellOfferProductTitle: 'Товар из персонального оффера',
     upsellOfferProductDescription: 'Добавьте этот товар в корзину, чтобы использовать текущий оффер при оформлении.',
     upsellWatchTitle: 'Следите за roadmap и персональными офферами',
@@ -270,6 +274,10 @@ const cartPageCopy = {
     offerCategoryScope: (value: string) => `Оффер «${value}» санатына жарамды.`,
     offerTypeScope: (value: string) => `Оффер «${value}» түріндегі тауарларға жарамды.`,
     offerMatchingProducts: 'Оффер сәйкес тауарларға қолданылады.',
+    offerNotApplicable: 'Оффер осы себеттегі тауарларға сәйкес келмейді.',
+    offerChoiceTitle: 'Пайдалы ұсынысты таңдаңыз',
+    offerBestLabel: 'Ең тиімді',
+    offerAutoSelect: 'Автоматты таңдау',
     upsellOfferProductTitle: 'Жеке офферден тауар',
     upsellOfferProductDescription: 'Қазіргі офферді рәсімдеуде пайдалану үшін осы тауарды себетке қосыңыз.',
     upsellWatchTitle: 'Roadmap пен жеке офферлерді бақылаңыз',
@@ -355,6 +363,10 @@ const cartPageCopy = {
     offerCategoryScope: (value: string) => `The offer applies to the "${value}" category.`,
     offerTypeScope: (value: string) => `The offer applies to "${value}" products.`,
     offerMatchingProducts: 'The offer will apply to matching products.',
+    offerNotApplicable: 'This offer does not apply to the products in this cart.',
+    offerChoiceTitle: 'Choose a benefit',
+    offerBestLabel: 'Best',
+    offerAutoSelect: 'Choose automatically',
     upsellOfferProductTitle: 'Product from your personal offer',
     upsellOfferProductDescription: 'Add this product to your cart to use the current offer at checkout.',
     upsellWatchTitle: 'Track roadmap and personal offers',
@@ -370,6 +382,112 @@ const cartPageCopy = {
 
 type CartPageLanguage = keyof typeof cartPageCopy;
 type CartCopy = (typeof cartPageCopy)[CartPageLanguage];
+
+type DisplayNameLabels = Record<CartPageLanguage, Record<string, string>>;
+
+const campaignDisplayNames: DisplayNameLabels = {
+  ru: {
+    'personal roadmap step': 'Персональный шаг roadmap',
+    onboarding_first_order: 'Первый заказ',
+    favorite_category: 'Любимая категория',
+    winback_30d: 'Возвращение к покупкам',
+    fragrance_crosssell: 'Подбор ароматов',
+    skincare_retention: 'Следующий шаг ухода',
+    makeup_push: 'Макияж',
+    default: 'Персональная подборка',
+    'beauty week: уход -15%': 'Beauty Week: уход -15%',
+    'hair repair days -12%': 'Дни восстановления волос -12%',
+    'makeup glow -10%': 'Glow-макияж -10%',
+    'fragrance evening -18%': 'Вечерние ароматы -18%',
+    "d'alba brand focus -20%": "d'Alba: фокус на бренд -20%",
+    '3ina makeup brand -15%': '3INA: макияж -15%',
+    'cleanser duo deal -22%': 'Дуо очищения -22%',
+  },
+  kk: {
+    'personal roadmap step': 'Roadmap-тағы жеке қадам',
+    onboarding_first_order: 'Алғашқы тапсырыс',
+    favorite_category: 'Сүйікті санат',
+    winback_30d: 'Қайта сатып алу',
+    fragrance_crosssell: 'Хош иістер топтамасы',
+    skincare_retention: 'Күтімнің келесі қадамы',
+    makeup_push: 'Макияж',
+    default: 'Жеке ұсыныс',
+    'beauty week: уход -15%': 'Beauty Week: күтім -15%',
+    'beauty week: skincare -15%': 'Beauty Week: күтім -15%',
+    'hair repair days -12%': 'Шашты қалпына келтіру күндері -12%',
+    'makeup glow -10%': 'Glow-макияж -10%',
+    'fragrance evening -18%': 'Кешкі хош иістер -18%',
+    "d'alba brand focus -20%": "d'Alba: бренд фокусы -20%",
+    '3ina makeup brand -15%': '3INA: макияж -15%',
+    'cleanser duo deal -22%': 'Тазартқыш дуо -22%',
+  },
+  en: {
+    'personal roadmap step': 'Personal roadmap step',
+    onboarding_first_order: 'First order',
+    favorite_category: 'Favorite category',
+    winback_30d: 'Comeback offer',
+    fragrance_crosssell: 'Fragrance discovery',
+    skincare_retention: 'Next skincare step',
+    makeup_push: 'Makeup recommendation',
+    default: 'Personal pick',
+    'beauty week: уход -15%': 'Beauty Week: skincare -15%',
+    'beauty week: skincare -15%': 'Beauty Week: skincare -15%',
+    'hair repair days -12%': 'Hair Repair Days -12%',
+    'makeup glow -10%': 'Makeup Glow -10%',
+    'fragrance evening -18%': 'Fragrance Evening -18%',
+    "d'alba brand focus -20%": "d'Alba Brand Focus -20%",
+    '3ina makeup brand -15%': '3INA Makeup Brand -15%',
+    'cleanser duo deal -22%': 'Cleanser Duo Deal -22%',
+  },
+};
+
+const offerDisplayNames: DisplayNameLabels = {
+  ru: {
+    'персонально: -25% на следующий шаг': 'Персонально: -25% на следующий шаг',
+    'welcome: -15% на первый заказ': 'Первый заказ: -15%',
+    'любимая категория: -18%': 'Любимая категория: -18%',
+    'comeback: -20% на корзину': 'Возвращение: -20% на корзину',
+    'fragrance discovery: -15%': 'Ароматы: -15%',
+    'x2 баллы на fragrance': 'x2 баллы на ароматы',
+    'skincare next step: -16%': 'Следующий шаг ухода: -16%',
+    'x2 баллы на skincare routine': 'x2 баллы на уход',
+    'makeup next step: -12%': 'Следующий шаг макияжа: -12%',
+    '3ina personal brand: -15%': '3INA: персонально -15%',
+    'default cart: -7%': 'Корзина: -7%',
+    'haircare next step: -12%': 'Следующий шаг ухода за волосами: -12%',
+    'x2 баллы на корзину': 'x2 баллы на корзину',
+  },
+  kk: {
+    'персонально: -25% на следующий шаг': 'Жеке ұсыныс: келесі қадамға -25%',
+    'welcome: -15% на первый заказ': 'Алғашқы тапсырыс: -15%',
+    'любимая категория: -18%': 'Сүйікті санат: -18%',
+    'comeback: -20% на корзину': 'Қайта сатып алу: себетке -20%',
+    'fragrance discovery: -15%': 'Хош иістер: -15%',
+    'x2 баллы на fragrance': 'Хош иістерге x2 ұпай',
+    'skincare next step: -16%': 'Күтімнің келесі қадамы: -16%',
+    'x2 баллы на skincare routine': 'Күтімге x2 ұпай',
+    'makeup next step: -12%': 'Макияждың келесі қадамы: -12%',
+    '3ina personal brand: -15%': '3INA: жеке -15%',
+    'default cart: -7%': 'Себет: -7%',
+    'haircare next step: -12%': 'Шаш күтімінің келесі қадамы: -12%',
+    'x2 баллы на корзину': 'Себетке x2 ұпай',
+  },
+  en: {
+    'персонально: -25% на следующий шаг': 'Personal next step: -25%',
+    'welcome: -15% на первый заказ': 'First order: -15%',
+    'любимая категория: -18%': 'Favorite category: -18%',
+    'comeback: -20% на корзину': 'Comeback cart: -20%',
+    'fragrance discovery: -15%': 'Fragrance discovery: -15%',
+    'x2 баллы на fragrance': 'x2 points on fragrance',
+    'skincare next step: -16%': 'Skincare next step: -16%',
+    'x2 баллы на skincare routine': 'x2 points on skincare routine',
+    'makeup next step: -12%': 'Makeup next step: -12%',
+    '3ina personal brand: -15%': '3INA personal brand: -15%',
+    'default cart: -7%': 'Default cart: -7%',
+    'haircare next step: -12%': 'Haircare next step: -12%',
+    'x2 баллы на корзину': 'x2 points on cart',
+  },
+};
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -401,6 +519,59 @@ const firstString = (...values: unknown[]): string | undefined => {
 
 const formatLabel = (value: unknown): string | undefined => {
   return formatCatalogFreeTextLabel(value);
+};
+
+const normalizeDisplayNameKey = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[–—−]/g, '-')
+    .replace(/\s*:\s*/g, ': ')
+    .replace(/\s+/g, ' ');
+
+const formatKnownDisplayName = (
+  value: unknown,
+  language: CartPageLanguage,
+  labels: DisplayNameLabels,
+): string | undefined => {
+  const raw = firstString(value);
+  if (!raw) return undefined;
+
+  const normalized = normalizeDisplayNameKey(raw);
+  const known = labels[language][normalized] ?? labels[language][raw.trim()];
+  if (known) return known;
+
+  if (/^[a-z0-9_]+$/i.test(raw)) {
+    return formatLabel(raw);
+  }
+
+  return raw;
+};
+
+const formatCampaignDisplayName = (
+  value: unknown,
+  language: CartPageLanguage,
+): string | undefined => formatKnownDisplayName(value, language, campaignDisplayNames);
+
+const formatOfferDisplayName = (
+  value: unknown,
+  language: CartPageLanguage,
+): string | undefined => formatKnownDisplayName(value, language, offerDisplayNames);
+
+const formatOfferValueLabel = (
+  offer: ActiveOffer,
+  fallbackTitle: string,
+  language: CartPageLanguage,
+  copy: CartCopy,
+): string => {
+  if (offer.type === 'discount' && offer.value !== undefined) {
+    return copy.activeOfferDiscount(offer.value);
+  }
+  if (offer.type === 'points_multiplier' && offer.value !== undefined) {
+    return copy.activeOfferPoints(offer.value);
+  }
+
+  return formatOfferDisplayName(offer.name, language) ?? (offer.name || fallbackTitle);
 };
 
 const formatTierName = (value: string, language: CartPageLanguage): string => {
@@ -1162,10 +1333,11 @@ export default function CartPage() {
   const offerSourceBadgeClass = displayedOffer?.sourceType === 'public_campaign'
     ? 'border-[#A7F3D0] bg-[#D1FAE5] text-[#047857]'
     : 'border-[#C7D2FE] bg-[#EEF2FF] text-[#4338CA]';
+  const displayedCampaignName = formatCampaignDisplayName(displayedOffer?.campaignName, language);
   const offerSourceText = displayedOffer
     ? displayedOffer.sourceType === 'public_campaign'
-      ? copy.offerCampaignSource(displayedOffer.campaignName)
-      : copy.offerSystemSource(displayedOffer.campaignName)
+      ? copy.offerCampaignSource(displayedCampaignName)
+      : copy.offerSystemSource(displayedCampaignName)
     : undefined;
   const offerScopedLabel =
     (displayedOffer?.targetCategory
@@ -1180,11 +1352,7 @@ export default function CartPage() {
   const offerBaseTitle =
     !displayedOffer
       ? copy.noPersonalOfferTitle
-      : displayedOffer.type === 'discount' && displayedOffer.value !== undefined
-        ? copy.activeOfferDiscount(displayedOffer.value)
-        : displayedOffer.type === 'points_multiplier' && displayedOffer.value !== undefined
-          ? copy.activeOfferPoints(displayedOffer.value)
-          : displayedOffer.name || fallbackOfferTitle;
+      : formatOfferValueLabel(displayedOffer, fallbackOfferTitle, language, copy);
   const offerTitle =
     !displayedOffer
       ? copy.noPersonalOfferTitle
@@ -1215,7 +1383,7 @@ export default function CartPage() {
     roadmapUpsell ??
     (activeOffer?.targetProductId
       ? {
-          title: activeOffer.name || copy.upsellOfferProductTitle,
+          title: formatOfferValueLabel(activeOffer, copy.upsellOfferProductTitle, language, copy),
           description: copy.upsellOfferProductDescription,
           actionHref: `/product/${activeOffer.targetProductId}`,
           actionLabel: copy.open,
@@ -1378,10 +1546,10 @@ export default function CartPage() {
                     ) : inapplicableActiveOffer ? (
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-[#374151]">
-                          {inapplicableActiveOffer.name || fallbackOfferTitle}
+                          {formatOfferValueLabel(inapplicableActiveOffer, fallbackOfferTitle, language, copy)}
                         </p>
                         <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                          Оффер не подходит к товарам в этой корзине.
+                          {copy.offerNotApplicable}
                         </p>
                       </div>
                     ) : null}
@@ -1391,20 +1559,16 @@ export default function CartPage() {
                   {hasAvailableAlternatives && (
                     <div className="px-4 pb-3 pt-1 space-y-1.5 border-t border-[#FDDCEF]">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7280]">
-                        Выберите выгоду
+                        {copy.offerChoiceTitle}
                       </p>
                       {availableOffers.map((option) => {
                         const isActive = option.key === activeChoiceKey;
                         const isBest = option.key === availableOffers[0].key;
-                        const optionLabel =
-                          option.offer.type === 'discount' && option.offer.value !== undefined
-                            ? copy.activeOfferDiscount(option.offer.value)
-                            : option.offer.type === 'points_multiplier' && option.offer.value !== undefined
-                              ? copy.activeOfferPoints(option.offer.value)
-                              : option.offer.name || fallbackOfferTitle;
+                        const optionLabel = formatOfferValueLabel(option.offer, fallbackOfferTitle, language, copy);
                         const sourceLabel = option.offer.sourceType === 'public_campaign'
                           ? copy.offerSourceBadgeCampaign
                           : copy.offerSourceBadgeSystem;
+                        const campaignName = formatCampaignDisplayName(option.offer.campaignName, language);
                         return (
                           <label
                             key={option.key}
@@ -1435,12 +1599,12 @@ export default function CartPage() {
                                 </span>
                                 {isBest && (
                                   <span className="text-[9px] font-semibold uppercase tracking-wide text-[#FF4DB8]">
-                                    Лучшая
+                                    {copy.offerBestLabel}
                                   </span>
                                 )}
                               </div>
-                              {option.offer.campaignName && (
-                                <p className="text-[11px] text-[#6B7280] truncate">{option.offer.campaignName}</p>
+                              {campaignName && (
+                                <p className="text-[11px] text-[#6B7280] truncate">{campaignName}</p>
                               )}
                               <p className="text-[11px] text-[#374151] mt-0.5">
                                 −{formatMoney(option.discountAmount, language)}
@@ -1455,7 +1619,7 @@ export default function CartPage() {
                           onClick={() => setOfferChoice({ kind: 'auto' })}
                           className="text-[11px] text-[#6B7280] underline underline-offset-2 hover:text-[#111827]"
                         >
-                          Выбрать автоматически
+                          {copy.offerAutoSelect}
                         </button>
                       )}
                     </div>
